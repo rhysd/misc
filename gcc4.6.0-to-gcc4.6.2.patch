@@ -1,0 +1,22 @@
+--- gcc.rb	2011-11-05 03:39:00.000000000 +0900
++++ gcc-4.6.2.rb	2011-11-05 03:37:55.000000000 +0900
+@@ -55,8 +55,8 @@
+ 
+ class Gcc < Formula
+   homepage 'http://gcc.gnu.org'
+-  url 'http://ftpmirror.gnu.org/gcc/gcc-4.6.0/gcc-4.6.0.tar.bz2'
+-  md5 '93d1c436bf991564524701259b6285a2'
++  url 'http://ftpmirror.gnu.org/gcc/gcc-4.6.2/gcc-4.6.2.tar.bz2'
++  md5 '028115c4fbfb6cfd75d6369f4a90d87e'
+ 
+   depends_on 'gmp'
+   depends_on 'libmpc'
+@@ -108,7 +108,7 @@
+       "--with-system-zlib",
+       "--enable-stage1-checking",
+       "--enable-plugin",
+-      "--disable-lto" # Change to enable when 4.6.1 is released
++      "--enable-lto" # Change to enable when 4.6.1 is released
+     ]
+ 
+     args << '--disable-nls' unless nls?
