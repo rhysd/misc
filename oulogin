@@ -1,0 +1,84 @@
+#! /usr/bin/env ruby
+# -*- coding: utf-8 -*-
+
+Profile = "/.oulogin_profile"
+
+require 'mechanize'
+require 'rubygems'
+
+idx = ARGV.index "-help"
+if idx != nil
+  print "oulogin:
+\tenable osaka-u wireless login. you must put profile file at your home directory.
+\tformat is below
+
+file name: ~/.oulogin_profile
+
+file contents:
+\tyour_id
+\tyour_password"
+  exit 0
+end
+
+agent = Mechanize.new
+agent.user_agent_alias = 'Linux Mozilla'
+
+begin
+  f = File.open(File.expand_path("~")+Profile,'r')
+  userid = f.readline.chomp
+  passwd = f.readline.chomp
+rescue => error
+  puts "error found"
+  puts error.to_s
+  puts
+  print "make next file and set permission
+
+file name: ~/.oulogin_profile
+
+file contents:
+your_id
+your_password"
+  exit 0
+end
+f.close
+
+begin
+  agent.get "https://login.odins.osaka-u.ac.jp/login.gsp"
+rescue => error
+  puts "error found:"
+  puts error
+  exit 0
+end
+
+#forms[0]:最初の<form>を取ってくる
+form = agent.page.forms[0]
+
+form.field_with(:name => 'logout') do |field|
+  if field!=nil
+    puts "you already login"
+    exit 0
+  end
+end
+
+form.field_with(:name => 'user') do |field|
+  field.value = userid
+end
+
+form.field_with(:name => 'pass') do |field|
+  field.value = passwd
+end
+
+form.click_button
+
+# userid or passwd fail check
+agent.get "https://login.odins.osaka-u.ac.jp/login.gsp"
+agent.page.forms[0].field_with(:name => 'logout') do |field|
+  if field == nil
+    puts "error found:"
+    puts "can't login osaka-u"
+    puts "invalid user_id or invalid password"
+    exit 0
+  end
+end
+
+puts "Hello, osaka-u!"
