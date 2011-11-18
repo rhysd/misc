@@ -17,3 +17,12 @@ oulogin.rb
  - in .oulogin_profile, write your KOAN id at first line and your Password at second line
  - Don't write any other term
  - this script requires readline and mechanize
+
+boost-1_47_0-to-1_48_0.patch
+ - this is patch for Homebrew's boost-1_47_0  Formula 
+ - this patch enable boost.rb to install boost 1.48.0
+ - original file is here: /usr/local/Library/Formula/boost.rb
+ - howto:
+    % cp /usr/local/Library/Formula/boost.rb .
+    % patch < boost-1_47_0-to-1_48_0.patch
+    % brew install ./boost.rb --enable-cxx --enable-objc
