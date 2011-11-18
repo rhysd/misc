@@ -25,4 +25,15 @@ boost-1_47_0-to-1_48_0.patch
  - howto:
     % cp /usr/local/Library/Formula/boost.rb .
     % patch < boost-1_47_0-to-1_48_0.patch
-    % brew install ./boost.rb --enable-cxx --enable-objc
+    % brew install ./boost.rb
+
+get1tweet.rb
+ - this is Ruby script for getting tweets
+ - this requires gem:twitter ( % gem install twitter )
+ - you can display tweet in zsh prompt with this
+ - % ruby get1tweet.rb init
+   -> initialize resource file ~/.timeline
+   -> you should do this command first
+ - % ruby get1tweet.rb
+   -> get one tweet from resource file
+   -> if resource file is empty, get more timeline from twitter
