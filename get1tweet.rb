@@ -18,6 +18,7 @@ def set_timeline page = 1
         File.open(File.expand_path("~")+TmpFilePath, mode="w") do  |file|
             file.puts page
             Twitter.home_timeline(:page => page).each do |t|
+                t.text = t.text.split("\n").join(" ") if t.text.include? "\n" 
                 file.puts "@" + t.user.screen_name + ": " + t.text
             end
         end
