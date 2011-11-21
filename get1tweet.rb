@@ -1,29 +1,35 @@
 #!/usr/bin/env ruby
 # -*- coding: utf-8 -*-
 
-require 'rubygems'
-require 'twitter'
-
 TmpFilePath = "/.timeline"
 
 def set_timeline page = 1
+
+    require 'rubygems' if RUBY_VERSION.to_f < 1.9
+    require 'twitter'
+
     Twitter::configure do |config|
         config.consumer_key = 'your_consumer_key'
         config.consumer_secret = 'your_consumer_secret'
-        config.oauth_token = 'your_auth_token'
-        config.oauth_token_secret = 'your_auth_secret'
+        config.oauth_token = 'your_oauth_token'
+        config.oauth_token_secret = 'your_oauth_secret'
     end
 
+    file_path = File.expand_path("~")+TmpFilePath
+
     begin
-        File.open(File.expand_path("~")+TmpFilePath, mode="w") do  |file|
+        File.open(file_path, mode="w") do  |file|
             file.puts page
             Twitter.home_timeline(:page => page).each do |t|
-                t.text = t.text.split("\n").join(" ") if t.text.include? "\n" 
+                t.text = t.text.split("\n").join(" ") if t.text.include? "\n"
                 file.puts "@" + t.user.screen_name + ": " + t.text
             end
         end
     rescue 
-        exit if page == 1
+        if page == 1 then
+            File.delete file_path
+            exit
+        end
         page = 1
         retry
     end
@@ -39,10 +45,10 @@ if __FILE__ == $0 then
         exit
     end
 
-    exit unless File.exist?(File.expand_path("~")+TmpFilePath)
+    file_path = File.expand_path("~")+TmpFilePath
+    exit unless File.exist? file_path
 
     tweets = ""
-    file_path = File.expand_path("~")+TmpFilePath
     File.open(file_path, mode="r") do |file|
         tweets = file.read.split "\n"
     end
@@ -55,13 +61,12 @@ if __FILE__ == $0 then
         end
     end
 
+    puts
     puts tweets[1]
 
     File.open(file_path, mode="w") do |file|
         tweets.each_with_index do |tweet,i|
-            if i != 1
-                file.puts tweet
-            end
+            file.puts tweet unless i == 1
         end
     end
 
