@@ -21,13 +21,14 @@ def set_timeline page = 1
         File.open(file_path, mode="w") do  |file|
             file.puts page
             Twitter.home_timeline(:page => page).each do |t|
-                t.text = t.text.split("\n").join(" ") if t.text.include? "\n"
-                file.puts "@" + t.user.screen_name + ": " + t.text
+                # t.text = t.text.split("\n").join(" ") if t.text.include? "\n"
+                file.puts "@" + t.user.screen_name + ": " + (t.text.include?("\n") ? t.text.split("\n").join(" ") : t.text)
             end
         end
-    rescue 
+    rescue => error
         if page == 1 then
             File.delete file_path
+            p error
             exit
         end
         page = 1
