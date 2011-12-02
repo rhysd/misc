@@ -37,3 +37,6 @@ get1tweet.rb
  - % ruby get1tweet.rb
    -> get one tweet from resource file
    -> if resource file is empty, get more timeline from twitter
+
+google_progress.rb
+ - you can use Google progress bar!
