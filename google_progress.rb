@@ -9,8 +9,8 @@ class GoogleProgress
     end
 
     def +@
+        return if @tic >= @max
         @tic += 1
-        return if @tic > @max
         draw_progress_bar
         puts if @tic == @max
     end
