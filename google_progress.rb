@@ -15,7 +15,12 @@ class GoogleProgress
         puts if @tic == @max
     end
 
+    def reset
+        @tic = 0
+    end
+
 private
+
     Default = "\e[0m"
     Blue = "\e[34m"
     Red = "\e[31m"
