@@ -42,10 +42,15 @@ end
 # main
 #
 if __FILE__ == $0 then
+
+    # new with max count value
     google_progress = GoogleProgress.new 100
+    # count up with some treatment
     100.times do 
+        # count up by using unary + operator
         +google_progress
         sleep 0.1
     end
+
 end
 
