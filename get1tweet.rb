@@ -28,9 +28,9 @@ def set_timeline page = 1
         File.open(file_path, mode="w") do  |file|
             file.puts page
             Twitter.home_timeline(:page => page).each do |t|
-                file.puts "@" + t.user.screen_name + ": " \
+                file.puts "\e[36m@" + t.user.screen_name + ":\e[0m " \
                               + (t.text.include?("\n") ? t.text.split("\n").join(" ") : t.text) \
-                              + " [" + t.created_at.to_s.split(" ")[1] + "]"
+                              + " \e[33m[" + t.created_at.to_s.split(" ")[1] + "]\e[0m"
             end
         end
     rescue => error
