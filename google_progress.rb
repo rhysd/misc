@@ -34,7 +34,7 @@ private
 
     def draw_progress_bar
         oo = @tic*20/@max
-        print "\r#{google(oo)} [#{Float(@tic*100)/@max}]"
+        print "\r#{google(oo)} [#{Float(@tic*100)/@max}%]"
     end
 end
 

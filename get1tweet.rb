@@ -3,7 +3,7 @@
 
 TmpFilePath = "/.timeline"
 
-def set_timeline page = 1
+def config_twitter
 
     require 'rubygems' if RUBY_VERSION.to_f < 1.9
     require 'twitter'
@@ -14,6 +14,13 @@ def set_timeline page = 1
         config.oauth_token = 'your_oauth_token'
         config.oauth_token_secret = 'your_oauth_secret'
     end
+end
+
+def set_timeline page = 1
+
+    print "getting home timeline(page: #{page})... "
+
+    config_twitter
 
     file_path = File.expand_path("~")+TmpFilePath
 
@@ -21,8 +28,9 @@ def set_timeline page = 1
         File.open(file_path, mode="w") do  |file|
             file.puts page
             Twitter.home_timeline(:page => page).each do |t|
-                # t.text = t.text.split("\n").join(" ") if t.text.include? "\n"
-                file.puts "@" + t.user.screen_name + ": " + (t.text.include?("\n") ? t.text.split("\n").join(" ") : t.text)
+                file.puts "@" + t.user.screen_name + ": " \
+                              + (t.text.include?("\n") ? t.text.split("\n").join(" ") : t.text) \
+                              + " [" + t.created_at.to_s.split(" ")[1] + "]"
             end
         end
     rescue => error
@@ -34,6 +42,22 @@ def set_timeline page = 1
         page = 1
         retry
     end
+
+    puts "done."
+end
+
+def tweet status
+
+    print "updating status... "
+    config_twitter
+
+    begin
+        Twitter.update status if status.length <= 140
+    rescue => error
+        p error
+    end
+
+    puts "done."
 end
 
 #
@@ -41,8 +65,12 @@ end
 #
 if __FILE__ == $0 then
 
-    if ARGV[0] == "init" then
+    case ARGV[0]
+    when "init" then 
         set_timeline
+        exit
+    when "update" then
+        tweet ARGV[1]
         exit
     end
 
