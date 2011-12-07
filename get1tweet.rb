@@ -74,15 +74,15 @@ end
 def tweet status
 
     print "updating status... "
-    config_twitter
 
     begin
-        Twitter.update status if status.length <= 140
+        config_twitter
+        raise "length limit (140 chars) exceeded" if status.length > 140
+        Twitter.update status
+        puts "done."
     rescue => error
         p error
     end
-
-    puts "done."
 end
 
 #
