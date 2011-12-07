@@ -18,15 +18,15 @@ def config_twitter
 end
 
 def filtering? tweet
-    return false if tweet.text.include? MyScreenName
+    return false if tweet.user.screen_name==MyScreenName || tweet.text.include?(MyScreenName)
 
     bl_users = %w[ user1 user2 user3 ]
-    bl_regexs = [ "(?:w|ｗ){4,}", "RT @#{tweet.user.screen_name}: ", "^\\s*RT @" ]
+    bl_regexs = [ /(?:w|ｗ){4,}/, /RT @#{tweet.user.screen_name}:/, /^\s*RT @/ ]
 
     return true if bl_users.include? tweet.user.screen_name
 
     bl_regexs.each do |regex|
-        return true if tweet.text =~ /#{regex}/
+        return true if tweet.text =~ regex
     end
 
     false
