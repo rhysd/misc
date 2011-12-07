@@ -9,8 +9,8 @@ class GoogleProgress
     end
 
     def +@
-        return if @tic >= @max
         @tic += 1
+        return if @tic > @max
         draw_progress_bar
         puts if @tic == @max
     end
@@ -20,7 +20,6 @@ class GoogleProgress
     end
 
 private
-
     Default = "\e[0m"
     Blue = "\e[34m"
     Red = "\e[31m"
@@ -34,7 +33,7 @@ private
 
     def draw_progress_bar
         oo = @tic*20/@max
-        print "\r#{google(oo)} [#{Float(@tic*100)/@max}%]"
+        print "\r#{google(oo)} [" + sprintf("%.1f", Float(@tic*100)/@max) + "%]"
     end
 end
 
@@ -42,15 +41,10 @@ end
 # main
 #
 if __FILE__ == $0 then
-
-    # new with max count value
-    google_progress = GoogleProgress.new 100
-    # count up with some treatment
-    100.times do 
-        # count up by using unary + operator
+    google_progress = GoogleProgress.new 333
+    333.times do 
         +google_progress
-        sleep 0.1
+        sleep 0.03
     end
-
 end
 
