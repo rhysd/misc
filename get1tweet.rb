@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 TmpFilePath = "/.timeline"
+MyScreenName = "your_screen_name"
 
 def config_twitter
 
@@ -16,6 +17,21 @@ def config_twitter
     end
 end
 
+def filtering? tweet
+    return false if tweet.text.include? MyScreenName
+
+    bl_users = %w[ user1 user2 user3 ]
+    bl_regexs = [ "(?:w|ｗ){4,}", "RT @#{tweet.user.screen_name}: ", "^\\s*RT @" ]
+
+    return true if bl_users.include? tweet.user.screen_name
+
+    bl_regexs.each do |regex|
+        return true if tweet.text =~ /#{regex}/
+    end
+
+    false
+end
+
 def set_timeline page = 1
 
     print "getting home timeline(page: #{page})... "
@@ -28,9 +44,18 @@ def set_timeline page = 1
         File.open(file_path, mode="w") do  |file|
             file.puts page
             Twitter.home_timeline(:page => page).each do |t|
-                file.puts "\e[36m@" + t.user.screen_name + ":\e[0m " \
-                              + (t.text.include?("\n") ? t.text.split("\n").join(" ") : t.text) \
-                              + " \e[33m[" + t.created_at.to_s.split(" ")[1] + "]\e[0m"
+                next if filtering? t
+                text = t.text.include?("\n") ? t.text.split("\n").join(" ") : t.text
+                if text.include? MyScreenName
+                    text = "\e[1;32m#{text}\e[0m"
+                end
+                begin
+                    file.puts "\e[1;36m@" + t.user.screen_name + ":\e[0m " \
+                        + text \
+                        + " \e[33m[" + Time.parse(t.created_at).strftime("%m/%d %H:%M") + "]\e[0m"
+                rescue
+                    next
+                end
             end
         end
     rescue => error
@@ -66,7 +91,7 @@ end
 if __FILE__ == $0 then
 
     case ARGV[0]
-    when "init" then 
+    when "init" then
         set_timeline
         exit
     when "update" then
