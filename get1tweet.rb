@@ -105,24 +105,31 @@ if __FILE__ == $0 then
 
     tweets = ""
     File.open(file_path, mode="r") do |file|
-        exit unless file.flock(File::LOCK_EX | File::LOCK_NB)
+        unless file.flock(File::LOCK_EX | File::LOCK_NB)
+            puts
+            puts "getting page..."
+            exit
+        end
         tweets = file.read.split "\n"
     end
-    page = tweets[0].to_i
 
-    if tweets.size == 1 then
-        set_timeline page+1
-        File.open(file_path, mode="r") do |file|
-            tweets = file.read.split "\n"
-        end
-    end
+    page = tweets[0].to_i
 
     puts
     puts tweets[1]
 
+    # remove page data and displayed tweet
+    tweets.shift 2
+
+    if tweets.empty? then
+        set_timeline page+1
+        exit
+    end
+
     File.open(file_path, mode="w") do |file|
-        tweets.each_with_index do |tweet,i|
-            file.puts tweet unless i == 1
+        file.puts page
+        tweets.each do |tweet|
+            file.puts tweet
         end
     end
 
