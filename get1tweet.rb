@@ -34,7 +34,7 @@ end
 
 def set_timeline page = 1
 
-    print "getting home timeline(page: #{page})... "
+    Process.daemon true,true
 
     config_twitter
 
@@ -42,6 +42,8 @@ def set_timeline page = 1
 
     begin
         File.open(file_path, mode="w") do  |file|
+            file.flock File::LOCK_EX
+
             file.puts page
             Twitter.home_timeline(:page => page).each do |t|
                 next if filtering? t
@@ -68,7 +70,6 @@ def set_timeline page = 1
         retry
     end
 
-    puts "done."
 end
 
 def tweet status
@@ -104,6 +105,7 @@ if __FILE__ == $0 then
 
     tweets = ""
     File.open(file_path, mode="r") do |file|
+        exit unless file.flock(File::LOCK_EX | File::LOCK_NB)
         tweets = file.read.split "\n"
     end
     page = tweets[0].to_i
