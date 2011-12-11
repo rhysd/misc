@@ -40,3 +40,7 @@ get1tweet.rb
 
 google_progress.rb
  - you can use Google progress bar!
+
+compiletime_fizzbuzz.cpp
+ - compute FizzBuzz when this program is compiled.
+ - I write this for practice of TMP.

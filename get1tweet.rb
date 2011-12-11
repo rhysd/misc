@@ -103,7 +103,7 @@ if __FILE__ == $0 then
     file_path = File.expand_path("~")+TmpFilePath
     exit unless File.exist? file_path
 
-    tweets = ""
+    tweets = []
     File.open(file_path, mode="r") do |file|
         unless file.flock(File::LOCK_EX | File::LOCK_NB)
             puts

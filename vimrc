@@ -76,9 +76,12 @@ let g:plugin_dicwin_disable = 1
 if !has("gui_running")
 	inoremap <silent> <ESC> <ESC>:set iminsert=0<CR>
 endif
+" 補完でプレビューウィンドウを開かない
+set completeopt=longest,menu
 " foldingの設定
 set foldenable
 set foldmethod=marker
+autocmd FileType cpp,c  set foldmethod=syntax
 " カーソル下のハイライトグループを取得
 " command! -nargs=0 GetHighlightingGroup echo 'hi<' . synIDattr(synID(line('.'),col('.'),1),'name') . '> trans<' . synIDattr(synID(line('.'),col('.'),0),'name') . '> lo<' . synIDattr(synIDtrans(synID(line('.'),col('.'),1)),'name') . '>'
 "}}}
@@ -105,8 +108,13 @@ if !exists('g:neocomplcache_keyword_patterns')
 endif
 let g:neocomplcache_keyword_patterns['default'] = '\h\w*'
 "リスト表示
-let g:neocomplcache_max_list = 100
+let g:neocomplcache_max_list = 300
 let g:neocomplcache_max_keyword_width = 20
+" 辞書定義
+let g:neocomplcache_dictionary_filetype_lists = {
+    \ 'default' : '',
+    \ 'vimshell' : $HOME.'/.vimshell/command-history',
+    \ }
 "リストの最大幅を指定
 "let g:neocomplcache_max_filename_width = 25
 "ctagsへのパス
@@ -155,6 +163,7 @@ let g:neocomplcache_omni_patterns.c = '\%(\.\|->\)\h\w*'
 let g:neocomplcache_omni_patterns.cpp = '\h\w*\%(\.\|->\)\h\w*\|\h\w*::'
 "スニペットファイルのパス
 let g:neocomplcache_snippets_dir = $HOME.'/.vim/snippets'
+" 最大候補数
 " }}}
 
 """"""""""""""""""""""""""""""""""""""""""""
@@ -243,6 +252,26 @@ let g:vimfiler_execute_file_list = { 'c' : 'vim',  'h' : 'vim',  'cpp' : 'vim', 
                                   \ 'cc' : 'vim',  'rb' : 'vim',  'py' : 'vim',  'sh' : 'vim',
                                   \ 'java' : 'vim',  'txt' : 'vim',  'jpg' : 'open',  'png' : 'open',
                                   \ 'pdf' : 'open',  'html' : 'open',  'mp3' : 'open',  }
+
+" }}}
+
+""""""""""""""""""""""""""""""""""""""""""""
+"      neocomplecache-clang                "
+""""""""""""""""""""""""""""""""""""""""""""
+" {{{
+" libclangを使う
+let g:neocomplcache_clang_use_library = 1
+" ライブラリへのパス
+let g:neocomplcache_clang_library_path = '/Developer/usr/clang-ide/lib'
+" clangへのパス
+let g:neocomplcache_clang_executable_path = '/usr/bin'
+" let g:neocomplcache_clang_auto_options = ''
+" clangのコマンドオプション
+let g:neocomplcache_clang_user_options =
+    \'-I /usr/local/Cellar/gcc/4.6.2/gcc/include '.
+    \'-I /usr/include/c++/4.2.1 '.
+    \'-I /usr/include '.
+    \'-I /usr/local/Cellar/boost/1.48.0/include '
 " }}}
 
 """"""""""""""""""""""""""""""""""""""""""""
@@ -329,11 +358,10 @@ nnoremap <expr>gp '`['.strpart(getregtype(),0,1).'`]'
 " 日付の挿入
 inoremap <C-x>date <C-r>=strftime('%Y/%m/%d(%a) %H:%M')<CR>
 nnoremap <Leader>date :r<Space>!date<Space>+'\%Y/\%m/\%d(\%a)<Space>\%H:\%M'<CR>
-" 括弧の挿入
-inoremap {} {}<Left>
-inoremap "" ""<Left>
-inoremap [] []<Left>
-inoremap <> <><Left>
+" text-obj-lastpat
+nnoremap di/ d//e<CR>
+nnoremap ci/ c//e<CR>
+nnoremap yi/ y//e<CR>
 
 "VimShellの設定
 nmap <expr><Leader>vs "\<Plug>(vimshell_split_switch)"
@@ -411,6 +439,13 @@ autocmd FileType ruby imap <buffer> <expr><CR>  pumvisible() ? neocomplcache#sma
 
 " vimfiler.vim のキーマップ
 nnoremap <Leader>f :VimFiler<CR>
+nnoremap <Leader>F :VimFiler<Space>-no-quit<CR>
+
+" textobj-wiw のキーマップ
+let g:textobj_wiw_no_default_key_mappings = 1 " デフォルトキーマップの解除
+omap ac <Plug>(textobj-wiw-a)
+omap ic <Plug>(textobj-wiw-i)
+
 " }}}
 
 """""""""""""""""""""""""""""
@@ -442,6 +477,11 @@ Bundle 'vim-jp/vimdoc-ja'
 Bundle 'jceb/vim-hier'
 Bundle 'rhysd/my-vimtoggle'
 Bundle 'rhysd/my-endwise'
+Bundle 'Shougo/clang_complete'
+Bundle 'kana/vim-textobj-user'
+Bundle 'kana/vim-textobj-indent'
+" Bundle 'kana/vim-textobj-lastpat' これと同様の効果をキーマップに設定済み
+Bundle 'h1mesuke/textobj-wiw'
 " Bundle 'ujihisa/vimshell-ssh'
 " Bundle 'h1mesuke/vim-alignta'
 " Bundle 'ujihisa/unite-colorscheme'

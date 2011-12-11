@@ -18,5 +18,5 @@ if has("gui_running")
         au GUIEnter * set fullscreen "常にフルスクリーン
     endif
 
-    autocmd VimEnter * :VimShellPop
+    autocmd VimEnter * :VimFiler
 endif
