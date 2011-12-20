@@ -1,0 +1,49 @@
+#!/bin/sh
+
+CID_MEMO="${HOME}/.my-visor-cid"
+WID_MEMO="${HOME}/.my-visor-wid"
+TOTAL_TERMINAL="/usr/bin/gnome-terminal --geometry=212x35+0+0 --title=TotalTerminal"
+
+SAVED_WID=`cat $WID_MEMO`
+TERM_WID=`xdotool search --class gnome-terminal | grep $SAVED_WID`
+
+if [ -n "${TERM_WID}" ]; then
+	# if target terminal exists
+
+	WID=$SAVED_WID
+
+	if [ `xdotool getactivewindow` = "$WID" ]; then
+		# if TotalTerminal is active
+		xdotool windowunmap $WID
+		xdotool windowactivate `cat $CID_MEMO`
+	else
+		# if TotalTerminal is NOT active
+		xdotool getactivewindow > $CID_MEMO
+		xdotool windowmap $WID
+		xdotool windowactivate $WID
+	fi
+
+else
+	# if gnome-terminal hasn't been launched
+
+	if ! [ -f "$WID_MEMO" ]; then
+		touch $WID_MEMO
+	fi
+
+	if ! [ -f "$CID_MEMO" ]; then
+		touch $CID_MEMO
+	fi
+
+	# clear window id
+	echo > $WID
+	xdotool getactivewindow > $CID_MEMO
+
+	# start gnome-terminal
+	$TOTAL_TERMINAL &
+	sleep 1
+	WID=`xdotool search --class gnome-terminal | head -1`
+	echo $WID > $WID_MEMO
+	xdotool windowactivate $WID
+	wmctrl -i -r $WID -b add,fullscreen
+
+fi
