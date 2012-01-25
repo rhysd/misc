@@ -25,7 +25,7 @@ namespace detail {
             nth_root_impl( value, n, ((n-1) * base + value / power(base, n-1)) / n, epsilon );
     }
 
-};
+}
 
 constexpr double nth_root(double value, size_t n)
 {

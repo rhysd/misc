@@ -43,4 +43,7 @@ google_progress.rb
 
 compiletime_fizzbuzz.cpp
  - compute FizzBuzz when this program is compiled.
- - I write this for practice of TMP.
+ - I wrote this for practice of TMP.
+
+push_dotfiles.sh
+ - ShellScript for updating my dotfiles.
