@@ -1,0 +1,10 @@
+60,61c60,61
+<   url 'http://ftpmirror.gnu.org/gcc/gcc-4.6.2/gcc-4.6.2.tar.bz2'
+<   md5 '028115c4fbfb6cfd75d6369f4a90d87e'
+---
+>   url 'ftp://gcc.gnu.org/pub/gcc/releases/gcc-4.6.3/gcc-4.6.3.tar.bz2'
+>   md5 '773092fe5194353b02bb0110052a972e'
+116c116
+<       "--program-suffix=-#{version.slice(/\d\.\d/)}",
+---
+>       "--program-suffix=-4.6.3",
