@@ -1,5 +1,7 @@
-#!/usr/bin/env sh
+#!/usr/bin/env zsh
 # export name=$1
 
-/usr/local/texlive/2011/bin/x86_64-darwin/platex $1
-/usr/local/texlive/2011/bin/x86_64-darwin/dvipdfmx ${1%.*}
+set -e
+
+platex $1
+dvipdfmx ${1%.*}
