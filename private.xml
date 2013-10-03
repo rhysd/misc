@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<root>
+    <item>
+        <name>Use command keys to switch work spaces(switching to work space is set to default mappings in system)</name>
+        <identifier>remap.my_switch_work_spaces</identifier>
+        <autogen>__HoldingKeyToKey__ KeyCode::COMMAND_L, KeyCode::CURSOR_LEFT,  ModifierFlag::CONTROL_L, KeyCode::VK_NONE, KeyCode::VK_CONFIG_SYNC_KEYDOWNUP_notsave_jis_command2eisuukana_prefer_eisuukana, ModifierFlag::COMMAND_L</autogen>
+        <autogen>__HoldingKeyToKey__ KeyCode::COMMAND_R, KeyCode::CURSOR_RIGHT, ModifierFlag::CONTROL_R, KeyCode::VK_NONE, KeyCode::VK_CONFIG_SYNC_KEYDOWNUP_notsave_jis_command2eisuukana_prefer_eisuukana, ModifierFlag::COMMAND_R</autogen>
+    </item>
+</root>
