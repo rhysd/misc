@@ -1,7 +1,7 @@
 author Linda_pp
 date   13 Nov 2013
 place  kabukiza tech#2
-font   Ricty:h75
+font   Ricty:h45
 
 # clang-format
 
@@ -22,6 +22,8 @@ font   Ricty:h75
 - 他人が書いたコードがぐちゃぐちゃで読みづらい
 
     手元で整形してから読みたい
+
+- そもそも手で整形するのが面倒くさい
 
 ## それ clang-format で解決できるのでは
 
@@ -47,10 +49,12 @@ clang-format -style={style} [-i] {file}
 for(int i=0;i<4;++i){
     if(i%2==0) std::cout << hoge[i] << std::endl;
 }
+```
 
-
-
-
+```cpp
+for (int i = 0; i < 4; ++i) {
+    if (i % 2 == 0) std::cout << hoge[i] << std::endl;
+}
 ```
 
 ### // フォーマット例
@@ -67,20 +71,40 @@ constexpr bool operator()(ArrayL const& lhs, ArrayR const& rhs, size_t i) const
 }
 ```
 
+```cpp
+template <class ArrayL, class ArrayR>
+constexpr bool operator()(ArrayL const& lhs,
+                          ArrayR const& rhs, size_t i) const
+{
+    return i == ls
+               ? false
+               : i == rs ? true
+                         : lhs[i] < rhs[i]
+                               ? false
+                               : lhs[i] > rhs[i]
+                                     ? true
+                                     : operator()(lhs, rhs,
+                                                  i + 1);
+}
+```
 ### // フォーマット例
 
 ```cpp
 std::cout << "Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:";
+```
 
-
-
-
-
-
-
-
-
-
+```cpp
+std::cout
+    << "Permission is hereby granted, free of charge, to "
+       "any person obtaining a copy of this software and "
+       "associated documentation files (the \"Software\"), "
+       "to deal in the Software without restriction, "
+       "including without limitation the rights to use, "
+       "copy, modify, merge, publish, distribute, "
+       "sublicense, and/or sell copies of the Software, "
+       "and to permit persons to whom the Software is "
+       "furnished to do so, subject to the following "
+       "conditions:";
 ```
 
 ### スタイルを細かく設定する
@@ -123,6 +147,7 @@ clang-format -style=.clang-format {file}
 
 - VisualStudio
   - clang-format-plugin
+
     http://llvm.org/builds/
 
 ### エディタから利用する
@@ -136,13 +161,15 @@ imap <C-K> <ESC>:pyf path/to/clang-format.py<CR>i
 ```
 
   - vim-clang-format を使う
-        https://github.com/rhysd/vim-clang-format
-    - Vim のオペレータマッピングが使える
+    - コード整形用のオペレータマッピングが使える
     - .vimrc で細かくスタイルを指定できる
 
+        https://github.com/rhysd/vim-clang-format
+        http://rhysd.hatenablog.com/entry/2013/08/26/231858
+
 ### まとめ
-- clang-format で C や C++ のコードを特定のスタイル
-  を簡単に整形できる
+- clang-format で C や C++, Objective-C のコードを
+  特定のスタイルに簡単に整形できる
 
 - `-style` オプションに色々渡すことでスタイルを細かく
   カスタマイズできる
