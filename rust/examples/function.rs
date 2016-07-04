@@ -69,5 +69,26 @@ fn main() {
         // No argument
         let answer = || 42;
         println!("{}", answer());
+
+        use std::mem;
+        let mut count = 0;
+        let mut inc = || {
+            count += 1;
+            println!("count: {}", count);
+        };
+        inc();
+        inc();
+
+        // let foo = &mut count; Cannot borrow twice at the same time
+
+        let movable = Box::new(3);
+        println!("{:?}", movable); // Borrow as immutable
+        let consume = || {
+            println!("movable: {:?}", movable);
+            mem::drop(movable);
+        };
+        consume();
+        // consume(); Already moved!
+
     }
 }

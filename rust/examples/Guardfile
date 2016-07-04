@@ -1,0 +1,15 @@
+guard :shell do
+  watch /.+\.rs$/ do |m|
+    puts "\033[93m#{Time.now}: #{m[0]}\033[0m"
+    exe = "./#{File.basename(m[0], '.rs')}"
+    success = system "rustc #{m[0]} && #{exe}"
+    puts(
+      if success
+        system "rm #{exe}"
+        "\033[92mOK\033[0m\n\n"
+      else
+        "\033[91mFAIL\033[0m\n\n"
+      end
+    )
+  end
+end
