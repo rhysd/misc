@@ -1,0 +1,14 @@
+[root]
+name = "calc"
+version = "0.1.0"
+dependencies = [
+ "peg 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "peg"
+version = "0.3.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[metadata]
+"checksum peg 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)" = "2b5eb263593c6dde7cebf6422e655e1b7fddd0827721c00c05ac0c964ebed4da"
