@@ -1,0 +1,25 @@
+use ast::{Expr, Node};
+
+#[export]
+expr -> Expr
+    = __ v:add __ { v }
+
+add -> Expr
+    = l:mult __ "+" __ r:mult { Expr::new(Node::Add(l, r)) }
+    / l:mult __ "-" __ r:mult { Expr::new(Node::Sub(l, r)) }
+    / mult
+
+mult -> Expr
+    = l:fact __ "*" __ r:fact { Expr::new(Node::Mul(l, r)) }
+    / l:fact __ "/" __ r:fact { Expr::new(Node::Div(l, r)) }
+    / fact
+
+fact -> Expr
+    = "-" __ v:atom { Expr::new(Node::Neg(v)) }
+    / atom
+
+atom -> Expr
+    = [0-9]+ ("." [0-9]+)? { Expr::new(Node::Val(match_str.parse().unwrap())) }
+    / "(" v:expr ")" { v }
+
+__ = [ \t\n\r]*

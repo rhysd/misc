@@ -1,5 +1,13 @@
+#![feature(plugin)]
+#![plugin(peg_syntax_ext)]
+
 use std::io;
 use std::io::Write;
+
+mod ast;
+mod eval;
+
+peg_file! grammar("grammar.rustpeg");
 
 fn main() {
     loop {
@@ -17,6 +25,9 @@ fn main() {
             break;
         }
 
-        println!("TODO: Parse input and calculate/print the result\n");
+        match grammar::expr(input) {
+            Ok(ref parsed) => println!("{}", eval::evaluate(parsed)),
+            Err(error) => println!("{:?}", error),
+        };
     }
 }
