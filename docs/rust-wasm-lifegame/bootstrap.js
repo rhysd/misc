@@ -52,14 +52,14 @@
 /******/ 	function promiseResolve() { return Promise.resolve(); }
 /******/
 /******/ 	var wasmImportObjects = {
-/******/ 		"../wasm_tutorial_bg.wasm": function() {
+/******/ 		"../pkg/wasm_tutorial_bg.wasm": function() {
 /******/ 			return {
 /******/ 				"./wasm_tutorial": {
 /******/ 					"__wbg_random_acb9bafd226853d8": function() {
-/******/ 						return installedModules["../wasm_tutorial.js"].exports["__wbg_random_acb9bafd226853d8"]();
+/******/ 						return installedModules["../pkg/wasm_tutorial.js"].exports["__wbg_random_acb9bafd226853d8"]();
 /******/ 					},
 /******/ 					"__wbindgen_throw": function(p0i32,p1i32) {
-/******/ 						return installedModules["../wasm_tutorial.js"].exports["__wbindgen_throw"](p0i32,p1i32);
+/******/ 						return installedModules["../pkg/wasm_tutorial.js"].exports["__wbindgen_throw"](p0i32,p1i32);
 /******/ 					}
 /******/ 				}
 /******/ 			};
@@ -149,7 +149,7 @@
 /******/
 /******/ 		// Fetch + compile chunk loading for webassembly
 /******/
-/******/ 		var wasmModules = {"0":["../wasm_tutorial_bg.wasm"]}[chunkId] || [];
+/******/ 		var wasmModules = {"0":["../pkg/wasm_tutorial_bg.wasm"]}[chunkId] || [];
 /******/
 /******/ 		wasmModules.forEach(function(wasmModuleId) {
 /******/ 			var installedWasmModuleData = installedWasmModules[wasmModuleId];
@@ -159,7 +159,7 @@
 /******/ 				promises.push(installedWasmModuleData);
 /******/ 			else {
 /******/ 				var importObject = wasmImportObjects[wasmModuleId]();
-/******/ 				var req = fetch(__webpack_require__.p + "" + {"../wasm_tutorial_bg.wasm":"8d36ec64975efe91f5ac"}[wasmModuleId] + ".module.wasm");
+/******/ 				var req = fetch(__webpack_require__.p + "" + {"../pkg/wasm_tutorial_bg.wasm":"d6d8288925bd91536f91"}[wasmModuleId] + ".module.wasm");
 /******/ 				var promise;
 /******/ 				if(importObject instanceof Promise && typeof WebAssembly.compileStreaming === 'function') {
 /******/ 					promise = Promise.all([WebAssembly.compileStreaming(req), importObject]).then(function(items) {

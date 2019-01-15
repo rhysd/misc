@@ -3,30 +3,35 @@ import { memory } from 'wasm-tutorial/wasm_tutorial_bg';
 
 const CELL_SIZE = 5;
 
-const universe = Universe.new();
+const dpr = window.devicePixelRatio || 1;
+const screen = document.getElementById('screen');
+const rect = screen.getBoundingClientRect();
+screen.height = rect.height * dpr;
+screen.width = rect.width * dpr;
+
+const universe = Universe.new(rect.width / CELL_SIZE, rect.height / CELL_SIZE);
 const width = universe.width();
 const height = universe.height();
-const screen = document.getElementById('screen');
-screen.height = (CELL_SIZE + 1) * height + 1;
-screen.width = (CELL_SIZE + 1) * width + 1;
 const ctx = screen.getContext('2d');
-let genCount = 0;
-const counter = document.getElementById('gen-count');
 
 function drawGrid() {
     ctx.beginPath();
     ctx.strokeStyle = '#cccccc';
 
     // Vertical lines
+    const y = ((CELL_SIZE + 1) * height + 1) * dpr;
     for (let i = 0; i <= width; i++) {
-        ctx.moveTo(i * (CELL_SIZE + 1) + 1, 0);
-        ctx.lineTo(i * (CELL_SIZE + 1) + 1, (CELL_SIZE + 1) * height + 1);
+        const x = (i * (CELL_SIZE + 1) + 1) * dpr;
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, y);
     }
 
     // Horizontal lines
+    const x = ((CELL_SIZE + 1) * width + 1) * dpr;
     for (let i = 0; i <= height; i++) {
-        ctx.moveTo(0, i * (CELL_SIZE + 1) + 1);
-        ctx.lineTo((CELL_SIZE + 1) * width + 1, i * (CELL_SIZE + 1) + 1);
+        const y = (i * (CELL_SIZE + 1) + 1) * dpr;
+        ctx.moveTo(0, y);
+        ctx.lineTo(x, y);
     }
 
     ctx.stroke();
@@ -46,7 +51,9 @@ function drawCells() {
             const mask = 1 << idx % 8;
             const isDead = (cells[byteIdx] & mask) === mask;
             ctx.fillStyle = isDead ? '#000000' : '#ffffff';
-            ctx.fillRect(col * (CELL_SIZE + 1) + 1, row * (CELL_SIZE + 1) + 1, CELL_SIZE, CELL_SIZE);
+            const x = (col * (CELL_SIZE + 1) + 1) * dpr;
+            const y = (row * (CELL_SIZE + 1) + 1) * dpr;
+            ctx.fillRect(x, y, CELL_SIZE * dpr, CELL_SIZE * dpr);
         }
     }
 
@@ -56,9 +63,6 @@ function drawCells() {
 function loop() {
     universe.tick();
     drawCells();
-    genCount++;
-    counter.textContent = genCount;
-
     requestAnimationFrame(loop);
 }
 
