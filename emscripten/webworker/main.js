@@ -3,7 +3,7 @@ if (!window.Worker) {
 }
 
 const worker = new Worker('worker.js');
-const shared = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 1);
+const shared = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 4);
 const buffer = new Int32Array(shared);
 
 const input = document.getElementById('input');
@@ -24,13 +24,20 @@ worker.onmessage = e => {
             submit.addEventListener('click', () => {
                 const i = input.value | 0;
                 worker.postMessage({ type: 'input', input: i });
-                console.log('main: submitted:', i);
+                console.log('main: submitted:', i, buffer);
 
                 if (Math.random() < 0.5) {
                     console.log('main: User input will happen after 1500ms');
                     setTimeout(() => {
+                        // Write data
+                        buffer[1] = 11;
+                        buffer[2] = 22;
+                        buffer[3] = 33;
+                        // Set 1 to awake worker
                         Atomics.store(buffer, 0, 1);
-                        console.log('main: notify user input by writing to buffer!');
+                        // Notify to worker
+                        Atomics.notify(buffer, 0, 1);
+                        console.log('main: notify user input by writing to buffer after 1500msec!');
                     }, 1500);
                 } else {
                     console.log('main: User input will not happen. Worker will wait until timeout');

@@ -37,9 +37,11 @@ var MyLibrary = {
         Lib.hi();
     },
     my_wait_input: function(timeout) {
-        console.log('worker: js: before wait:', Lib.buffer[0], Date.now());
-        console.log('worker: js: Atomics.wait:', Atomics.wait(Lib.buffer, 0, 0, timeout || undefined));
-        console.log('worker: js: after wait:', Lib.buffer[0], Date.now());
+        console.log('worker: js: my_wait_input:', timeout);
+        Atomics.store(Lib.buffer, 0, 0); // Clear
+        console.log('worker: js: before wait:', Lib.buffer, Date.now());
+        console.log('worker: js: Atomics.wait:', Atomics.wait(Lib.buffer, 0, 0, timeout));
+        console.log('worker: js: after wait:', Lib.buffer, Date.now());
     },
 };
 
