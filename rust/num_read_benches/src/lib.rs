@@ -5,6 +5,14 @@ extern crate test;
 use std::convert::TryInto;
 use std::i32;
 
+#[derive(Copy, Clone)]
+pub enum V {
+    I32(i32),
+    I64(i64),
+    F32(f32),
+    F64(f64),
+}
+
 pub fn read_i32_try_into(b: &[u8]) -> i32 {
     let b: [u8; 4] = b.try_into().unwrap();
     i32::from_be_bytes(b)
@@ -45,6 +53,13 @@ pub fn read_i32_loop_le(b: &[u8]) -> i32 {
 
 pub fn read_i32_bits(b: u32) -> i32 {
     b as i32
+}
+
+pub fn read_i32_enum_value(v: V) -> i32 {
+    match v {
+        V::I32(i) => i,
+        _ => panic!(),
+    }
 }
 
 pub fn read_i64_try_into(b: &[u8]) -> i64 {
@@ -91,6 +106,13 @@ pub fn read_i64_bits(b: &[u32]) -> i64 {
     (hi | lo) as i64
 }
 
+pub fn read_i64_enum_value(v: V) -> i64 {
+    match v {
+        V::I64(i) => i,
+        _ => panic!(),
+    }
+}
+
 pub fn read_f32_try_into(b: &[u8]) -> f32 {
     let b: [u8; 4] = b.try_into().unwrap();
     f32::from_be_bytes(b)
@@ -131,6 +153,13 @@ pub fn read_f32_loop_le(b: &[u8]) -> f32 {
 
 pub fn read_f32_bits(b: u32) -> f32 {
     f32::from_bits(b)
+}
+
+pub fn read_f32_enum_value(v: V) -> f32 {
+    match v {
+        V::F32(f) => f,
+        _ => panic!(),
+    }
 }
 
 pub fn read_f64_try_into(b: &[u8]) -> f64 {
@@ -177,13 +206,33 @@ pub fn read_f64_bits(u: &[u32]) -> f64 {
     f64::from_bits(hi | lo)
 }
 
+pub fn read_f64_enum_value(v: V) -> f64 {
+    match v {
+        V::F64(f) => f,
+        _ => panic!(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use test::Bencher;
 
     #[bench]
-    fn i32_from_bits(b: &mut Bencher) {
+    fn read_i32_enum(b: &mut Bencher) {
+        let mut v = vec![];
+        for i in 0..=10000 {
+            v.push(V::I32(i));
+        }
+        b.iter(move || {
+            for i in 0..=10000 {
+                assert_eq!(read_i32_enum_value(v[i]), i as i32);
+            }
+        });
+    }
+
+    #[bench]
+    fn read_i32_from_bits(b: &mut Bencher) {
         let mut v = vec![];
         for i in 0..=10000 {
             v.push(i);
@@ -279,7 +328,20 @@ mod tests {
     }
 
     #[bench]
-    fn i64_from_bits(b: &mut Bencher) {
+    fn read_i64_enum(b: &mut Bencher) {
+        let mut v = vec![];
+        for i in 0..=10000 {
+            v.push(V::I64(i));
+        }
+        b.iter(move || {
+            for i in 0..=10000 {
+                assert_eq!(read_i64_enum_value(v[i]), i as i64);
+            }
+        });
+    }
+
+    #[bench]
+    fn read_i64_from_bits(b: &mut Bencher) {
         let mut v = vec![];
         for i in 0i64..=10000 {
             let u = i as u64;
@@ -377,7 +439,20 @@ mod tests {
     }
 
     #[bench]
-    fn f32_from_bits(b: &mut Bencher) {
+    fn read_f32_enum(b: &mut Bencher) {
+        let mut v = vec![];
+        for i in 0..=10000 {
+            v.push(V::F32(i as f32));
+        }
+        b.iter(move || {
+            for i in 0..=10000 {
+                assert_eq!(read_f32_enum_value(v[i]), i as f32);
+            }
+        });
+    }
+
+    #[bench]
+    fn read_f32_from_bits(b: &mut Bencher) {
         let mut v = vec![];
         for i in 0..=10000 {
             v.push((i as f32).to_bits());
@@ -473,7 +548,20 @@ mod tests {
     }
 
     #[bench]
-    fn f64_from_bits(b: &mut Bencher) {
+    fn read_f64_enum(b: &mut Bencher) {
+        let mut v = vec![];
+        for i in 0..=10000 {
+            v.push(V::F64(i as f64));
+        }
+        b.iter(move || {
+            for i in 0..=10000 {
+                assert_eq!(read_f64_enum_value(v[i]), i as f64);
+            }
+        });
+    }
+
+    #[bench]
+    fn read_f64_from_bits(b: &mut Bencher) {
         let mut v = vec![];
         for i in 0..=10000 {
             let u = (i as f64).to_bits();

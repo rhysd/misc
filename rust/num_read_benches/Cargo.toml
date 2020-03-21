@@ -1,5 +1,5 @@
 [package]
-name = "benches"
+name = "num_read_benches"
 version = "0.1.0"
 authors = ["rhysd <lin90162@yahoo.co.jp>"]
 edition = "2018"
