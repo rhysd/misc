@@ -11,17 +11,21 @@ mod tests {
     use test::Bencher;
 
     fn gen_inputs() -> impl Iterator<Item = u8> {
-        iter::repeat(b'a').take(1024 * 256)
+        iter::repeat(b'a')
+            .take(512)
+            .chain(iter::once(b'\n'))
+            .cycle()
+            .take(512 * 8)
     }
 
     #[bench]
     fn raw_output(b: &mut Bencher) {
         b.iter(move || {
-            let mut stderr = io::stderr();
+            let mut stdout = io::stdout();
             let mut buf = [0u8];
             for b in gen_inputs() {
                 buf[0] = b;
-                stderr.write(&buf).unwrap();
+                stdout.write(&buf).unwrap();
             }
         });
     }
@@ -29,12 +33,12 @@ mod tests {
     #[bench]
     fn lock_output(b: &mut Bencher) {
         b.iter(move || {
-            let mut stderr = io::stderr();
-            let mut stderr = stderr.lock();
+            let stdout = io::stdout();
+            let mut stdout = stdout.lock();
             let mut buf = [0u8];
             for b in gen_inputs() {
                 buf[0] = b;
-                stderr.write(&buf).unwrap();
+                stdout.write(&buf).unwrap();
             }
         });
     }
@@ -42,27 +46,27 @@ mod tests {
     #[bench]
     fn buf_output(b: &mut Bencher) {
         b.iter(move || {
-            let mut stderr = BufWriter::new(io::stderr());
+            let mut stdout = BufWriter::new(io::stdout());
             let mut buf = [0u8];
             for b in gen_inputs() {
                 buf[0] = b;
-                stderr.write(&buf).unwrap();
+                stdout.write(&buf).unwrap();
             }
-            stderr.flush().unwrap();
+            stdout.flush().unwrap();
         });
     }
 
     #[bench]
     fn buf_and_lock_output(b: &mut Bencher) {
         b.iter(move || {
-            let mut stderr = io::stderr();
-            let mut stderr = BufWriter::new(stderr);
+            let stdout = io::stdout();
+            let mut stdout = BufWriter::new(stdout);
             let mut buf = [0u8];
             for b in gen_inputs() {
                 buf[0] = b;
-                stderr.write(&buf).unwrap();
+                stdout.write(&buf).unwrap();
             }
-            stderr.flush().unwrap();
+            stdout.flush().unwrap();
         });
     }
 }
