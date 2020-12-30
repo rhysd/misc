@@ -6,6 +6,7 @@
   "main": "index.js",
   "scripts": {
     "tauri": "tauri",
+    "serve": "python3 -m http.server 4000 -d ./dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "rhysd <lin90162@yahoo.co.jp> (https://rhysd.github.io/)",
