@@ -15,6 +15,7 @@ listen('count', event => {
 window.addEventListener(
     'keydown',
     e => {
+        // Note: tauri.promisified seems not working? Returned promise seems pending forever even if it is handled in Rust side.
         invoke({ cmd: 'keyPress', ctrl: e.ctrlKey, meta: e.metaKey, key: e.key });
     },
     { passive: true },

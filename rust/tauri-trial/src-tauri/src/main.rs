@@ -28,8 +28,13 @@ fn main() {
                     count += 1;
                 }
             });
+
+            // Add tairi::event::listen() call to listen events from Webview side.
+            // Note that the WebView<'_> instance can be cloned.
+            //   let webview_for_listen = webview.clone().as_mut();
         })
         .invoke_handler(|_webview, arg| {
+            // Handler for commands from Webview. Invoke the command and return the result
             use cmd::Cmd::*;
             match serde_json::from_str(arg) {
                 Err(e) => Err(e.to_string()),
