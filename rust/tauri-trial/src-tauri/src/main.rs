@@ -18,7 +18,7 @@ fn main() {
             // definitions for your custom commands from Cmd here
             MyCustomCommand { argument } => {
               //  your command code
-              println!("{}", argument);
+              println!("message from webview: {}", argument);
             }
           }
           Ok(())

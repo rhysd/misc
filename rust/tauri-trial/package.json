@@ -6,6 +6,8 @@
   "main": "index.js",
   "scripts": {
     "tauri": "tauri",
+    "build": "esbuild ./src/index.ts --bundle --outfile=./dist/index.js",
+    "tsc": "tsc --watch -p ./src --noEmit",
     "serve": "python3 -m http.server 4000 -d ./dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -13,5 +15,9 @@
   "license": "MIT",
   "dependencies": {
     "tauri": "^0.13.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.8.28",
+    "typescript": "^4.1.3"
   }
 }
