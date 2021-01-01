@@ -1,0 +1,5 @@
+/node_modules
+/src/*.js
+/src/*.js.map
+/dist/*.js
+/dist/*.tauri.html
