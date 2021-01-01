@@ -2,9 +2,6 @@
   "compilerOptions": {
     "module": "commonjs",
     "moduleResolution": "node",
-    "lib": [
-      "esnext"
-    ],
     "preserveConstEnums": true,
     "noImplicitAny": true,
     "noImplicitReturns": true,
