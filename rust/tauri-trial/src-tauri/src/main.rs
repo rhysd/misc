@@ -14,9 +14,9 @@ fn main() {
                 Ok(command) => {
                     match command {
                         // definitions for your custom commands from Cmd here
-                        MyCustomCommand { argument } => {
+                        Greet { message } => {
                             //  your command code
-                            println!("message from webview: {}", argument);
+                            println!("message from webview: {}", message);
                         }
                     }
                     Ok(())
