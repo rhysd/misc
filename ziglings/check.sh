@@ -7,6 +7,13 @@ if [ ! -d answer ]; then
     exit 1
 fi
 
+if [ "$1" = "--diff" ]; then
+    shift
+    show_diff=true
+else
+    show_diff=false
+fi
+
 set +e
 diff="$(diff -u "$1" "./answer/$1" 2>&1)"
 status=$?
@@ -14,7 +21,7 @@ if [ "$status" = 0 ]; then
     echo 'PASS!' >&2
 else
     echo 'FAIL!' >&2
-    if [ "$2" = "--diff" ]; then
+    if [ "$show_diff" = 'true' ]; then
         echo "$diff" >&2
     fi
 fi
