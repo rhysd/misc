@@ -25,7 +25,7 @@ func QuotesBaseline(ss []string) string {
 	for _, s := range ss {
 		n += len(s) + 2 // + 2 for "
 	}
-	n += l*2 - 1 // for comma separators
+	n += (l - 1) * 2 // for comma separators
 
 	var b strings.Builder
 	b.Grow(n)
@@ -34,10 +34,10 @@ func QuotesBaseline(ss []string) string {
 		if i > 0 {
 			b.WriteString(", \"")
 		} else {
-			b.WriteRune('"')
+			b.WriteByte('"')
 		}
 		b.WriteString(s)
-		b.WriteRune('"')
+		b.WriteByte('"')
 	}
 
 	return b.String()
@@ -58,7 +58,7 @@ func QuotesAppendQuote(ss []string) string {
 			max = m
 		}
 	}
-	n += l*2 - 1 // for comma separators
+	n += (l - 1) * 2 // for comma separators
 
 	var b strings.Builder
 	b.Grow(n)
@@ -88,7 +88,7 @@ func QuotesUnsafe(ss []string) string {
 		m := len(s) + 2
 		n += m // + 2 for "
 	}
-	n += l*2 - 1 // for comma separators
+	n += (l - 1) * 2 // for comma separators
 
 	buf := make([]byte, 0, n)
 
@@ -102,10 +102,7 @@ func QuotesUnsafe(ss []string) string {
 	return *(*string)(unsafe.Pointer(&buf))
 }
 
-const (
-	lowerhex = "0123456789abcdef"
-	upperhex = "0123456789ABCDEF"
-)
+const lowerhex = "0123456789abcdef"
 
 func Quotes(ss []string) string {
 	l := len(ss)
@@ -118,17 +115,15 @@ func Quotes(ss []string) string {
 		m := len(s) + 2
 		n += m // + 2 for "
 	}
-	n += l*2 - 1 // for comma separators
+	n += (l - 1) * 2 // for comma separators
 
 	var b strings.Builder
 	b.Grow(n)
 
-	var runeTmp [utf8.UTFMax]byte
+	b.WriteByte('"')
 	for i, s := range ss {
 		if i > 0 {
-			b.WriteString(", \"")
-		} else {
-			b.WriteRune('"')
+			b.WriteString("\", \"")
 		}
 
 		for width := 0; len(s) > 0; s = s[width:] {
@@ -145,13 +140,12 @@ func Quotes(ss []string) string {
 			}
 
 			if r == '"' || r == '\\' { // always backslashed
-				b.WriteRune('\\')
+				b.WriteByte('\\')
 				b.WriteRune(r)
 				continue
 			}
 			if strconv.IsPrint(r) {
-				n := utf8.EncodeRune(runeTmp[:], r)
-				b.Write(runeTmp[:n])
+				b.WriteRune(r)
 				continue
 			}
 
@@ -192,8 +186,8 @@ func Quotes(ss []string) string {
 				}
 			}
 		}
-		b.WriteRune('"')
 	}
+	b.WriteByte('"')
 
 	return b.String()
 }
