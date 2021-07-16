@@ -17,13 +17,10 @@ func BenchmarkSemaphoreWeighted(b *testing.B) {
 		ret := make(chan int)
 
 		c := make(chan int)
-		cs := make([]chan struct{}, 0, N*2)
+		done := make(chan struct{})
 		for i := 0; i < N*2; i++ {
-			done := make(chan struct{})
-			cs = append(cs, done)
 			go func() {
 				total := 0
-			Loop:
 				for {
 					select {
 					case x := <-c:
@@ -31,10 +28,10 @@ func BenchmarkSemaphoreWeighted(b *testing.B) {
 						total += x
 						sema.Release(1)
 					case <-done:
-						break Loop
+						ret <- total
+						return
 					}
 				}
-				ret <- total
 			}()
 		}
 
@@ -44,9 +41,9 @@ func BenchmarkSemaphoreWeighted(b *testing.B) {
 			count--
 		}
 
+		close(done)
 		result := 0
-		for _, done := range cs {
-			done <- struct{}{}
+		for i := 0; i < N*2; i++ {
 			result += <-ret
 		}
 		if result != 50005000 {
@@ -61,13 +58,10 @@ func BenchmarkSemaphoreChannel(b *testing.B) {
 		ret := make(chan int)
 
 		c := make(chan int)
-		cs := make([]chan struct{}, 0, N*2)
+		done := make(chan struct{})
 		for i := 0; i < N*2; i++ {
-			done := make(chan struct{})
-			cs = append(cs, done)
 			go func() {
 				total := 0
-			Loop:
 				for {
 					select {
 					case x := <-c:
@@ -75,10 +69,10 @@ func BenchmarkSemaphoreChannel(b *testing.B) {
 						total += x
 						<-sema
 					case <-done:
-						break Loop
+						ret <- total
+						return
 					}
 				}
-				ret <- total
 			}()
 		}
 
@@ -88,9 +82,9 @@ func BenchmarkSemaphoreChannel(b *testing.B) {
 			count--
 		}
 
+		close(done)
 		result := 0
-		for _, done := range cs {
-			done <- struct{}{}
+		for i := 0; i < N*2; i++ {
 			result += <-ret
 		}
 		if result != 50005000 {
