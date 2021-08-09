@@ -1,0 +1,21 @@
+name: actionlint
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+        with:
+          repository: rhysd/actionlint
+          path: actionlint
+          ref: error-format
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+      - run: |
+          cd actionlint/
+          go build ./cmd/actionlint
+          ./actionlint -version
+      - run: ./actionlint/actionlint -format '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}}%0A```%0A{{replace $err.Snippet "\x0a" "%0A"}}%0A```\n{{end}}' -ignore 'SC2016:'
