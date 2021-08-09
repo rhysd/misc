@@ -18,4 +18,5 @@ jobs:
           cd actionlint/
           go build ./cmd/actionlint
           ./actionlint -version
-      - run: ./actionlint/actionlint -format '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}}%0A```%0A{{replace $err.Snippet "\x0a" "%0A"}}%0A```\n{{end}}' -ignore 'SC2016:'
+      - run: ./actionlint/actionlint -format '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}}%0A```%0A{{replace $err.Snippet "\\n" "%0A"}}%0A```\n{{end}}' -ignore 'SC2016:'
+      - run: echo hello
