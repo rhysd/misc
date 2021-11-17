@@ -3,20 +3,26 @@ pub trait Addressable {
     fn write(&mut self, idx: usize, val: u8);
 }
 
-pub struct Memory1 {
+pub struct MemoryDyn {
     pub v: Vec<u8>,
 }
 
-impl Addressable for Memory1 {
+impl Addressable for MemoryDyn {
+    #[inline]
     fn read(&self, idx: usize) -> u8 {
         self.v[idx]
     }
+    #[inline]
     fn write(&mut self, idx: usize, val: u8) {
         self.v[idx] = val;
     }
 }
 
-pub struct Memory2 {
+pub fn new_addressable(v: Vec<u8>) -> Box<dyn Addressable> {
+    Box::new(MemoryDyn { v })
+}
+
+pub struct MemoryFnPtr {
     v: Vec<u8>,
     read_fn: fn(&[u8], idx: usize) -> u8,
     write_fn: fn(&mut [u8], idx: usize, val: u8),
@@ -29,7 +35,7 @@ fn write1(s: &mut [u8], idx: usize, val: u8) {
     s[idx] = val;
 }
 
-impl Memory2 {
+impl MemoryFnPtr {
     pub fn new(v: Vec<u8>) -> Self {
         Self {
             v,
@@ -49,41 +55,51 @@ impl Memory2 {
     }
 }
 
-pub trait Addressable2 {
+pub trait AddressableNoState {
     fn read(&self, mem: &[u8], idx: usize) -> u8;
     fn write(&self, mem: &mut [u8], idx: usize, val: u8);
 }
 
-pub struct Access;
+pub struct ReadWrite;
 
-impl Addressable2 for Access {
+impl AddressableNoState for ReadWrite {
+    #[inline]
     fn read(&self, s: &[u8], idx: usize) -> u8 {
         s[idx]
     }
+    #[inline]
     fn write(&self, s: &mut [u8], idx: usize, val: u8) {
         s[idx] = val;
     }
 }
 
-pub struct Memory3 {
+pub struct MemoryDynNoState {
     pub v: Vec<u8>,
-    pub a: Box<dyn Addressable2>,
+    pub a: Box<dyn AddressableNoState>,
 }
 
-impl Memory3 {
+impl MemoryDynNoState {
+    pub fn new(v: Vec<u8>) -> Self {
+        Self {
+            v,
+            a: Box::new(ReadWrite),
+        }
+    }
+    #[inline]
     pub fn read(&self, idx: usize) -> u8 {
         self.a.read(&self.v, idx)
     }
+    #[inline]
     pub fn write(&mut self, idx: usize, val: u8) {
         self.a.write(&mut self.v, idx, val);
     }
 }
 
-pub struct MemoryBase {
+pub struct MemoryNoInline {
     pub v: Vec<u8>,
 }
 
-impl MemoryBase {
+impl MemoryNoInline {
     pub fn read(&self, idx: usize) -> u8 {
         self.v[idx]
     }

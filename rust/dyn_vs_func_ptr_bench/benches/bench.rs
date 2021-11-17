@@ -3,9 +3,9 @@ use dyn_vs_func_ptr_bench::*;
 
 fn bench(c: &mut Criterion) {
     let data = vec![0; 256];
-    c.bench_function("base", |b| {
+    c.bench_function("no_inline", |b| {
         b.iter(|| {
-            let mut mem = MemoryBase { v: data.clone() };
+            let mut mem = MemoryNoInline { v: data.clone() };
             for i in 0..=255 {
                 mem.write(i as usize, i);
                 let j = mem.read(i as usize);
@@ -15,7 +15,7 @@ fn bench(c: &mut Criterion) {
     });
     c.bench_function("dyn", |b| {
         b.iter(|| {
-            let mut mem: Box<dyn Addressable> = Box::new(Memory1 { v: data.clone() });
+            let mut mem: Box<dyn Addressable> = Box::new(MemoryDyn { v: data.clone() });
             for i in 0..=255 {
                 mem.write(i as usize, i);
                 let j = mem.read(i as usize);
@@ -23,12 +23,32 @@ fn bench(c: &mut Criterion) {
             }
         })
     });
-    c.bench_function("dyn2", |b| {
+    c.bench_function("dyn-factory", |b| {
         b.iter(|| {
-            let mut mem = Memory3 {
+            let mut mem: Box<dyn Addressable> = new_addressable(data.clone());
+            for i in 0..=255 {
+                mem.write(i as usize, i);
+                let j = mem.read(i as usize);
+                assert_eq!(i, j);
+            }
+        })
+    });
+    c.bench_function("dyn-no-state", |b| {
+        b.iter(|| {
+            let mut mem = MemoryDynNoState {
                 v: data.clone(),
-                a: Box::new(Access),
+                a: Box::new(ReadWrite),
             };
+            for i in 0..=255 {
+                mem.write(i as usize, i);
+                let j = mem.read(i as usize);
+                assert_eq!(i, j);
+            }
+        })
+    });
+    c.bench_function("dyn-no-state-factory", |b| {
+        b.iter(|| {
+            let mut mem = MemoryDynNoState::new(data.clone());
             for i in 0..=255 {
                 mem.write(i as usize, i);
                 let j = mem.read(i as usize);
@@ -38,7 +58,7 @@ fn bench(c: &mut Criterion) {
     });
     c.bench_function("fn", |b| {
         b.iter(|| {
-            let mut mem = Memory2::new(data.clone());
+            let mut mem = MemoryFnPtr::new(data.clone());
             for i in 0..=255 {
                 mem.write(i as usize, i);
                 let j = mem.read(i as usize);
