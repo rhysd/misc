@@ -8,10 +8,10 @@ publish = false
 
 [[bin]]
 name = "01_1"
-path = "01_1/main.rs"
+path = "src/01_1.rs"
 
 [[bin]]
 name = "01_2"
-path = "01_2/main.rs"
+path = "src/01_2.rs"
 
 [dependencies]
