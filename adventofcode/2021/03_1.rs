@@ -3,7 +3,7 @@ use std::io::{self, BufRead};
 fn main() {
     let mut ones = [0usize; 12];
     let mut total = 0;
-    for l in io::BufReader::new(io::stdin().lock()).lines() {
+    for l in io::stdin().lock().lines() {
         for (idx, c) in l.unwrap().chars().enumerate() {
             if c == '1' {
                 ones[idx] += 1;

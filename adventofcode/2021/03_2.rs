@@ -17,7 +17,8 @@ fn calc(mut h: HashSet<Vec<u8>>, cmp: fn(usize, usize) -> bool) -> usize {
 }
 
 fn main() {
-    let h = io::BufReader::new(io::stdin().lock())
+    let h = io::stdin()
+        .lock()
         .lines()
         .map(|l| l.unwrap().into_bytes())
         .collect::<HashSet<_>>();

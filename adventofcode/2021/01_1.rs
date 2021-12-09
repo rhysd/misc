@@ -3,7 +3,7 @@ use std::io::BufRead;
 
 fn main() {
     let stdin = io::stdin();
-    let mut lines = io::BufReader::new(stdin.lock()).lines();
+    let mut lines = stdin.lock().lines();
     let mut prev: u32 = lines.next().unwrap().unwrap().parse().unwrap();
     let mut count = 0u32;
     for line in lines {

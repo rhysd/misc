@@ -1,5 +1,4 @@
-use std::io;
-use std::io::BufRead;
+use std::io::{self, BufRead};
 
 enum Kind {
     Forward,
@@ -41,7 +40,7 @@ impl Command {
 fn main() {
     let stdin = io::stdin();
     let mut state = State::default();
-    for line in io::BufReader::new(stdin.lock()).lines() {
+    for line in stdin.lock().lines() {
         let cmd = Command::parse(&line.unwrap());
         cmd.run(&mut state);
     }

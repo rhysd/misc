@@ -38,7 +38,7 @@ impl Board {
 
 fn main() {
     let stdin = io::stdin();
-    let mut lines = io::BufReader::new(stdin.lock()).lines().map(|l| l.unwrap());
+    let mut lines = stdin.lock().lines().map(|l| l.unwrap());
     let nums: Vec<usize> = lines.next().unwrap().split(',').map(|s| s.parse().unwrap()).collect();
     lines.next();
 

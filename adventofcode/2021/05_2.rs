@@ -12,8 +12,7 @@ fn main() {
     }
 
     let s = io::stdin();
-    let s = s.lock();
-    let lines = io::BufReader::new(s).lines().map(|l| {
+    let lines = s.lock().lines().map(|l| {
         let l = l.unwrap();
         let mut s = l.split(" -> ");
         (parse_point(s.next().unwrap()), parse_point(s.next().unwrap()))
