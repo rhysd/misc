@@ -8,74 +8,74 @@ publish = false
 
 [[bin]]
 name = "01_1"
-path = "src/01_1.rs"
+path = "01_1.rs"
 
 [[bin]]
 name = "01_2"
-path = "src/01_2.rs"
+path = "01_2.rs"
 
 [[bin]]
 name = "02_1"
-path = "src/02_1.rs"
+path = "02_1.rs"
 
 [[bin]]
 name = "02_2"
-path = "src/02_2.rs"
+path = "02_2.rs"
 
 [[bin]]
 name = "03_1"
-path = "src/03_1.rs"
+path = "03_1.rs"
 
 [[bin]]
 name = "03_2"
-path = "src/03_2.rs"
+path = "03_2.rs"
 
 [[bin]]
 name = "04_1"
-path = "src/04_1.rs"
+path = "04_1.rs"
 
 [[bin]]
 name = "04_2"
-path = "src/04_2.rs"
+path = "04_2.rs"
 
 [[bin]]
 name = "05_1"
-path = "src/05_1.rs"
+path = "05_1.rs"
 
 [[bin]]
 name = "05_2"
-path = "src/05_2.rs"
+path = "05_2.rs"
 
 [[bin]]
 name = "06_1"
-path = "src/06_1.rs"
+path = "06_1.rs"
 
 [[bin]]
 name = "06_2"
-path = "src/06_2.rs"
+path = "06_2.rs"
 
 [[bin]]
 name = "07_1"
-path = "src/07_1.rs"
+path = "07_1.rs"
 
 [[bin]]
 name = "07_2"
-path = "src/07_2.rs"
+path = "07_2.rs"
 
 [[bin]]
 name = "08_1"
-path = "src/08_1.rs"
+path = "08_1.rs"
 
 [[bin]]
 name = "08_2"
-path = "src/08_2.rs"
+path = "08_2.rs"
 
 [[bin]]
 name = "09_1"
-path = "src/09_1.rs"
+path = "09_1.rs"
 
 [[bin]]
 name = "09_2"
-path = "src/09_2.rs"
+path = "09_2.rs"
 
 [dependencies]
