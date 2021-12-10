@@ -78,4 +78,12 @@ path = "09_1.rs"
 name = "09_2"
 path = "09_2.rs"
 
+[[bin]]
+name = "10_1"
+path = "10_1.rs"
+
+[[bin]]
+name = "10_2"
+path = "10_2.rs"
+
 [dependencies]
