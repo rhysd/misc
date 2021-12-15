@@ -114,4 +114,12 @@ path = "13_2.rs"
 name = "14"
 path = "14.rs"
 
+[[bin]]
+name = "15_1"
+path = "15_1.rs"
+
+[[bin]]
+name = "15_2"
+path = "15_2.rs"
+
 [dependencies]
