@@ -15,67 +15,46 @@ impl fmt::Display for N {
     }
 }
 
-#[derive(PartialEq, Eq)]
-enum Explode {
-    Happen(usize, usize),
-    Left(usize),
-    Right(usize),
-    Done,
-    NotYet,
-}
-
 impl N {
     fn add(self, other: N) -> N {
         N::P(Box::new(self), Box::new(other))
     }
 
-    fn action(&mut self) {
-        while (self.explode(0) != Explode::NotYet) || self.split() {}
+    fn actions(&mut self) {
+        while self.explode(0).is_some() || self.split() {}
     }
 
-    fn explode(&mut self, depth: usize) -> Explode {
-        use Explode::*;
-
+    fn explode(&mut self, depth: usize) -> Option<(Option<usize>, Option<usize>)> {
         if depth >= 4 {
             if let N::P(l, r) = self {
                 if let (N::T(l), N::T(r)) = (&**l, &**r) {
-                    return Happen(*l, *r);
+                    return Some((Some(*l), Some(*r)));
                 }
             }
         }
 
         match self {
-            N::T(_) => NotYet,
+            N::T(_) => None,
             N::P(l, r) => {
-                match l.explode(depth + 1) {
-                    Happen(a, b) => {
-                        *l = Box::new(N::T(0));
-                        r.add_leftmost(b);
-                        return Left(a);
+                if let Some((lv, rv)) = l.explode(depth + 1) {
+                    if let Some(rv) = rv {
+                        if lv.is_some() {
+                            *l = Box::new(N::T(0));
+                        }
+                        r.add_leftmost(rv);
                     }
-                    Right(v) => {
-                        r.add_leftmost(v);
-                        return Done;
-                    }
-                    Left(v) => return Left(v),
-                    Done => return Done,
-                    NotYet => {}
+                    return Some((lv, None));
                 }
-                match r.explode(depth + 1) {
-                    Happen(a, b) => {
-                        *r = Box::new(N::T(0));
-                        l.add_rightmost(a);
-                        return Right(b);
+                if let Some((lv, rv)) = r.explode(depth + 1) {
+                    if let Some(lv) = lv {
+                        if rv.is_some() {
+                            *r = Box::new(N::T(0));
+                        }
+                        l.add_rightmost(lv);
                     }
-                    Left(v) => {
-                        l.add_rightmost(v);
-                        return Done;
-                    }
-                    Right(v) => return Right(v),
-                    Done => return Done,
-                    NotYet => {}
+                    return Some((None, rv));
                 }
-                NotYet
+                None
             }
         }
     }
@@ -96,9 +75,8 @@ impl N {
     fn split(&mut self) -> bool {
         match self {
             N::T(n) if *n >= 10 => {
-                let l = *n / 2;
-                let r = *n / 2 + *n % 2;
-                *self = N::P(Box::new(N::T(l)), Box::new(N::T(r)));
+                let (l, r) = (*n / 2, *n / 2 + *n % 2);
+                *self = N::T(l).add(N::T(r));
                 true
             }
             N::T(_) => false,
@@ -115,12 +93,9 @@ impl N {
 }
 
 fn parse(s: &str) -> (&str, N) {
-    let b = s.as_bytes()[0];
-    if b.is_ascii_digit() {
-        let (idx, _) = s
-            .char_indices()
-            .find(|(_, c)| !c.is_ascii_digit())
-            .unwrap_or((s.len(), '🐶'));
+    if s.as_bytes()[0].is_ascii_digit() {
+        let found = s.char_indices().find(|(_, c)| !c.is_ascii_digit());
+        let idx = found.map(|(i, _)| i).unwrap_or(s.len());
         let n = s[..idx].parse().unwrap();
         (&s[idx..], N::T(n))
     } else {
@@ -136,7 +111,7 @@ fn main() {
     let mut sum = ns.next().unwrap();
     for n in ns {
         sum = sum.add(n);
-        sum.action();
+        sum.actions();
     }
     println!("{}", sum);
     println!("{}", sum.magnitude());
