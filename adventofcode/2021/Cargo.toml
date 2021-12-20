@@ -147,12 +147,8 @@ name = "18_2"
 path = "18_2.rs"
 
 [[bin]]
-name = "19_1"
-path = "19_1.rs"
-
-[[bin]]
-name = "19_2"
-path = "19_2.rs"
+name = "19"
+path = "19.rs"
 
 [[bin]]
 name = "20"
