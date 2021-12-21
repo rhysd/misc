@@ -1,4 +1,5 @@
 use std::cmp;
+use std::collections::HashMap;
 use std::io::{self, BufRead};
 
 const WIN: u8 = 21;
@@ -23,7 +24,23 @@ impl Player {
     }
 }
 
-fn play(players: [Player; 2], player1_turn: bool) -> (u64, u64) {
+type State = (u8, u8, u8, u8, bool);
+fn state(players: [Player; 2], player1_turn: bool) -> State {
+    (
+        players[0].pos,
+        players[0].score,
+        players[1].pos,
+        players[1].score,
+        player1_turn,
+    )
+}
+
+fn play(players: [Player; 2], player1_turn: bool, memo: &mut HashMap<State, (u64, u64)>) -> (u64, u64) {
+    let state = state(players, player1_turn);
+    if let Some(sum) = memo.get(&state) {
+        return *sum;
+    }
+
     // 1 2 3
     // 2 3 4 3 4 5 4 5 6
     // 3 4 5 4 5 6 5 6 7 4 5 6 5 6 7 6 7 8 5 6 7 6 7 8 7 8 9
@@ -36,7 +53,7 @@ fn play(players: [Player; 2], player1_turn: bool) -> (u64, u64) {
             if p.score >= WIN {
                 sum.0 += appears;
             } else {
-                let (p1, p2) = play([p, players[1]], !player1_turn);
+                let (p1, p2) = play([p, players[1]], !player1_turn, memo);
                 sum.0 += p1 * appears;
                 sum.1 += p2 * appears;
             }
@@ -47,12 +64,13 @@ fn play(players: [Player; 2], player1_turn: bool) -> (u64, u64) {
             if p.score >= WIN {
                 sum.1 += appears;
             } else {
-                let (p1, p2) = play([players[0], p], !player1_turn);
+                let (p1, p2) = play([players[0], p], !player1_turn, memo);
                 sum.0 += p1 * appears;
                 sum.1 += p2 * appears;
             }
         }
     }
+    memo.insert(state, sum);
     sum
 }
 
@@ -63,6 +81,7 @@ fn main() {
         Player::parse(lines.next().unwrap()),
         Player::parse(lines.next().unwrap()),
     ];
-    let (player1_wins, player2_wins) = play(players, true);
+    let mut memo = HashMap::new();
+    let (player1_wins, player2_wins) = play(players, true, &mut memo);
     println!("{}", cmp::max(player1_wins, player2_wins));
 }
