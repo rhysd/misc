@@ -158,4 +158,12 @@ path = "20.rs"
 name = "19_fast"
 path = "19_fast.rs"
 
+[[bin]]
+name = "21_1"
+path = "21_1.rs"
+
+[[bin]]
+name = "21_2"
+path = "21_2.rs"
+
 [dependencies]
