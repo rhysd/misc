@@ -1,3 +1,5 @@
+// No math and brute force. Slow (7.3s to run on my machine).
+
 use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead};
 
@@ -27,7 +29,7 @@ fn distance(p1: &P, p2: &P) -> i32 {
     (p1.0 - p2.0).abs() + (p1.1 - p2.1).abs() + (p1.2 - p2.2).abs()
 }
 
-fn adjust_to(scan1: &[P], scan2: &[P]) -> Option<(Vec<P>, P)> {
+fn adjust_to(base_scanner: &[P], unadjusted_scanner: &[P]) -> Option<(Vec<P>, P)> {
     const ROT: [fn(P) -> P; 24] = [
         |p| (-p.2, -p.1, -p.0),
         |p| (-p.2, -p.0, p.1),
@@ -62,38 +64,41 @@ fn adjust_to(scan1: &[P], scan2: &[P]) -> Option<(Vec<P>, P)> {
     for rot in ROT {
         let mut adjusts = HashMap::new();
 
-        for bi in 0..scan1.len() {
-            for bj in bi + 1..scan1.len() {
-                let base = (scan1[bi], scan1[bj]);
+        for bi in 0..base_scanner.len() {
+            'base: for bj in bi + 1..base_scanner.len() {
+                let base = (base_scanner[bi], base_scanner[bj]);
                 let base_diff = diff(base);
-                for ui in 0..scan2.len() {
-                    for uj in 0..scan2.len() {
+
+                for ui in 0..unadjusted_scanner.len() {
+                    for uj in 0..unadjusted_scanner.len() {
                         if ui == uj {
                             continue;
                         }
-                        let unadjusted = (rot(scan2[ui]), rot(scan2[uj]));
+
+                        let unadjusted = (rot(unadjusted_scanner[ui]), rot(unadjusted_scanner[uj]));
                         if base_diff == diff(unadjusted) {
                             let offset = diff((unadjusted.0, base.0));
                             assert_eq!(offset, diff((unadjusted.1, base.1)));
-                            let e = adjusts.entry(offset).or_insert_with(HashMap::new);
-                            e.insert(bi, ui);
-                            e.insert(bj, uj);
+
+                            let m = adjusts.entry(offset).or_insert_with(HashMap::new);
+                            m.insert(bi, ui);
+                            m.insert(bj, uj);
+
+                            if m.len() >= 12 {
+                                let adjusted = unadjusted_scanner
+                                    .iter()
+                                    .map(|p| {
+                                        let p = rot(*p);
+                                        (offset.0 + p.0, offset.1 + p.1, offset.2 + p.2)
+                                    })
+                                    .collect();
+                                return Some((adjusted, offset));
+                            }
+
+                            continue 'base;
                         }
                     }
                 }
-            }
-        }
-
-        if let Some((offset, mappings)) = adjusts.into_iter().max_by(|a, b| a.1.len().cmp(&b.1.len())) {
-            if mappings.len() >= 12 {
-                let adjusted = scan2
-                    .iter()
-                    .map(|p| {
-                        let p = rot(*p);
-                        (offset.0 + p.0, offset.1 + p.1, offset.2 + p.2)
-                    })
-                    .collect();
-                return Some((adjusted, offset));
             }
         }
     }
