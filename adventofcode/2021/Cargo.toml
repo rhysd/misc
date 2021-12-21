@@ -154,4 +154,8 @@ path = "19.rs"
 name = "20"
 path = "20.rs"
 
+[[bin]]
+name = "19_fast"
+path = "19_fast.rs"
+
 [dependencies]
