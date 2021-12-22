@@ -25,14 +25,8 @@ impl Player {
 }
 
 type State = (u8, u8, u8, u8, bool);
-fn state(players: [Player; 2], player1_turn: bool) -> State {
-    (
-        players[0].pos,
-        players[0].score,
-        players[1].pos,
-        players[1].score,
-        player1_turn,
-    )
+fn state(p: [Player; 2], p1_turn: bool) -> State {
+    (p[0].pos, p[0].score, p[1].pos, p[1].score, p1_turn)
 }
 
 fn play(players: [Player; 2], player1_turn: bool, memo: &mut HashMap<State, (u64, u64)>) -> (u64, u64) {
