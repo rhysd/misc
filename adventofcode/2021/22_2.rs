@@ -1,22 +1,8 @@
-use std::cmp;
+use std::cmp::{max, min};
 use std::io::{self, BufRead};
 
-type Range = (i32, i32); // Range
-type Cuboid = (Range, Range, Range); // Cuboid
-
-fn overwrap(c1: Cuboid, c2: Cuboid) -> Option<Cuboid> {
-    fn overwrap_line((s1, e1): Range, (s2, e2): Range) -> Option<Range> {
-        let s = cmp::max(s1, s2);
-        let e = cmp::min(e1, e2);
-        (s < e).then(|| (s, e))
-    }
-    let (x1, y1, z1) = c1;
-    let (x2, y2, z2) = c2;
-    let x = overwrap_line(x1, x2)?;
-    let y = overwrap_line(y1, y2)?;
-    let z = overwrap_line(z1, z2)?;
-    Some((x, y, z))
-}
+type Range = (i32, i32);
+type Cuboid = (Range, Range, Range);
 
 fn main() {
     let stdin = io::stdin();
@@ -27,7 +13,7 @@ fn main() {
         } else if let Some(l) = l.strip_prefix("off ") {
             (false, l)
         } else {
-            panic!("neither on nor off");
+            panic!("neither on nor off: {:?}", l);
         };
         let mut s = l.split(',');
         let mut parse_range = move || {
@@ -37,34 +23,44 @@ fn main() {
             assert!(l <= r);
             (l, r + 1) // Make range exclusive. This is the most important point!
         };
-        let x = parse_range();
-        let y = parse_range();
-        let z = parse_range();
-        (on, (x, y, z))
+        let cuboid = (parse_range(), parse_range(), parse_range());
+        (on, cuboid)
     });
 
-    let mut cubes = vec![];
-    for (on, cube) in steps {
-        for i in (0..cubes.len()).rev() {
-            let c = cubes[i];
-            if let Some(overwrapped) = overwrap(c, cube) {
-                let ((oxs, oxe), (oys, oye), (ozs, oze)) = overwrapped;
-                let ((xs, xe), (ys, ye), (zs, ze)) = c;
-                for x in [(xs, oxs), (oxs, oxe), (oxe, xe)].into_iter().filter(|(s, e)| s < e) {
-                    for y in [(ys, oys), (oys, oye), (oye, ye)].into_iter().filter(|(s, e)| s < e) {
-                        for z in [(zs, ozs), (ozs, oze), (oze, ze)].into_iter().filter(|(s, e)| s < e) {
+    fn overwrap(c1: Cuboid, c2: Cuboid) -> Option<Cuboid> {
+        fn overwrap_line((s1, e1): Range, (s2, e2): Range) -> Option<Range> {
+            let (s, e) = (max(s1, s2), min(e1, e2));
+            (s < e).then(|| (s, e))
+        }
+        let ((x1, y1, z1), (x2, y2, z2)) = (c1, c2);
+        let x = overwrap_line(x1, x2)?;
+        let y = overwrap_line(y1, y2)?;
+        let z = overwrap_line(z1, z2)?;
+        Some((x, y, z))
+    }
+
+    let mut cuboids = vec![];
+    for (on, cuboid) in steps {
+        for i in (0..cuboids.len()).rev() {
+            let c = cuboids[i];
+            if let Some(overwrapped) = overwrap(c, cuboid) {
+                let ((cx, cy, cz), (ox, oy, oz)) = (c, overwrapped);
+                let candidates = |(s, e), (os, oe)| [(s, os), (os, oe), (oe, e)].into_iter().filter(|(s, e)| s < e);
+                for x in candidates(cx, ox) {
+                    for y in candidates(cy, oy) {
+                        for z in candidates(cz, oz) {
                             let c = (x, y, z);
                             if c != overwrapped {
-                                cubes.push(c);
+                                cuboids.push(c);
                             }
                         }
                     }
                 }
-                cubes.swap_remove(i);
+                cuboids.swap_remove(i);
             }
         }
         if on {
-            cubes.push(cube);
+            cuboids.push(cuboid);
         }
     }
 
@@ -72,7 +68,8 @@ fn main() {
         let x = (xe - xs) as i64;
         let y = (ye - ys) as i64;
         let z = (ze - zs) as i64;
+        assert!(x > 0 && y > 0 && z > 0);
         (x * y * z) as u64
     }
-    println!("{}", cubes.into_iter().map(volume).sum::<u64>());
+    println!("{}", cuboids.into_iter().map(volume).sum::<u64>());
 }
