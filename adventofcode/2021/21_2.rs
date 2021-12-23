@@ -24,10 +24,13 @@ impl Player {
     }
 }
 
-type State = (u8, u8, u8, u8, bool);
+type State = (u8, u8, u8, u8);
 fn state(p: [Player; 2], p1_turn: bool) -> State {
-    (p[0].pos, p[0].score, p[1].pos, p[1].score, p1_turn)
+    let (i, j) = (!p1_turn as usize, p1_turn as usize);
+    (p[i].pos, p[i].score, p[j].pos, p[j].score)
 }
+
+// Note: Using fnv::FnvHashMap, this program can run about 9% faster
 
 fn play(players: [Player; 2], player1_turn: bool, memo: &mut HashMap<State, (u64, u64)>) -> (u64, u64) {
     let state = state(players, player1_turn);
@@ -64,7 +67,7 @@ fn play(players: [Player; 2], player1_turn: bool, memo: &mut HashMap<State, (u64
             }
         }
     }
-    memo.insert(state, sum);
+    memo.insert(state, if player1_turn { (sum.1, sum.0) } else { sum });
     sum
 }
 
