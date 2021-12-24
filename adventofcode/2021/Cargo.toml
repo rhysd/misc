@@ -182,4 +182,8 @@ path = "23_1.rs"
 name = "23_2"
 path = "23_2.rs"
 
+[[bin]]
+name = "24"
+path = "24.rs"
+
 [dependencies]
