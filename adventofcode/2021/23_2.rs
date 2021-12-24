@@ -2,22 +2,24 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::io::{self, BufRead};
 
+#[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-enum Amphi {
-    A,
-    B,
-    C,
-    D,
-    E,
+enum Amphipod {
+    A = 0,
+    B = 1,
+    C = 2,
+    D = 3,
+    Empty = 255,
 }
+use Amphipod::Empty;
 
-impl Default for Amphi {
+impl Default for Amphipod {
     fn default() -> Self {
-        Self::E
+        Self::Empty
     }
 }
 
-impl Amphi {
+impl Amphipod {
     fn new(c: char) -> Self {
         match c {
             'A' => Self::A,
@@ -29,30 +31,19 @@ impl Amphi {
     }
 
     fn cost(self) -> usize {
-        match self {
-            Self::A => 1,
-            Self::B => 10,
-            Self::C => 100,
-            Self::D => 1000,
-            Self::E => unreachable!(),
-        }
+        const COST: [usize; 4] = [1, 10, 100, 1000];
+        COST[self as usize]
     }
 
     fn goal_idx(self) -> usize {
-        match self {
-            Self::A => 0,
-            Self::B => 1,
-            Self::C => 2,
-            Self::D => 3,
-            Self::E => unreachable!(),
-        }
+        self as usize
     }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 struct Pods {
-    half: [Amphi; 7],
-    rooms: [[Amphi; 4]; 4],
+    half: [Amphipod; 7],
+    rooms: [[Amphipod; 4]; 4],
 }
 
 impl Pods {
@@ -66,28 +57,28 @@ impl Pods {
                 .unwrap()
                 .chars()
                 .filter(|c| matches!(c, 'A' | 'B' | 'C' | 'D'))
-                .map(Amphi::new)
+                .map(Amphipod::new)
                 .enumerate()
             {
                 s.rooms[i][j] = a;
             }
         }
 
-        use Amphi::*;
+        use Amphipod::*;
         s.set_row(2, [D, C, B, A]);
         s.set_row(1, [D, B, A, C]);
 
         s
     }
 
-    fn set_row(&mut self, idx: usize, row: [Amphi; 4]) {
+    fn set_row(&mut self, idx: usize, row: [Amphipod; 4]) {
         for (i, a) in row.into_iter().enumerate() {
             self.rooms[i][idx] = a;
         }
     }
 
     fn is_done(&self) -> bool {
-        use Amphi::*;
+        use Amphipod::*;
         self.rooms[0] == [A; 4] && self.rooms[1] == [B; 4] && self.rooms[2] == [C; 4] && self.rooms[3] == [D; 4]
     }
 
@@ -98,7 +89,7 @@ impl Pods {
         } else {
             ridx + 2..=hidx - 1
         };
-        range.into_iter().all(|i| self.half[i] == Amphi::E).then(|| {
+        range.into_iter().all(|i| self.half[i] == Empty).then(|| {
             let mut cost = if leftside {
                 1 + (ridx + 1 - hidx) * 2
             } else {
@@ -112,30 +103,30 @@ impl Pods {
     }
 
     fn push(&self, hidx: usize, ridx: usize) -> Option<(Self, usize)> {
-        assert_ne!(self.half[hidx], Amphi::E);
+        assert_ne!(self.half[hidx], Empty);
         let move_cost = self.move_cost(hidx, ridx)?;
         let r = self.rooms[ridx];
-        let i = r.iter().position(|a| *a == Amphi::E)?;
+        let i = r.iter().position(|a| *a == Empty)?;
         let a = self.half[hidx];
 
         assert_eq!(a.goal_idx(), ridx);
-        if r.iter().any(|x| *x != a && *x != Amphi::E) {
+        if r.iter().any(|x| *x != a && *x != Empty) {
             return None;
         }
 
         let mut p = self.clone();
         p.rooms[ridx][i] = a;
-        p.half[hidx] = Amphi::E;
+        p.half[hidx] = Empty;
         let push_cost = r.len() - i;
         Some((p, (move_cost + push_cost) * a.cost()))
     }
 
     fn pop(&self, hidx: usize, ridx: usize) -> Option<(Self, usize)> {
-        assert_eq!(self.half[hidx], Amphi::E);
+        assert_eq!(self.half[hidx], Empty);
 
         let move_cost = self.move_cost(hidx, ridx)?;
         let r = self.rooms[ridx];
-        let (i, a) = r.into_iter().enumerate().rev().find(|(_, a)| *a != Amphi::E)?;
+        let (i, a) = r.into_iter().enumerate().rev().find(|(_, a)| *a != Empty)?;
 
         if a.goal_idx() == ridx && r[..i].iter().all(|x| *x == a) {
             return None;
@@ -143,7 +134,7 @@ impl Pods {
 
         let mut p = self.clone();
         p.half[hidx] = a;
-        p.rooms[ridx][i] = Amphi::E;
+        p.rooms[ridx][i] = Empty;
         let pop_cost = r.len() - i;
         Some((p, (move_cost + pop_cost) * a.cost()))
     }
@@ -187,7 +178,7 @@ fn main() {
         }
 
         for (i, h) in p.half.into_iter().enumerate() {
-            if h == Amphi::E {
+            if h == Empty {
                 for (p, c) in (0..p.rooms.len()).into_iter().filter_map(|j| p.pop(i, j)) {
                     let cost = cost + c;
                     if let Some(c) = costs.get(&p) {
