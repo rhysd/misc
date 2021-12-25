@@ -186,4 +186,6 @@ path = "23_2.rs"
 name = "24"
 path = "24.rs"
 
-[dependencies]
+[[bin]]
+name = "25"
+path = "25.rs"
