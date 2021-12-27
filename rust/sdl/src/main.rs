@@ -45,24 +45,24 @@ impl Cell {
 }
 
 #[derive(Clone, Copy)]
-enum FocusHorizon {
-    Left(usize),
-    Right(usize),
+enum Horizontal {
+    Left(u8),
+    Right(u8),
     Neutral,
 }
-impl Default for FocusHorizon {
+impl Default for Horizontal {
     fn default() -> Self {
         Self::Neutral
     }
 }
 
 #[derive(Clone, Copy)]
-enum FocusVert {
-    Up(usize),
-    Down(usize),
+enum Vertical {
+    Up(u8),
+    Down(u8),
     Neutral,
 }
-impl Default for FocusVert {
+impl Default for Vertical {
     fn default() -> Self {
         Self::Neutral
     }
@@ -73,7 +73,7 @@ struct Game {
     gen_frames: Option<u8>,
     focus_frames: Option<u8>,
     focus: (usize, usize),
-    joystick: (FocusHorizon, FocusVert),
+    stick: (Horizontal, Vertical),
 }
 
 impl Game {
@@ -87,7 +87,7 @@ impl Game {
             gen_frames: None,
             focus_frames: None,
             focus: (0, 0),
-            joystick: Default::default(),
+            stick: Default::default(),
         }
     }
 
@@ -123,39 +123,39 @@ impl Game {
         self.focus_frames = Some(FOCUS_FRAMES);
     }
 
-    fn move_focus(&mut self, hori: FocusHorizon, vert: FocusVert) {
-        use FocusHorizon::*;
-        use FocusVert::*;
+    fn move_focus(&mut self, hori: Horizontal, vert: Vertical) {
+        use Horizontal::*;
+        use Vertical::*;
         let (w, h) = (self.cells[0].len(), self.cells.len());
         let (x, y) = self.focus;
         let x = match hori {
-            Left(dx) if x >= dx => x - dx,
-            Right(dx) if w > x + dx => x + dx,
+            Left(dx) if x >= dx as usize => x - dx as usize,
+            Right(dx) if w > x + dx as usize => x + dx as usize,
             _ => x,
         };
         let y = match vert {
-            Up(dy) if y >= dy => y - dy,
-            Down(dy) if h > y + dy => y + dy,
+            Up(dy) if y >= dy as usize => y - dy as usize,
+            Down(dy) if h > y + dy as usize => y + dy as usize,
             _ => y,
         };
         self.focus = (x, y);
         self.focus_frames = Some(FOCUS_FRAMES);
     }
 
-    fn stick_horizontal(&mut self, h: FocusHorizon) {
-        self.joystick.0 = h;
+    fn stick_horizontal(&mut self, h: Horizontal) {
+        self.stick.0 = h;
     }
-    fn stick_vertical(&mut self, v: FocusVert) {
-        self.joystick.1 = v;
+    fn stick_vertical(&mut self, v: Vertical) {
+        self.stick.1 = v;
     }
 
-    fn flip_cell(&mut self, x_px: usize, y_px: usize) {
+    fn flip_cell_at(&mut self, x_px: usize, y_px: usize) {
         let stride = CELL_PX as usize + 1;
         let (x, y) = (x_px / stride, y_px / stride);
         self.cells[y][x].flip();
     }
 
-    fn flip_cell_at_focus(&mut self) {
+    fn flip_cell(&mut self) {
         let (x, y) = self.focus;
         self.cells[y][x].flip();
         self.focus_frames = Some(FOCUS_FRAMES);
@@ -203,8 +203,8 @@ impl Game {
 
     fn update(&mut self) {
         self.focus_frames = self.focus_frames.and_then(|f| f.checked_sub(1));
-        match self.joystick {
-            (FocusHorizon::Neutral, FocusVert::Neutral) => {}
+        match self.stick {
+            (Horizontal::Neutral, Vertical::Neutral) => {}
             (h, v) => self.move_focus(h, v),
         }
 
@@ -232,7 +232,7 @@ impl Game {
         }
     }
 
-    fn draw(&self, canvas: &mut WindowCanvas) -> Result<(), String> {
+    fn draw_scene(&self, canvas: &mut WindowCanvas) -> Result<(), String> {
         let stride = CELL_PX as i32 + 1;
         let height = self.cells.len() as i32;
         let width = self.cells[0].len() as i32;
@@ -308,169 +308,71 @@ fn main() -> Result<(), String> {
                     x,
                     y,
                     ..
-                } => game.flip_cell(x as usize, y as usize),
+                } => game.flip_cell_at(x as usize, y as usize),
                 MouseButtonDown {
                     mouse_btn: MouseButton::Right,
                     ..
                 } => game.toggle(),
                 MouseMotion { x, y, .. } => game.focus(x as usize, y as usize),
                 KeyDown {
-                    keycode: Some(Keycode::Down | Keycode::J),
-                    ..
-                } => game.move_focus(FocusHorizon::Neutral, FocusVert::Down(1)),
-                KeyDown {
-                    keycode: Some(Keycode::Up | Keycode::K),
-                    ..
-                } => game.move_focus(FocusHorizon::Neutral, FocusVert::Up(1)),
-                KeyDown {
-                    keycode: Some(Keycode::Left | Keycode::H),
-                    ..
-                } => game.move_focus(FocusHorizon::Left(1), FocusVert::Neutral),
-                KeyDown {
-                    keycode: Some(Keycode::Right | Keycode::L),
-                    ..
-                } => game.move_focus(FocusHorizon::Right(1), FocusVert::Neutral),
-                KeyDown {
-                    keycode: Some(Keycode::Space),
-                    ..
-                } => game.flip_cell_at_focus(),
-                KeyDown {
-                    keycode: Some(Keycode::Return | Keycode::Return2),
-                    ..
-                } => game.toggle(),
-                KeyDown {
-                    keycode: Some(Keycode::Escape | Keycode::N),
-                    ..
-                } => game.reset(),
-                KeyDown {
-                    keycode: Some(Keycode::M),
-                    ..
-                } => game.random(),
-                JoyHatMotion {
-                    which: 0,
-                    state: HatState::Up,
-                    ..
-                } => game.move_focus(FocusHorizon::Neutral, FocusVert::Up(1)),
-                JoyHatMotion {
-                    which: 0,
-                    state: HatState::RightUp,
-                    ..
-                } => game.move_focus(FocusHorizon::Right(1), FocusVert::Up(1)),
-                JoyHatMotion {
-                    which: 0,
-                    state: HatState::Right,
-                    ..
-                } => game.move_focus(FocusHorizon::Right(1), FocusVert::Neutral),
-                JoyHatMotion {
-                    which: 0,
-                    state: HatState::RightDown,
-                    ..
-                } => game.move_focus(FocusHorizon::Right(1), FocusVert::Down(1)),
-                JoyHatMotion {
-                    which: 0,
-                    state: HatState::Down,
-                    ..
-                } => game.move_focus(FocusHorizon::Neutral, FocusVert::Down(1)),
-                JoyHatMotion {
-                    which: 0,
-                    state: HatState::LeftDown,
-                    ..
-                } => game.move_focus(FocusHorizon::Left(1), FocusVert::Down(1)),
-                JoyHatMotion {
-                    which: 0,
-                    state: HatState::Left,
-                    ..
-                } => game.move_focus(FocusHorizon::Left(1), FocusVert::Neutral),
-                JoyHatMotion {
-                    which: 0,
-                    state: HatState::LeftUp,
-                    ..
-                } => game.move_focus(FocusHorizon::Left(1), FocusVert::Up(1)),
-                JoyHatMotion {
-                    which: 0,
-                    state: HatState::Centered,
-                    ..
-                } => game.move_focus(FocusHorizon::Neutral, FocusVert::Neutral),
-                JoyButtonDown {
-                    which: 0,
-                    button_idx: 0,
-                    ..
-                } => game.flip_cell_at_focus(), // Cross button of DualShock4
-                JoyButtonDown {
-                    which: 0,
-                    button_idx: 1,
-                    ..
-                } => game.toggle(), // Circle button of DualShock4
-                JoyButtonDown {
-                    which: 0,
-                    button_idx: 2,
-                    ..
-                } => game.random(), // Square button of DualShock4
-                JoyButtonDown {
-                    which: 0,
-                    button_idx: 3,
-                    ..
-                } => game.reset(), // Triangle button of DualShock4
+                    keycode: Some(key), ..
+                } => {
+                    use Keycode::*;
+                    match key {
+                        Down | J => game.move_focus(Horizontal::Neutral, Vertical::Down(1)),
+                        Up | K => game.move_focus(Horizontal::Neutral, Vertical::Up(1)),
+                        Left | H => game.move_focus(Horizontal::Left(1), Vertical::Neutral),
+                        Right | L => game.move_focus(Horizontal::Right(1), Vertical::Neutral),
+                        Space => game.flip_cell(),
+                        Return | Return2 => game.toggle(),
+                        Escape | N => game.reset(),
+                        M => game.random(),
+                        _ => {}
+                    }
+                }
+                JoyHatMotion { state, .. } => {
+                    use HatState::*;
+                    let (h, v) = match state {
+                        Up => (Horizontal::Neutral, Vertical::Up(1)),
+                        RightUp => (Horizontal::Right(1), Vertical::Up(1)),
+                        Right => (Horizontal::Right(1), Vertical::Neutral),
+                        RightDown => (Horizontal::Right(1), Vertical::Down(1)),
+                        Down => (Horizontal::Neutral, Vertical::Down(1)),
+                        LeftDown => (Horizontal::Left(1), Vertical::Down(1)),
+                        Left => (Horizontal::Left(1), Vertical::Neutral),
+                        LeftUp => (Horizontal::Left(1), Vertical::Up(1)),
+                        Centered => (Horizontal::Neutral, Vertical::Neutral),
+                    };
+                    game.move_focus(h, v);
+                }
+                JoyButtonDown { button_idx: 0, .. } => game.flip_cell(), // Cross button of DualShock4
+                JoyButtonDown { button_idx: 1, .. } => game.toggle(), // Circle button of DualShock4
+                JoyButtonDown { button_idx: 2, .. } => game.random(), // Square button of DualShock4
+                JoyButtonDown { button_idx: 3, .. } => game.reset(), // Triangle button of DualShock4
                 JoyAxisMotion {
-                    which: 0,
-                    axis_idx: 0,
-                    value: -9999..=9999,
-                    ..
-                } => game.stick_horizontal(FocusHorizon::Neutral),
+                    axis_idx: 0, value, ..
+                } => {
+                    let h = match value {
+                        -32768..=-30000 => Horizontal::Left(2),
+                        -29999..=-10000 => Horizontal::Left(1),
+                        -9999..=9999 => Horizontal::Neutral,
+                        10000..=29999 => Horizontal::Right(1),
+                        30000..=32767 => Horizontal::Right(2),
+                    };
+                    game.stick_horizontal(h);
+                }
                 JoyAxisMotion {
-                    which: 0,
-                    axis_idx: 0,
-                    value: -29999..=-10000,
-                    ..
-                } => game.stick_horizontal(FocusHorizon::Left(1)),
-                JoyAxisMotion {
-                    which: 0,
-                    axis_idx: 0,
-                    value: -32768..=-30000,
-                    ..
-                } => game.stick_horizontal(FocusHorizon::Left(2)),
-                JoyAxisMotion {
-                    which: 0,
-                    axis_idx: 0,
-                    value: 10000..=29999,
-                    ..
-                } => game.stick_horizontal(FocusHorizon::Right(1)),
-                JoyAxisMotion {
-                    which: 0,
-                    axis_idx: 0,
-                    value: 30000..=32767,
-                    ..
-                } => game.stick_horizontal(FocusHorizon::Right(2)),
-                JoyAxisMotion {
-                    which: 0,
-                    axis_idx: 1,
-                    value: -9999..=9999,
-                    ..
-                } => game.stick_vertical(FocusVert::Neutral),
-                JoyAxisMotion {
-                    which: 0,
-                    axis_idx: 1,
-                    value: -29999..=-10000,
-                    ..
-                } => game.stick_vertical(FocusVert::Up(1)),
-                JoyAxisMotion {
-                    which: 0,
-                    axis_idx: 1,
-                    value: -32768..=-30000,
-                    ..
-                } => game.stick_vertical(FocusVert::Up(2)),
-                JoyAxisMotion {
-                    which: 0,
-                    axis_idx: 1,
-                    value: 10000..=29999,
-                    ..
-                } => game.stick_vertical(FocusVert::Down(1)),
-                JoyAxisMotion {
-                    which: 0,
-                    axis_idx: 1,
-                    value: 30000..=32767,
-                    ..
-                } => game.stick_vertical(FocusVert::Down(2)),
+                    axis_idx: 1, value, ..
+                } => {
+                    let v = match value {
+                        -32768..=-30000 => Vertical::Up(2),
+                        -29999..=-10000 => Vertical::Up(1),
+                        -9999..=9999 => Vertical::Neutral,
+                        10000..=29999 => Vertical::Down(1),
+                        30000..=32767 => Vertical::Down(2),
+                    };
+                    game.stick_vertical(v);
+                }
                 JoyDeviceAdded { which: 0, .. } if controller.is_none() => {
                     controller = Some(joystick.open(0).map_err(|e| format!("{}", e))?);
                 }
@@ -478,7 +380,7 @@ fn main() -> Result<(), String> {
             }
         }
         game.update();
-        game.draw(&mut canvas)?;
+        game.draw_scene(&mut canvas)?;
         canvas.present();
         let now = Instant::now();
         let _fps = 1000.0 / now.duration_since(stamp).subsec_millis() as f64;
