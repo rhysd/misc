@@ -34,6 +34,14 @@ impl Cell {
             Cell::Off => Cell::On,
         };
     }
+
+    fn random() -> Self {
+        if rand::random() {
+            Self::On
+        } else {
+            Self::Off
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -72,14 +80,7 @@ impl Game {
     fn new((w, h): (usize, usize)) -> Self {
         let w = (w / 2) / (CELL_PX as usize + 1);
         let h = (h / 2) / (CELL_PX as usize + 1);
-        let mut cells = vec![vec![Cell::Off; w].into_boxed_slice(); h].into_boxed_slice();
-
-        // TODO: Temporary
-        cells[20][20] = Cell::On;
-        cells[20][21] = Cell::On;
-        cells[20][22] = Cell::On;
-        cells[21][20] = Cell::On;
-        cells[22][21] = Cell::On;
+        let cells = vec![vec![Cell::Off; w].into_boxed_slice(); h].into_boxed_slice();
 
         Self {
             cells,
@@ -158,6 +159,20 @@ impl Game {
         let (x, y) = self.focus;
         self.cells[y][x].flip();
         self.focus_frames = Some(FOCUS_FRAMES);
+    }
+
+    fn reset(&mut self) {
+        for xs in self.cells.iter_mut() {
+            xs.fill(Cell::Off);
+        }
+    }
+
+    fn random(&mut self) {
+        for xs in self.cells.iter_mut() {
+            for c in xs.iter_mut() {
+                *c = Cell::random();
+            }
+        }
     }
 
     fn live_cells(&self, x: usize, y: usize) -> u8 {
@@ -323,6 +338,14 @@ fn main() -> Result<(), String> {
                     keycode: Some(Keycode::Return | Keycode::Return2),
                     ..
                 } => game.toggle(),
+                KeyDown {
+                    keycode: Some(Keycode::Escape | Keycode::N),
+                    ..
+                } => game.reset(),
+                KeyDown {
+                    keycode: Some(Keycode::M),
+                    ..
+                } => game.random(),
                 JoyHatMotion {
                     which: 0,
                     state: HatState::Up,
@@ -378,16 +401,26 @@ fn main() -> Result<(), String> {
                     button_idx: 1,
                     ..
                 } => game.toggle(), // Circle button of DualShock4
+                JoyButtonDown {
+                    which: 0,
+                    button_idx: 2,
+                    ..
+                } => game.random(), // Square button of DualShock4
+                JoyButtonDown {
+                    which: 0,
+                    button_idx: 3,
+                    ..
+                } => game.reset(), // Triangle button of DualShock4
                 JoyAxisMotion {
                     which: 0,
                     axis_idx: 0,
-                    value: -16384..=16384,
+                    value: -9999..=9999,
                     ..
                 } => game.stick_horizontal(FocusHorizon::Neutral),
                 JoyAxisMotion {
                     which: 0,
                     axis_idx: 0,
-                    value: -29999..=-16385,
+                    value: -29999..=-10000,
                     ..
                 } => game.stick_horizontal(FocusHorizon::Left(1)),
                 JoyAxisMotion {
@@ -399,7 +432,7 @@ fn main() -> Result<(), String> {
                 JoyAxisMotion {
                     which: 0,
                     axis_idx: 0,
-                    value: 16385..=29999,
+                    value: 10000..=29999,
                     ..
                 } => game.stick_horizontal(FocusHorizon::Right(1)),
                 JoyAxisMotion {
@@ -411,13 +444,13 @@ fn main() -> Result<(), String> {
                 JoyAxisMotion {
                     which: 0,
                     axis_idx: 1,
-                    value: -16384..=16384,
+                    value: -9999..=9999,
                     ..
                 } => game.stick_vertical(FocusVert::Neutral),
                 JoyAxisMotion {
                     which: 0,
                     axis_idx: 1,
-                    value: -29999..=-16385,
+                    value: -29999..=-10000,
                     ..
                 } => game.stick_vertical(FocusVert::Up(1)),
                 JoyAxisMotion {
@@ -429,7 +462,7 @@ fn main() -> Result<(), String> {
                 JoyAxisMotion {
                     which: 0,
                     axis_idx: 1,
-                    value: 16385..=29999,
+                    value: 10000..=29999,
                     ..
                 } => game.stick_vertical(FocusVert::Down(1)),
                 JoyAxisMotion {
