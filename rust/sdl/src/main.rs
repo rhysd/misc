@@ -1,9 +1,11 @@
+use sdl2::audio::{AudioQueue, AudioSpecDesired};
 use sdl2::event::Event;
 use sdl2::joystick::HatState;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
 use sdl2::render::WindowCanvas;
+use std::mem;
 use std::time::Instant;
 
 const CELL_PX: u32 = 10;
@@ -13,6 +15,8 @@ const WHITE: Color = Color::RGB(255, 255, 255);
 const RED: Color = Color::RGB(128, 0, 0);
 const TICK_FRAMES: u8 = 10;
 const FOCUS_FRAMES: u8 = 60;
+const SOUND_FREQ: i32 = 48000;
+const SOUND_CHANS: u8 = 2;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Cell {
@@ -74,6 +78,7 @@ struct Game {
     focus_frames: Option<u8>,
     focus: (usize, usize),
     stick: (Horizontal, Vertical),
+    sound: bool,
 }
 
 impl Game {
@@ -88,6 +93,7 @@ impl Game {
             focus_frames: None,
             focus: (0, 0),
             stick: Default::default(),
+            sound: false,
         }
     }
 
@@ -114,6 +120,7 @@ impl Game {
 
     fn toggle(&mut self) {
         self.gen_frames = self.gen_frames.is_none().then(|| TICK_FRAMES);
+        self.sound = true;
     }
 
     fn focus(&mut self, x_px: usize, y_px: usize) {
@@ -267,6 +274,30 @@ impl Game {
 
         Ok(())
     }
+
+    fn sound(&mut self) -> bool {
+        mem::take(&mut self.sound)
+    }
+
+    fn play_sound(&self, device: &mut AudioQueue<i16>) -> Result<(), String> {
+        let spec = device.spec();
+        let period = spec.freq / 256;
+        let samples = spec.freq / 16; // Play 1/16 seconds
+        let volume = 1000;
+        let mut wave = Vec::with_capacity(samples as usize);
+        for x in 0..samples {
+            let is_top = (x / period) % spec.channels as i32 == 0;
+            let tone = if is_top { volume } else { -volume };
+            wave.push(tone);
+        }
+        if !device.queue(&wave) {
+            return Err("Could not enqueue sound data to audio device".to_string());
+        }
+
+        device.queue(&wave);
+        device.resume();
+        Ok(())
+    }
 }
 
 fn main() -> Result<(), String> {
@@ -282,6 +313,17 @@ fn main() -> Result<(), String> {
         .then(|| joystick.open(0))
         .transpose()
         .map_err(|e| format!("{}", e))?;
+
+    let audio = ctx.audio()?;
+
+    let mut audio_device = audio.open_queue(
+        None,
+        &AudioSpecDesired {
+            freq: Some(SOUND_FREQ),
+            channels: Some(SOUND_CHANS), // Stereo
+            samples: None,               // default sample size
+        },
+    )?;
 
     let window = video
         .window("Life Game for SDL test", width, height)
@@ -319,14 +361,14 @@ fn main() -> Result<(), String> {
                 } => {
                     use Keycode::*;
                     match key {
-                        Down | J => game.move_focus(Horizontal::Neutral, Vertical::Down(1)),
-                        Up | K => game.move_focus(Horizontal::Neutral, Vertical::Up(1)),
-                        Left | H => game.move_focus(Horizontal::Left(1), Vertical::Neutral),
-                        Right | L => game.move_focus(Horizontal::Right(1), Vertical::Neutral),
+                        Down | S => game.move_focus(Horizontal::Neutral, Vertical::Down(1)),
+                        Up | W => game.move_focus(Horizontal::Neutral, Vertical::Up(1)),
+                        Left | A => game.move_focus(Horizontal::Left(1), Vertical::Neutral),
+                        Right | D => game.move_focus(Horizontal::Right(1), Vertical::Neutral),
                         Space => game.flip_cell(),
                         Return | Return2 => game.toggle(),
                         Escape | N => game.reset(),
-                        M => game.random(),
+                        R => game.random(),
                         _ => {}
                     }
                 }
@@ -379,9 +421,16 @@ fn main() -> Result<(), String> {
                 _ => {}
             }
         }
+
         game.update();
+
         game.draw_scene(&mut canvas)?;
         canvas.present();
+
+        if game.sound() {
+            game.play_sound(&mut audio_device)?;
+        }
+
         let now = Instant::now();
         let _fps = 1000.0 / now.duration_since(stamp).subsec_millis() as f64;
         // println!("{:?} fps", fps);
