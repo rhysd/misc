@@ -1,10 +1,12 @@
-use sdl2::audio::{AudioQueue, AudioSpecDesired};
+use sdl2::audio::AudioSpecDesired;
 use sdl2::event::Event;
 use sdl2::joystick::HatState;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
-use sdl2::render::WindowCanvas;
+use sdl2::rect::Rect;
+use sdl2::rwops::RWops;
+use sdl2::ttf;
 use std::mem;
 use std::time::Instant;
 
@@ -13,10 +15,14 @@ const BLACK: Color = Color::RGB(0, 0, 0);
 const GRAY: Color = Color::RGB(192, 192, 192);
 const WHITE: Color = Color::RGB(255, 255, 255);
 const RED: Color = Color::RGB(128, 0, 0);
+const GREEN: Color = Color::RGB(0, 192, 128);
 const TICK_FRAMES: u8 = 10;
 const FOCUS_FRAMES: u8 = 60;
 const SOUND_FREQ: i32 = 48000;
 const SOUND_CHANS: u8 = 2;
+const FONT_SIZE: u16 = 20;
+
+const FONT: &[u8] = include_bytes!("../Lato-Regular.ttf");
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Cell {
@@ -239,64 +245,8 @@ impl Game {
         }
     }
 
-    fn draw_scene(&self, canvas: &mut WindowCanvas) -> Result<(), String> {
-        let stride = CELL_PX as i32 + 1;
-        let height = self.cells.len() as i32;
-        let width = self.cells[0].len() as i32;
-
-        // Draw grids
-        canvas.set_draw_color(GRAY);
-        for y in 0..=height {
-            let y = y * stride;
-            canvas.draw_line((0, y), (width * stride, y))?;
-        }
-        for x in 0..=width {
-            let x = x * stride;
-            canvas.draw_line((x, 0), (x, height * stride))?;
-        }
-
-        // Draw cells
-        for (y, xs) in self.cells.iter().enumerate() {
-            for (x, c) in xs.iter().enumerate() {
-                canvas.set_draw_color(c.color());
-                let (x, y) = (x as i32 * stride + 1, y as i32 * stride + 1);
-                canvas.fill_rect(Some((x, y, CELL_PX, CELL_PX).into()))?;
-            }
-        }
-
-        // Draw focus
-        if self.focus_frames.is_some() {
-            canvas.set_draw_color(RED);
-            let (x, y) = self.focus;
-            let (x, y) = (x as i32 * stride, y as i32 * stride);
-            canvas.draw_rect((x, y, CELL_PX + 2, CELL_PX + 2).into())?;
-        }
-
-        Ok(())
-    }
-
     fn sound(&mut self) -> bool {
         mem::take(&mut self.sound)
-    }
-
-    fn play_sound(&self, device: &mut AudioQueue<i16>) -> Result<(), String> {
-        let spec = device.spec();
-        let period = spec.freq / 256;
-        let samples = spec.freq / 16; // Play 1/16 seconds
-        let volume = 1000;
-        let mut wave = Vec::with_capacity(samples as usize);
-        for x in 0..samples {
-            let is_top = (x / period) % spec.channels as i32 == 0;
-            let tone = if is_top { volume } else { -volume };
-            wave.push(tone);
-        }
-        if !device.queue(&wave) {
-            return Err("Could not enqueue sound data to audio device".to_string());
-        }
-
-        device.queue(&wave);
-        device.resume();
-        Ok(())
     }
 }
 
@@ -316,7 +266,7 @@ fn main() -> Result<(), String> {
 
     let audio = ctx.audio()?;
 
-    let mut audio_device = audio.open_queue(
+    let audio_device = audio.open_queue(
         None,
         &AudioSpecDesired {
             freq: Some(SOUND_FREQ),
@@ -335,6 +285,10 @@ fn main() -> Result<(), String> {
         .present_vsync()
         .build()
         .map_err(|e| format!("{}", e))?;
+    let texture_creator = canvas.texture_creator();
+
+    let ttf = ttf::init().map_err(|e| format!("{}", e))?;
+    let font = ttf.load_font_from_rwops(RWops::from_bytes(FONT)?, FONT_SIZE)?;
 
     let mut events = ctx.event_pump()?;
     let mut stamp = Instant::now();
@@ -424,17 +378,80 @@ fn main() -> Result<(), String> {
 
         game.update();
 
-        game.draw_scene(&mut canvas)?;
-        canvas.present();
+        // Draw scene
+        {
+            let stride = CELL_PX as i32 + 1;
+            let height = game.cells.len() as i32;
+            let width = game.cells[0].len() as i32;
 
-        if game.sound() {
-            game.play_sound(&mut audio_device)?;
+            // Draw grids
+            canvas.set_draw_color(GRAY);
+            for y in 0..=height {
+                let y = y * stride;
+                canvas.draw_line((0, y), (width * stride, y))?;
+            }
+            for x in 0..=width {
+                let x = x * stride;
+                canvas.draw_line((x, 0), (x, height * stride))?;
+            }
+
+            // Draw cells
+            for (y, xs) in game.cells.iter().enumerate() {
+                for (x, c) in xs.iter().enumerate() {
+                    canvas.set_draw_color(c.color());
+                    let (x, y) = (x as i32 * stride + 1, y as i32 * stride + 1);
+                    canvas.fill_rect(Some((x, y, CELL_PX, CELL_PX).into()))?;
+                }
+            }
+
+            // Draw focus
+            if game.focus_frames.is_some() {
+                canvas.set_draw_color(RED);
+                let (x, y) = game.focus;
+                let (x, y) = (x as i32 * stride, y as i32 * stride);
+                canvas.draw_rect((x, y, CELL_PX + 2, CELL_PX + 2).into())?;
+            }
+
+            let now = Instant::now();
+            let fps = 1000.0 / now.duration_since(stamp).subsec_millis() as f64;
+            stamp = now;
+
+            // Draw FPS counter
+            let message = format!("{:.1}", fps);
+            let surface = font
+                .render(&message)
+                .solid(GREEN)
+                .map_err(|e| format!("{}", e))?;
+            let texture = surface
+                .as_texture(&texture_creator)
+                .map_err(|e| format!("{}", e))?;
+            canvas.copy(
+                &texture,
+                None,
+                Rect::new(1, 1, FONT_SIZE as u32 * 2, FONT_SIZE as u32),
+            )?;
+
+            canvas.present();
         }
 
-        let now = Instant::now();
-        let _fps = 1000.0 / now.duration_since(stamp).subsec_millis() as f64;
-        // println!("{:?} fps", fps);
-        stamp = now;
+        if game.sound() {
+            let spec = audio_device.spec();
+            let period = spec.freq / 256;
+            let samples = spec.freq / 16; // Play 1/16 seconds
+            let volume = 1000;
+            let mut wave = Vec::with_capacity(samples as usize);
+            for x in 0..samples {
+                let is_top = (x / period) % spec.channels as i32 == 0;
+                let tone = if is_top { volume } else { -volume };
+                wave.push(tone);
+            }
+            if !audio_device.queue(&wave) {
+                return Err("Could not enqueue sound data to audio device".to_string());
+            }
+
+            audio_device.queue(&wave);
+            audio_device.resume();
+        }
     }
 
     Ok(())
