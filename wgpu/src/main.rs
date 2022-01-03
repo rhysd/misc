@@ -1,8 +1,6 @@
 use bytemuck::{Pod, Zeroable};
-use std::f32;
 use std::iter;
 use std::mem;
-use wgpu::util::DeviceExt as _;
 use winit::dpi::PhysicalSize;
 use winit::event::*;
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -46,6 +44,21 @@ impl Vertex {
     }
 }
 
+const VERTICES: &[Vertex] = &[
+    Vertex {
+        position: [0.0, 0.5, 0.0],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, -0.5, 0.0],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, -0.5, 0.0],
+        color: [0.0, 0.0, 1.0],
+    },
+];
+
 #[derive(Debug)]
 struct State {
     surface: wgpu::Surface,
@@ -57,11 +70,13 @@ struct State {
     bg_color: wgpu::Color,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    vertices: [Vertex; 3],
+    num_vertices: u32,
 }
 
 impl State {
     async fn new(window: &Window) -> Self {
+        use wgpu::util::DeviceExt;
+
         let size = window.inner_size();
         assert!(size.height > 0 && size.width > 0);
 
@@ -148,26 +163,12 @@ impl State {
             a: 1.0,
         };
 
-        let vertices = [
-            Vertex {
-                position: [0.0, 0.5, 0.0],
-                color: [1.0, 0.0, 0.0],
-            },
-            Vertex {
-                position: [-0.5, -0.5, 0.0],
-                color: [0.0, 1.0, 0.0],
-            },
-            Vertex {
-                position: [0.5, -0.5, 0.0],
-                color: [0.0, 0.0, 1.0],
-            },
-        ];
-
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
         });
+        let num_vertices = VERTICES.len() as u32;
 
         Self {
             surface,
@@ -178,7 +179,7 @@ impl State {
             bg_color,
             render_pipeline,
             vertex_buffer,
-            vertices,
+            num_vertices,
         }
     }
 
@@ -211,34 +212,7 @@ impl State {
     }
 
     fn update(&mut self) {
-        // Update color
-        let mut red = self.vertices[0].color;
-        if red[2] >= 1.0 {
-            let i = red.iter().position(|f| *f > -1.0).unwrap();
-            red[i] -= 0.02;
-        } else {
-            let i = red.iter().position(|f| *f < 1.0).unwrap();
-            red[i] += 0.02;
-        }
-        self.vertices[0].color = red;
-
-        for i in 1..=2 {
-            let mut c = red;
-            c.rotate_right(i);
-            self.vertices[i].color = c;
-        }
-
-        // Update position
-        for i in 0..=2 {
-            let (sin, cos) = (f32::consts::PI / 360.0).sin_cos();
-            let [x, y, z] = self.vertices[i].position;
-            let x = x * cos - y * sin;
-            let y = x * sin + y * cos;
-            self.vertices[i].position = [x, y, z];
-        }
-
-        self.queue
-            .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&self.vertices));
+        // Do nothing for now
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -268,7 +242,7 @@ impl State {
         // 0 means the first vertex buffer. Note that multiple vertex buffers can be declared in render pipeline
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         // Render all vertices. The indices are passed to [[builtin(vertex_index)]] in the vertex shader
-        render_pass.draw(0..self.vertices.len() as u32, 0..1);
+        render_pass.draw(0..self.num_vertices, 0..1);
 
         drop(render_pass); // render_pass borrows encoder mutably. It must be dropped before calling finish().
 
