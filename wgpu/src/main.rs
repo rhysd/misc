@@ -1,9 +1,50 @@
+use bytemuck::{Pod, Zeroable};
+use std::f32;
 use std::iter;
+use std::mem;
+use wgpu::util::DeviceExt as _;
 use winit::dpi::PhysicalSize;
 use winit::event::*;
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
 use winit::window::WindowBuilder;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+struct Vertex {
+    position: [f32; 3],
+    color: [f32; 3],
+}
+
+impl Vertex {
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        //         │◄────── array_stride ───────►│◄───── array_stride ────────►│
+        //         │◄─ position ─►│◄── color ───►│◄─ position ─►│◄── color ───►│
+        //         ┌──────────────┬──────────────┬──────────────┬──────────────┬─
+        // buffer: │ Float32x3    │ Float32x3    │ Float32x3    │ Float32x3    │ ...
+        //         └──────────────┴──────────────┴──────────────┴──────────────┴─
+        // offset: 0            32x3          32x6           32x9          32x12
+        const LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                // `position` field in `Vertex`
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                // `color` field in `Vertex`
+                wgpu::VertexAttribute {
+                    offset: wgpu::VertexFormat::Float32x3.size(),
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+            ],
+        };
+        LAYOUT
+    }
+}
 
 #[derive(Debug)]
 struct State {
@@ -13,8 +54,10 @@ struct State {
     // Config and size are necessary for reconfiguring surface on window reisize
     config: wgpu::SurfaceConfiguration,
     size: PhysicalSize<u32>,
-    color: wgpu::Color,
+    bg_color: wgpu::Color,
     render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    vertices: [Vertex; 3],
 }
 
 impl State {
@@ -69,7 +112,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[],
+                buffers: &[Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -98,12 +141,33 @@ impl State {
             multiview: None,
         });
 
-        let color = wgpu::Color {
+        let bg_color = wgpu::Color {
             r: 0.1,
             g: 0.2,
             b: 0.3,
             a: 1.0,
         };
+
+        let vertices = [
+            Vertex {
+                position: [0.0, 0.5, 0.0],
+                color: [1.0, 0.0, 0.0],
+            },
+            Vertex {
+                position: [-0.5, -0.5, 0.0],
+                color: [0.0, 1.0, 0.0],
+            },
+            Vertex {
+                position: [0.5, -0.5, 0.0],
+                color: [0.0, 0.0, 1.0],
+            },
+        ];
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
 
         Self {
             surface,
@@ -111,8 +175,10 @@ impl State {
             queue,
             config,
             size,
-            color,
+            bg_color,
             render_pipeline,
+            vertex_buffer,
+            vertices,
         }
     }
 
@@ -136,8 +202,8 @@ impl State {
                 let g = ((w - x) * (w - x) + y * y).sqrt() / max;
                 let b = (x * x + (h - y) * (h - y)).sqrt() / max;
                 let a = 1.0;
-                self.color = wgpu::Color { r, g, b, a };
-                log::info!("Mouse {:?}: {:?}", position, self.color);
+                self.bg_color = wgpu::Color { r, g, b, a };
+                log::info!("Mouse {:?}: {:?}", position, self.bg_color);
                 true
             }
             _ => false,
@@ -145,19 +211,42 @@ impl State {
     }
 
     fn update(&mut self) {
-        // Do nothing for now
+        // Update color
+        let mut red = self.vertices[0].color;
+        if red[2] >= 1.0 {
+            let i = red.iter().position(|f| *f > -1.0).unwrap();
+            red[i] -= 0.02;
+        } else {
+            let i = red.iter().position(|f| *f < 1.0).unwrap();
+            red[i] += 0.02;
+        }
+        self.vertices[0].color = red;
+
+        for i in 1..=2 {
+            let mut c = red;
+            c.rotate_right(i);
+            self.vertices[i].color = c;
+        }
+
+        // Update position
+        for i in 0..=2 {
+            let (sin, cos) = (f32::consts::PI / 360.0).sin_cos();
+            let [x, y, z] = self.vertices[i].position;
+            let x = x * cos - y * sin;
+            let y = x * sin + y * cos;
+            self.vertices[i].position = [x, y, z];
+        }
+
+        self.queue
+            .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&self.vertices));
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
@@ -167,7 +256,7 @@ impl State {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(self.color),
+                        load: wgpu::LoadOp::Clear(self.bg_color),
                         store: true,
                     },
                 },
@@ -176,8 +265,10 @@ impl State {
         });
 
         render_pass.set_pipeline(&self.render_pipeline);
-        // Render 0..3 vertices. The indices are passed to [[builtin(vertex_index)]] in the vertex shader
-        render_pass.draw(0..3, 0..1);
+        // 0 means the first vertex buffer. Note that multiple vertex buffers can be declared in render pipeline
+        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        // Render all vertices. The indices are passed to [[builtin(vertex_index)]] in the vertex shader
+        render_pass.draw(0..self.vertices.len() as u32, 0..1);
 
         drop(render_pass); // render_pass borrows encoder mutably. It must be dropped before calling finish().
 
@@ -198,10 +289,7 @@ fn main() {
     log::info!("{:?}", state);
 
     event_loop.run(move |event, _, control_flow| match event {
-        Event::WindowEvent {
-            ref event,
-            window_id,
-        } if window_id == window.id() => {
+        Event::WindowEvent { ref event, window_id } if window_id == window.id() => {
             if !state.input(event) {
                 match event {
                     WindowEvent::CloseRequested
