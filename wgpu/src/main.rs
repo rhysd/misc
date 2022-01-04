@@ -1,7 +1,6 @@
 mod texture;
 
 use bytemuck::{Pod, Zeroable};
-use std::f32;
 use std::iter;
 use std::mem;
 use winit::dpi::PhysicalSize;
@@ -47,6 +46,15 @@ impl Vertex {
     }
 }
 
+// Note: Top left is the origin of coordinate. But an image has its origin at bottom left. We need to use `1 - y` to flip Y-coordinate
+#[rustfmt::skip]
+const VERTICES: &[Vertex] = &[
+    Vertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], }, // A
+    Vertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], }, // B
+    Vertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], }, // C
+    Vertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }, // D
+    Vertex { position: [0.44147372, 0.2347359, 0.0], tex_coords: [0.9414737, 0.2652641], }, // E
+];
 #[rustfmt::skip]
 const VERT_INDICES: &[u16] = &[
     0, 1, 4,
@@ -72,7 +80,6 @@ struct State {
     num_indices: u32,
     diffuse_bind_group: wgpu::BindGroup,
     diffuse_texture: texture::Texture,
-    vertices: [Vertex; 5],
 }
 
 impl State {
@@ -206,20 +213,10 @@ impl State {
             a: 1.0,
         };
 
-        // Note: Top left is the origin of coordinate. But an image has its origin at bottom left. We need to use `1 - y` to flip Y-coordinate
-        #[rustfmt::skip]
-        let vertices = [
-            Vertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], }, // A
-            Vertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], }, // B
-            Vertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], }, // C
-            Vertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }, // D
-            Vertex { position: [0.44147372, 0.2347359, 0.0], tex_coords: [0.9414737, 0.2652641], }, // E
-        ];
-
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
         });
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
@@ -241,7 +238,6 @@ impl State {
             num_indices,
             diffuse_bind_group,
             diffuse_texture,
-            vertices,
         }
     }
 
@@ -274,15 +270,7 @@ impl State {
     }
 
     fn update(&mut self) {
-        let (sin, cos) = (f32::consts::PI / 360.0).sin_cos();
-        for v in self.vertices.iter_mut() {
-            let [x, y, z] = v.position;
-            let x = x * cos - y * sin;
-            let y = x * sin + y * cos;
-            v.position = [x, y, z];
-        }
-        self.queue
-            .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&self.vertices));
+        // Do nothing for now
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
