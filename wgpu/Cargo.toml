@@ -3,8 +3,14 @@ name = "my_wgpu_trial"
 version = "0.1.0"
 edition = "2021"
 publish = false
+default-run = "my_wgpu_trial"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "triangle"
+path = "src/triangle.rs"
+
 
 [dependencies]
 bytemuck = { version = "1.7.3", features = ["derive"] }
