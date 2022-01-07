@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use std::iter;
 use std::mem;
 use winit::dpi::PhysicalSize;
-use winit::event::*;
+use winit::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
 use winit::window::WindowBuilder;
@@ -65,6 +65,158 @@ const VERT_INDICES: &[u16] = &[
 
 const TEXTURE_IMAGE: &[u8] = include_bytes!("../image/ferris-300.png");
 
+// The coordinate system in Wgpu is based on DirectX, and Metal's coordinate systems, where the x
+// axis and y axis are in the range of -1.0 to +1.0, and the z axis is 0.0 to +1.0. The cgmath crate
+// (as well as most game math crates) are built for OpenGL's coordinate system. This matrix will
+// scale and translate our scene from OpenGL's coordinate sytem to WGPU's.
+#[rustfmt::skip]
+pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.0,
+    0.0, 0.0, 0.5, 1.0,
+);
+
+#[derive(Debug)]
+struct Camera {
+    eye: cgmath::Point3<f32>,
+    target: cgmath::Point3<f32>,
+    up: cgmath::Vector3<f32>,
+    aspect: f32,
+    fovy: f32,
+    znear: f32,
+    zfar: f32,
+}
+
+impl Camera {
+    fn new(aspect: f32) -> Self {
+        Self {
+            // position the camera one unit up and 2 units back
+            // +z is out of the screen
+            eye: (0.0, 1.0, 2.0).into(),
+            // have it look at the origin
+            target: (0.0, 0.0, 0.0).into(),
+            // which way is "up"
+            up: cgmath::Vector3::unit_y(),
+            aspect,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0,
+        }
+    }
+
+    fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+        let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
+        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+        OPENGL_TO_WGPU_MATRIX * proj * view
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+struct CameraUniform {
+    view_proj: [[f32; 4]; 4],
+}
+
+impl Default for CameraUniform {
+    fn default() -> Self {
+        use cgmath::SquareMatrix;
+        Self {
+            view_proj: cgmath::Matrix4::identity().into(),
+        }
+    }
+}
+
+impl CameraUniform {
+    fn update_new_proj(&mut self, camera: &Camera) {
+        self.view_proj = camera.build_view_projection_matrix().into();
+    }
+}
+
+#[derive(Default, Debug)]
+struct CameraController {
+    speed: f32,
+    is_up_pressed: bool,
+    is_down_pressed: bool,
+    is_forward_pressed: bool,
+    is_backward_pressed: bool,
+    is_left_pressed: bool,
+    is_right_pressed: bool,
+}
+
+impl CameraController {
+    fn new(speed: f32) -> Self {
+        Self {
+            speed,
+            ..Default::default()
+        }
+    }
+
+    fn process_event(&mut self, event: &WindowEvent) -> bool {
+        match event {
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state,
+                        virtual_keycode: Some(keycode),
+                        ..
+                    },
+                ..
+            } => {
+                use VirtualKeyCode::*;
+                let is_pressed = *state == ElementState::Pressed;
+                match keycode {
+                    Space => self.is_up_pressed = is_pressed,
+                    LShift => self.is_down_pressed = is_pressed,
+                    W | Up => self.is_forward_pressed = is_pressed,
+                    A | Left => self.is_left_pressed = is_pressed,
+                    S | Down => self.is_backward_pressed = is_pressed,
+                    D | Right => self.is_right_pressed = is_pressed,
+                    _ => return false,
+                }
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    fn update_camera(&self, camera: &mut Camera) {
+        use cgmath::InnerSpace;
+
+        if !self.is_forward_pressed && !self.is_backward_pressed && !self.is_right_pressed && !self.is_left_pressed {
+            return;
+        }
+
+        let forward = camera.target - camera.eye;
+        let forward_norm = forward.normalize();
+        let forward_mag = forward.magnitude();
+
+        // `mag > speed` prevents glitching when camera gets too close to the center of the scene
+        if self.is_forward_pressed && forward_mag > self.speed {
+            camera.eye += forward_norm * self.speed;
+        }
+        if self.is_backward_pressed {
+            camera.eye -= forward_norm * self.speed;
+        }
+
+        let right = forward_norm.cross(camera.up);
+
+        // Redo radius calc in case the up/ down is pressed
+        let mut forward = camera.target - camera.eye;
+        let forward_mag = forward.magnitude();
+        if self.is_right_pressed {
+            forward += right * self.speed;
+        } else if self.is_left_pressed {
+            forward -= right * self.speed;
+        }
+        // Rescale the distance between the target and eye so that it doesn't change. The eye
+        // therefore still lies on the circle made by the target and eye
+        camera.eye = camera.target - forward.normalize() * forward_mag;
+
+        log::info!("Camera update: {:?}", camera.eye);
+    }
+}
+
 #[derive(Debug)]
 struct State {
     surface: wgpu::Surface,
@@ -80,6 +232,11 @@ struct State {
     num_indices: u32,
     diffuse_bind_group: wgpu::BindGroup,
     diffuse_texture: texture::Texture,
+    camera: Camera,
+    camera_uniform: CameraUniform,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+    camera_controller: CameraController,
 }
 
 impl State {
@@ -162,13 +319,43 @@ impl State {
             ],
         });
 
+        let camera = Camera::new(config.width as f32 / config.height as f32);
+        let mut camera_uniform = CameraUniform::default();
+        camera_uniform.update_new_proj(&camera);
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let camera_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Camera Uniform Buffer"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Camera Uniform Buffer"),
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+        });
+
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../shader/shader.wgsl").into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[&texture_bind_group_layout],
+            bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
             push_constant_ranges: &[],
         });
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -191,8 +378,8 @@ impl State {
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                front_face: wgpu::FrontFace::Cw,
+                cull_mode: Some(wgpu::Face::Front),
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
                 conservative: false,
@@ -225,6 +412,8 @@ impl State {
         });
         let num_indices = VERT_INDICES.len() as u32;
 
+        let camera_controller = CameraController::new(0.2);
+
         Self {
             surface,
             device,
@@ -238,20 +427,31 @@ impl State {
             num_indices,
             diffuse_bind_group,
             diffuse_texture,
+            camera,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
+            camera_controller,
         }
     }
 
     fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        let PhysicalSize { width, height } = new_size;
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
+            self.config.width = width;
+            self.config.height = height;
             self.surface.configure(&self.device, &self.config);
+            self.camera = Camera::new(width as f32 / height as f32);
             log::info!("Resized window: {:?}", new_size);
         }
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
+        if self.camera_controller.process_event(event) {
+            return true;
+        }
+
         match event {
             WindowEvent::CursorMoved { position, .. } => {
                 let (w, h) = (self.size.width as f64, self.size.height as f64);
@@ -265,12 +465,27 @@ impl State {
                 log::info!("Mouse {:?}: {:?}", position, self.bg_color);
                 true
             }
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(VirtualKeyCode::Back | VirtualKeyCode::Delete),
+                        ..
+                    },
+                ..
+            } => {
+                self.camera = Camera::new(self.config.width as f32 / self.config.height as f32);
+                true
+            }
             _ => false,
         }
     }
 
     fn update(&mut self) {
-        // Do nothing for now
+        self.camera_controller.update_camera(&mut self.camera);
+        self.camera_uniform.update_new_proj(&self.camera);
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -297,14 +512,13 @@ impl State {
         });
 
         render_pass.set_pipeline(&self.render_pipeline);
+
         render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+        render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
         // 0 means the first vertex buffer. Note that multiple vertex buffers can be declared in render pipeline
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
-
-        // Render all vertices. The indices are passed to [[builtin(vertex_index)]] in the vertex shader
-        // render_pass.draw(0..self.num_vertices, 0..1);
 
         drop(render_pass); // render_pass borrows encoder mutably. It must be dropped before calling finish().
 
