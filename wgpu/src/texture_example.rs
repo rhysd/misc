@@ -1,4 +1,4 @@
-mod texture;
+pub mod texture; // Make public to avoid unused warnings
 
 use bytemuck::{Pod, Zeroable};
 use std::f32;
