@@ -1,3 +1,4 @@
+mod model;
 mod texture;
 
 use bytemuck::{Pod, Zeroable};
@@ -64,7 +65,7 @@ const VERT_INDICES: &[u16] = &[
     0, // Adding 2 bytes padding because buffers must be aligned to 4 bytes
 ];
 
-const TEXTURE_IMAGE: &[u8] = include_bytes!("../image/ferris-300.png");
+const TEXTURE_IMAGE: &[u8] = include_bytes!("../asset/ferris-300.png");
 
 // The coordinate system in Wgpu is based on DirectX, and Metal's coordinate systems, where the x
 // axis and y axis are in the range of -1.0 to +1.0, and the z axis is 0.0 to +1.0. The cgmath crate

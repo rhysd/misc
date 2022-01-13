@@ -55,7 +55,7 @@ const VERT_INDICES: &[u16] = &[
     0, // Adding 2 bytes padding because buffers must be aligned to 4 bytes
 ];
 
-const TEXTURE_IMAGE: &[u8] = include_bytes!("../image/ferris-300.png");
+const TEXTURE_IMAGE: &[u8] = include_bytes!("../asset/ferris-300.png");
 
 #[derive(Debug)]
 struct State {
