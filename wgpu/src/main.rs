@@ -1,5 +1,5 @@
-mod model;
-mod texture;
+pub mod model;
+pub mod texture;
 
 use bytemuck::{Pod, Zeroable};
 use cgmath::prelude::*;
@@ -11,45 +11,6 @@ use winit::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEve
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
 use winit::window::WindowBuilder;
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    tex_coords: [f32; 2],
-}
-
-impl Vertex {
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        //         │◄────── array_stride ─────────►│
-        //         │◄─ position ─►│◄─ tex_coords ─►│
-        //         ┌──────────────┬────────────────┬─
-        // buffer: │ Float32x3    │ Float32x2      │ ...
-        //         └──────────────┴────────────────┴─
-        // offset: 0            32x3             32x5
-        const LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                // `position` field in `Vertex`
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                // `color` field in `Vertex`
-                wgpu::VertexAttribute {
-                    offset: wgpu::VertexFormat::Float32x3.size(),
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
-                },
-            ],
-        };
-        LAYOUT
-    }
-}
-
-const TEXTURE_IMAGE: &[u8] = include_bytes!("../asset/ferris-300.png");
 
 // The coordinate system in Wgpu is based on DirectX, and Metal's coordinate systems, where the x
 // axis and y axis are in the range of -1.0 to +1.0, and the z axis is 0.0 to +1.0. The cgmath crate
@@ -79,7 +40,7 @@ impl Camera {
         Self {
             // position the camera one unit up and 2 units back
             // +z is out of the screen
-            eye: (0.0, 1.0, 2.0).into(),
+            eye: (0.0, 5.0, -10.0).into(),
             // have it look at the origin
             target: (0.0, 0.0, 0.0).into(),
             // which way is "up"
@@ -252,13 +213,6 @@ impl InstanceRaw {
     }
 }
 
-const NUM_INSTANCES_PER_ROW: u32 = 10;
-const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(
-    NUM_INSTANCES_PER_ROW as f32 * 0.5,
-    0.0,
-    NUM_INSTANCES_PER_ROW as f32 * 0.5,
-);
-
 #[derive(Debug)]
 struct State {
     surface: wgpu::Surface,
@@ -282,6 +236,7 @@ struct State {
 
 impl State {
     async fn new(window: &Window) -> Self {
+        use model::Vertex;
         use wgpu::util::DeviceExt;
 
         let size = window.inner_size();
@@ -319,7 +274,6 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let _diffuse_texture = texture::Texture::from_bytes(&device, &queue, TEXTURE_IMAGE, "ferris").unwrap();
         let texture_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Texture BindGroup Layout"),
             entries: &[
@@ -391,7 +345,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex::desc(), InstanceRaw::desc()],
+                buffers: &[model::ModelVertex::desc(), InstanceRaw::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -438,13 +392,13 @@ impl State {
         let camera_controller = CameraController::new(0.2);
 
         const SPACE_BETWEEN: f32 = 3.0;
+        const NUM_INSTANCES_PER_ROW: u32 = 10;
         let instances: Vec<_> = (0..NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
                 (0..NUM_INSTANCES_PER_ROW).map(move |x| {
                     let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
                     let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-
-                    let position = cgmath::Vector3 { x, y: 0.0, z } - INSTANCE_DISPLACEMENT;
+                    let position = cgmath::Vector3 { x, y: 0.0, z };
                     let rotation = if position.is_zero() {
                         // this is needed so an object at (0, 0, 0) won't get scaled to zero
                         // as Quaternions can effect scale if they're not created correctly
@@ -464,6 +418,7 @@ impl State {
         });
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config);
+
         let obj_path = Path::new("asset").join("cube.obj");
         let obj_model = model::Model::load(&device, &queue, &texture_bind_group_layout, obj_path).unwrap();
 
@@ -573,12 +528,10 @@ impl State {
             }),
         });
 
-        render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        render_pass.set_pipeline(&self.render_pipeline);
 
-        let mesh = &self.obj_model.meshes[0];
-        let material = &self.obj_model.materials[mesh.material];
-        render_pass.draw_mesh_instanced(mesh, material, 0..self.instances.len() as u32, &self.camera_bind_group);
+        render_pass.draw_model_instanced(&self.obj_model, 0..self.instances.len() as u32, &self.camera_bind_group);
 
         drop(render_pass); // render_pass borrows encoder mutably. It must be dropped before calling finish().
 
