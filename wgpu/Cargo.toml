@@ -9,12 +9,15 @@ default-run = "my_wgpu_trial"
 
 [[bin]]
 name = "triangle"
-path = "src/triangle.rs"
+path = "src/triangle_example.rs"
 
 [[bin]]
 name = "texture"
 path = "src/texture_example.rs"
 
+[[bin]]
+name = "instances"
+path = "src/instances_example.rs"
 
 [dependencies]
 anyhow = "1.0.52"
