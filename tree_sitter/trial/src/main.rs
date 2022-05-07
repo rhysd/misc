@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::env;
 use std::fs;
-use tree_sitter::{Language, Node, Parser, Tree, TreeCursor};
+use tree_sitter::{Language, Parser, Query, QueryCursor, Tree, TreeCursor};
 
 extern "C" {
     fn tree_sitter_rust() -> Language;
@@ -72,6 +72,23 @@ fn main() -> Result<()> {
 
     println!("\nTree cursor:");
     print_tree(&tree);
+
+    println!("\nQuery (all function names):");
+
+    let query = Query::new(
+        lang,
+        r#"(function_item "fn"
+            name: (identifier) @func-name (parameters)
+            body: (block)
+        )"#,
+    )?;
+    let mut cursor = QueryCursor::new();
+    for mat in cursor.matches(&query, tree.root_node(), source.as_bytes()) {
+        assert_eq!(mat.captures.len(), 1);
+        let node = mat.captures[0].node;
+        let name = &source[node.start_byte()..node.end_byte()];
+        println!("{:?}", name);
+    }
 
     Ok(())
 }
