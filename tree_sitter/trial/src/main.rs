@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::env;
 use std::fs;
-use tree_sitter::{Language, Parser, Query, QueryCursor, Tree, TreeCursor};
+use tree_sitter::{InputEdit, Language, Parser, Query, QueryCursor, Tree, TreeCursor};
 
 extern "C" {
     fn tree_sitter_rust() -> Language;
@@ -65,7 +65,7 @@ fn main() -> Result<()> {
     }
     let source = fs::read_to_string(&file)?;
 
-    let tree = parser
+    let mut tree = parser
         .parse(&source, None)
         .ok_or_else(|| anyhow::anyhow!("could not parse {}", &file))?;
     println!("Sexp:\n{}", tree.root_node().to_sexp());
@@ -82,7 +82,41 @@ fn main() -> Result<()> {
             body: (block)
         )"#,
     )?;
+
     let mut cursor = QueryCursor::new();
+    let mut last_node = None;
+    for mat in cursor.matches(&query, tree.root_node(), source.as_bytes()) {
+        assert_eq!(mat.captures.len(), 1);
+        let node = mat.captures[0].node;
+        let name = &source[node.start_byte()..node.end_byte()];
+        println!("{:?}", name);
+        last_node = Some(node);
+    }
+    let last_node = last_node.unwrap();
+
+    println!("\nEdit:");
+    let edit = {
+        let name = "wanwan";
+        InputEdit {
+            start_byte: last_node.start_byte(),
+            old_end_byte: last_node.end_byte(),
+            new_end_byte: last_node.start_byte() + name.len(),
+            start_position: last_node.start_position(),
+            old_end_position: last_node.end_position(),
+            new_end_position: {
+                let mut p = last_node.start_position();
+                p.column += name.len();
+                p
+            },
+        }
+    };
+    tree.edit(&edit);
+
+    let source = source.replace("fn main()", "fn wanwan()");
+    let tree = parser
+        .parse(&source, Some(&tree))
+        .ok_or_else(|| anyhow::anyhow!("could not parse"))?;
+
     for mat in cursor.matches(&query, tree.root_node(), source.as_bytes()) {
         assert_eq!(mat.captures.len(), 1);
         let node = mat.captures[0].node;
