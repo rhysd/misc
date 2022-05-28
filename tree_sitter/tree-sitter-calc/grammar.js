@@ -7,7 +7,10 @@ const PREC = {
 module.exports = grammar({
     name: 'calc',
 
-    extras: $ => [/\s/],
+    extras: $ => [
+        /\s/,
+        $.comment,
+    ],
 
     rules: {
         source_file: $ => repeat($._statement),
@@ -42,5 +45,7 @@ module.exports = grammar({
             '0',
             seq(/[1-9]/, /\d*/),
         )),
+
+        comment: $ => token(seq('#', /.*/)),
     },
 });

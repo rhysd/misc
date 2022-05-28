@@ -141,6 +141,10 @@
     "named": false
   },
   {
+    "type": "comment",
+    "named": true
+  },
+  {
     "type": "constant",
     "named": true
   }

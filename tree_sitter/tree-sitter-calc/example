@@ -1,14 +1,25 @@
+# constants
 0
+42
+
+# unary expression
 -1
++1
+
+# binary expression
 0 + 1
 0 - 1
 0 * 1
 0 / 1
+
+# nested expression
 4 * 3 + 2 * 1
 4 * 3 - 2 / 1 + 5
+-1 - 2
+
+# multilple lines
 4 *
     3 -
 2 /
     1 +
 5
--1 - 2
