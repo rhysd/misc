@@ -14,5 +14,6 @@ set -x
 case "$path" in
     grammar.js) npm run gen ;;
     example) npm run debug ;;
+    corpus/main.txt) npm run update-test ;;
     *) ;;
 esac

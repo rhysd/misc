@@ -7,8 +7,9 @@
     "gen": "tree-sitter generate",
     "debug": "tree-sitter parse --debug ./example",
     "example": "tree-sitter parse ./example",
-    "watch": "chokidar example grammar.js -c 'bash ./watch.bash {event} {path}'",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "watch": "chokidar example grammar.js corpus/main.txt -c 'bash ./watch.bash {event} {path}'",
+    "update-test": "tree-sitter test --update",
+    "test": "tree-sitter test"
   },
   "author": "rhysd <lin90162@yahoo.co.jp> (https://rhysd.github.io/)",
   "license": "MIT",
