@@ -21,6 +21,7 @@ module.exports = grammar({
             $.binary_expression,
             $.unary_expression,
             $.constant,
+            $.paren_expression,
         ),
 
         binary_expression: $ => choice(
@@ -45,6 +46,8 @@ module.exports = grammar({
             '0',
             seq(/[1-9]/, /\d*/),
         )),
+
+        paren_expression: $ => seq('(', $._expression, ')'),
 
         comment: $ => token(seq('#', /.*/)),
     },
