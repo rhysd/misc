@@ -8,7 +8,7 @@ use std::env;
 use std::fs;
 use std::io;
 use std::io::Read;
-use tree_sitter::{InputEdit, Language, Node, Parser, Tree};
+use tree_sitter::{InputEdit, Language, Node, Parser, Range, Tree};
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
@@ -227,7 +227,6 @@ impl App {
     }
 
     fn update_sexp(&mut self) {
-        // TODO: When no change, just return
         self.sexp = if let Some(tree) = &self.tree {
             tree.root_node().to_sexp()
         } else {
@@ -235,11 +234,21 @@ impl App {
         };
     }
 
-    fn reparse(&mut self) {
+    fn reparse(&mut self) -> bool {
         // Grammar always requires \n at end of statement
         self.source.push('\n');
-        self.tree = self.parser.parse(&self.source, self.tree.as_ref());
+        let tree = self.parser.parse(&self.source, self.tree.as_ref());
         self.source.pop(); // pop \n
+
+        let changed = match (self.tree.as_ref(), tree.as_ref()) {
+            (Some(before), Some(after)) => before.changed_ranges(after).next().is_some(),
+            (None, None) => false,
+            _ => true,
+        };
+
+        self.tree = tree;
+
+        changed
     }
 
     fn calc(&mut self, edit: Edit) {
@@ -266,8 +275,9 @@ impl App {
                     tree.edit(&edit);
                 }
                 self.source.push(c);
-                self.reparse();
-                self.update_sexp();
+                if self.reparse() {
+                    self.update_sexp();
+                }
             }
             Edit::Del => {
                 if let Some(c) = self.source.pop() {
@@ -291,8 +301,9 @@ impl App {
                         };
                         tree.edit(&edit);
                     }
-                    self.reparse();
-                    self.update_sexp();
+                    if self.reparse() {
+                        self.update_sexp();
+                    }
                 }
             }
         }
