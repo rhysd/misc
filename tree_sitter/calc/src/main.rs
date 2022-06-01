@@ -1,22 +1,19 @@
 use anyhow::{bail, Context, Result};
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture, Event, KeyCode};
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use std::env;
 use std::fs;
 use std::io;
-use std::io::Read;
+use std::io::{Read, Write};
 use tree_sitter::{InputEdit, Language, Node, Parser, Range, Tree};
-use tui::{
-    backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Span, Spans, Text},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-    Frame, Terminal,
-};
+use tui::backend::{Backend, CrosstermBackend};
+use tui::layout::{Constraint, Direction, Layout};
+use tui::style::{Color, Modifier, Style};
+use tui::text::{Span, Spans, Text};
+use tui::widgets::{Block, Borders, List, ListItem, Paragraph};
+use tui::{Frame, Terminal};
 use unicode_width::UnicodeWidthStr;
 
 fn read_input(path: Option<&str>) -> Result<String> {
@@ -360,7 +357,7 @@ impl App {
         loop {
             term.draw(|f| self.render(f))?;
 
-            if let Event::Key(key) = event::read()? {
+            if let Event::Key(key) = crossterm::event::read()? {
                 match key.code {
                     KeyCode::Char(c) => self.calc(Edit::Char(c)),
                     KeyCode::Backspace => self.calc(Edit::Del),
@@ -372,26 +369,39 @@ impl App {
     }
 }
 
-fn main() -> Result<()> {
-    // setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut term = Terminal::new(backend)?;
+struct RawMode<W: Write> {
+    term: Terminal<CrosstermBackend<W>>,
+}
 
+impl<W: Write> RawMode<W> {
+    fn new(mut w: W) -> Result<Self> {
+        // setup terminal
+        enable_raw_mode()?;
+        crossterm::execute!(w, EnterAlternateScreen, EnableMouseCapture)?;
+        let backend = CrosstermBackend::new(w);
+        let term = Terminal::new(backend)?;
+        Ok(Self { term })
+    }
+}
+
+impl<W: Write> Drop for RawMode<W> {
+    fn drop(&mut self) {
+        // restore terminal
+        disable_raw_mode().expect("disable raw mode");
+        crossterm::execute!(
+            self.term.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )
+        .expect("leave alternate screen");
+        self.term.show_cursor().expect("restore cursor");
+    }
+}
+
+fn main() -> Result<()> {
+    let stdout = io::stdout();
+    let mut raw_mode = RawMode::new(stdout.lock())?;
     // create app and run it
     let app = App::new()?;
-    let res = app.run(&mut term);
-
-    // restore terminal
-    disable_raw_mode()?;
-    execute!(
-        term.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    term.show_cursor()?;
-
-    res
+    app.run(&mut raw_mode.term)
 }
