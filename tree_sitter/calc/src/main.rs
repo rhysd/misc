@@ -3,32 +3,16 @@ use crossterm::event::{DisableMouseCapture, EnableMouseCapture, Event, KeyCode};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use std::env;
-use std::fs;
 use std::io;
-use std::io::{Read, Write};
-use tree_sitter::{InputEdit, Language, Node, Parser, Range, Tree};
+use std::io::Write;
+use tree_sitter::{InputEdit, Language, Node, Parser, Tree};
 use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Constraint, Direction, Layout};
-use tui::style::{Color, Modifier, Style};
+use tui::style::{Modifier, Style};
 use tui::text::{Span, Spans, Text};
 use tui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use tui::{Frame, Terminal};
 use unicode_width::UnicodeWidthStr;
-
-fn read_input(path: Option<&str>) -> Result<String> {
-    if let Some(path) = path {
-        fs::read_to_string(&path).with_context(|| format!("could not read file from '{}'", &path))
-    } else {
-        let stdin = io::stdin();
-        let mut buf = String::new();
-        stdin
-            .lock()
-            .read_to_string(&mut buf)
-            .context("could not read from stdin")?;
-        Ok(buf)
-    }
-}
 
 struct NodeKinds {
     binary_expression: u16,
@@ -37,7 +21,7 @@ struct NodeKinds {
 }
 
 impl NodeKinds {
-    fn new(lang: &Language) -> Self {
+    fn new(lang: Language) -> Self {
         Self {
             binary_expression: lang.id_for_node_kind("binary_expression", true),
             unary_expression: lang.id_for_node_kind("unary_expression", true),
@@ -54,7 +38,7 @@ struct NodeFields {
 }
 
 impl NodeFields {
-    fn new(lang: &Language) -> Self {
+    fn new(lang: Language) -> Self {
         Self {
             operator: lang.field_id_for_name("operator").unwrap(),
             operand: lang.field_id_for_name("operand").unwrap(),
@@ -65,22 +49,12 @@ impl NodeFields {
 }
 
 struct Interpreter<'a> {
-    kinds: NodeKinds,
-    fields: NodeFields,
-    file: &'a str,
+    kinds: &'a NodeKinds,
+    fields: &'a NodeFields,
     src: &'a str,
 }
 
 impl<'a> Interpreter<'a> {
-    fn new(lang: &Language, file: &'a str, src: &'a str) -> Self {
-        Self {
-            kinds: NodeKinds::new(lang),
-            fields: NodeFields::new(lang),
-            file,
-            src,
-        }
-    }
-
     fn token(&self, node: &Node) -> &'a str {
         &self.src[node.start_byte()..node.end_byte()]
     }
@@ -97,20 +71,14 @@ impl<'a> Interpreter<'a> {
             "*" => Ok(left * right),
             "/" if right == 0.0 => {
                 let s = node.start_position();
-                bail!(
-                    "divide by zero at {}:{}:{}",
-                    self.file,
-                    s.row + 1,
-                    s.column + 1
-                )
+                bail!("divide by zero at line:{},col:{}", s.row + 1, s.column + 1)
             }
             "/" => Ok(left / right),
             t => {
                 let s = node.start_position();
                 bail!(
-                    "unexpected binary operator '{}' at {}:{}:{}",
+                    "unexpected binary operator '{}' at line:{},col:{}",
                     t,
-                    self.file,
                     s.row + 1,
                     s.column + 1
                 )
@@ -128,9 +96,8 @@ impl<'a> Interpreter<'a> {
             t => {
                 let s = node.start_position();
                 bail!(
-                    "unexpected unary operator '{}' at {}:{}:{}",
+                    "unexpected unary operator '{}' at line:{},col:{}",
                     t,
-                    self.file,
                     s.row + 1,
                     s.column + 1
                 )
@@ -143,9 +110,8 @@ impl<'a> Interpreter<'a> {
         tok.parse().with_context(|| {
             let s = node.start_position();
             format!(
-                "could not parse constant '{}' as number at {}:{}:{}",
+                "could not parse constant '{}' as number at line:{},col:{}",
                 tok,
-                self.file,
                 s.row + 1,
                 s.column + 1,
             )
@@ -165,9 +131,8 @@ impl<'a> Interpreter<'a> {
         } else {
             let s = node.start_position();
             bail!(
-                "Cannot eval node '{}' at {}:{}:{}",
+                "Cannot eval node '{}' at line:{},col:{}",
                 node.kind(),
-                self.file,
                 s.row + 1,
                 s.column + 1,
             )
@@ -175,39 +140,19 @@ impl<'a> Interpreter<'a> {
     }
 }
 
-/*
-fn main() -> Result<()> {
-    let file = env::args().skip(1).next();
-    let file = file.as_ref().map(String::as_str);
-    let input = read_input(file)?;
-    let file = file.unwrap_or("<stdin>");
-    let lang = tree_sitter_calc::language();
-    let interpreter = Interpreter::new(&lang, &file, &input);
-
-    let mut parser = Parser::new();
-    parser.set_language(lang)?;
-    let tree = parser
-        .parse(&input, None)
-        .ok_or_else(|| anyhow::anyhow!("could not parse {}", &file))?;
-
-    let ret = interpreter.eval(&tree.root_node())?;
-    println!("{}", ret);
-    Ok(())
-}
-*/
-
 enum Edit {
     Char(char),
     Del,
 }
 
-/// App holds the state of the application
 struct App {
-    /// Current value of the input box
+    kinds: NodeKinds,
+    fields: NodeFields,
     source: String,
     sexp: String,
     parser: Parser,
     tree: Option<Tree>,
+    result: String,
 }
 
 impl App {
@@ -216,18 +161,39 @@ impl App {
         let mut parser = Parser::new();
         parser.set_language(lang)?;
         Ok(App {
+            kinds: NodeKinds::new(lang),
+            fields: NodeFields::new(lang),
             source: String::new(),
             sexp: String::new(),
             parser,
             tree: None,
+            result: String::new(),
         })
     }
 
     fn update_sexp(&mut self) {
-        self.sexp = if let Some(tree) = &self.tree {
-            tree.root_node().to_sexp()
+        (self.sexp, self.result) = if let Some(tree) = &self.tree {
+            let root = tree.root_node();
+            let sexp = root.to_sexp();
+            let interpreter = Interpreter {
+                kinds: &self.kinds,
+                fields: &self.fields,
+                src: &self.source,
+            };
+            let result = if root.child_count() > 0 {
+                match interpreter.eval(&root) {
+                    Ok(ret) => ret.to_string(),
+                    Err(err) => format!("{}", err),
+                }
+            } else {
+                String::new()
+            };
+            (sexp, result)
         } else {
-            "Could not parse input (Parser::parse returned None)".to_string()
+            (
+                "Could not parse input (Parser::parse returned None)".to_string(),
+                String::new(),
+            )
         };
     }
 
@@ -314,6 +280,7 @@ impl App {
                 [
                     Constraint::Length(1),
                     Constraint::Length(3),
+                    Constraint::Length(3),
                     Constraint::Min(1),
                 ]
                 .as_ref(),
@@ -325,7 +292,7 @@ impl App {
             Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
             Span::raw(" to exit"),
         ];
-        let mut text = Text::from(Spans::from(msg));
+        let text = Text::from(Spans::from(msg));
         let help_message = Paragraph::new(text);
         f.render_widget(help_message, layout[0]);
 
@@ -340,17 +307,21 @@ impl App {
             layout[1].y + 1,
         );
 
-        let sexp: Vec<ListItem> = self
-            .sexp
-            .lines()
-            .map(|line| {
-                let content = vec![Spans::from(Span::raw(line))];
-                ListItem::new(content)
-            })
-            .collect();
-        let sexp =
-            List::new(sexp).block(Block::default().borders(Borders::ALL).title("S-expression"));
-        f.render_widget(sexp, layout[2]);
+        fn block<'a>(title: &'a str, content: &'a str) -> List<'a> {
+            let items = content
+                .lines()
+                .map(|line| {
+                    let content = vec![Spans::from(Span::raw(line))];
+                    ListItem::new(content)
+                })
+                .collect::<Vec<_>>();
+            List::new(items).block(Block::default().borders(Borders::ALL).title(title))
+        }
+
+        let result = block("Result", &self.result);
+        f.render_widget(result, layout[2]);
+        let sexp = block("S-expression", &self.sexp);
+        f.render_widget(sexp, layout[3]);
     }
 
     fn run<B: Backend>(mut self, term: &mut Terminal<B>) -> Result<()> {
