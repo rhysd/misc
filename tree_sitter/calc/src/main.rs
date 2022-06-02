@@ -171,29 +171,34 @@ impl App {
         })
     }
 
-    fn update_sexp(&mut self) {
-        (self.sexp, self.result) = if let Some(tree) = &self.tree {
-            let root = tree.root_node();
-            let sexp = root.to_sexp();
+    fn inspect_sexp(&mut self) {
+        self.sexp = if let Some(tree) = &self.tree {
+            tree.root_node().to_sexp()
+        } else {
+            "Could not parse input (Parser::parse returned None)".to_string()
+        };
+    }
+
+    // Note: The result must be updated even if tree structure did not change. For example, modifying
+    // `1 + 2` to `1 + 23` does not change its structure but the result changes.
+    fn eval_tree(&mut self) {
+        self.result = if let Some(tree) = &self.tree {
             let interpreter = Interpreter {
                 kinds: &self.kinds,
                 fields: &self.fields,
                 src: &self.source,
             };
-            let result = if root.child_count() > 0 {
+            let root = tree.root_node();
+            if root.child_count() > 0 {
                 match interpreter.eval(&root) {
                     Ok(ret) => ret.to_string(),
                     Err(err) => format!("{}", err),
                 }
             } else {
                 String::new()
-            };
-            (sexp, result)
+            }
         } else {
-            (
-                "Could not parse input (Parser::parse returned None)".to_string(),
-                String::new(),
-            )
+            String::new()
         };
     }
 
@@ -239,8 +244,9 @@ impl App {
                 }
                 self.source.push(c);
                 if self.reparse() {
-                    self.update_sexp();
+                    self.inspect_sexp();
                 }
+                self.eval_tree();
             }
             Edit::Del => {
                 if let Some(c) = self.source.pop() {
@@ -265,8 +271,9 @@ impl App {
                         tree.edit(&edit);
                     }
                     if self.reparse() {
-                        self.update_sexp();
+                        self.inspect_sexp();
                     }
+                    self.eval_tree();
                 }
             }
         }
