@@ -96,7 +96,7 @@ fn main() -> Result<()> {
 
     println!("\nEdit:");
     let edit = {
-        let name = "wanwan";
+        let name = "wanwan(x: i32)";
         InputEdit {
             start_byte: last_node.start_byte(),
             old_end_byte: last_node.end_byte(),
@@ -112,12 +112,18 @@ fn main() -> Result<()> {
     };
     tree.edit(&edit);
 
-    let source = source.replace("fn main()", "fn wanwan()");
-    let tree = parser
+    let source = source.replace("fn main()", "fn wanwan(x: i32)");
+    let next_tree = parser
         .parse(&source, Some(&tree))
         .ok_or_else(|| anyhow::anyhow!("could not parse"))?;
 
-    for mat in cursor.matches(&query, tree.root_node(), source.as_bytes()) {
+    for range in next_tree.changed_ranges(&tree) {
+        println!("changed range: {:?}", range);
+        let s = &source[range.start_byte..range.end_byte];
+        println!("START CHANGED RANGE\n{}\nEND CHANGED RANGE", s);
+    }
+
+    for mat in cursor.matches(&query, next_tree.root_node(), source.as_bytes()) {
         assert_eq!(mat.captures.len(), 1);
         let node = mat.captures[0].node;
         let name = &source[node.start_byte()..node.end_byte()];
