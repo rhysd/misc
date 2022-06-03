@@ -174,12 +174,14 @@ impl<'a> Iterator for SexpFormatter<'a> {
                     let mut idx = self.src.len() - self.cur.as_str().len() - 1;
                     let mut line = self.src[..idx].trim_end();
                     if line.ends_with(':') {
-                        idx = line
+                        if let Some(i) = line
                             .char_indices()
                             .rev()
                             .find_map(|(i, c)| (c == ' ').then(|| i))
-                            .unwrap_or(0);
-                        line = line[..idx].trim_end();
+                        {
+                            idx = i;
+                            line = line[..idx].trim_end();
+                        }
                     }
 
                     self.src = &self.src[idx..];
