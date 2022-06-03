@@ -8,7 +8,7 @@ use std::io::Write;
 use tree_sitter::{InputEdit, Language, Node, Parser, Tree};
 use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Constraint, Direction, Layout};
-use tui::style::{Modifier, Style};
+use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans, Text};
 use tui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use tui::{Frame, Terminal};
@@ -145,14 +145,16 @@ enum Edit {
     Del,
 }
 
+type ResultText = std::result::Result<String, String>;
+
 struct App {
     kinds: NodeKinds,
     fields: NodeFields,
     source: String,
-    sexp: String,
+    sexp: ResultText,
     parser: Parser,
     tree: Option<Tree>,
-    result: String,
+    result: ResultText,
 }
 
 impl App {
@@ -164,18 +166,24 @@ impl App {
             kinds: NodeKinds::new(lang),
             fields: NodeFields::new(lang),
             source: String::new(),
-            sexp: String::new(),
+            sexp: Ok(String::new()),
             parser,
             tree: None,
-            result: String::new(),
+            result: Ok(String::new()),
         })
     }
 
     fn inspect_sexp(&mut self) {
         self.sexp = if let Some(tree) = &self.tree {
-            tree.root_node().to_sexp()
+            let root = tree.root_node();
+            let sexp = root.to_sexp();
+            if root.has_error() {
+                Err(sexp)
+            } else {
+                Ok(sexp)
+            }
         } else {
-            "Could not parse input (Parser::parse returned None)".to_string()
+            Err("Could not parse input (Parser::parse returned None)".to_string())
         };
     }
 
@@ -191,14 +199,14 @@ impl App {
             let root = tree.root_node();
             if root.child_count() > 0 {
                 match interpreter.eval(&root) {
-                    Ok(ret) => ret.to_string(),
-                    Err(err) => format!("{}", err),
+                    Ok(ret) => Ok(ret.to_string()),
+                    Err(err) => Err(format!("{}", err)),
                 }
             } else {
-                String::new()
+                Ok(String::new())
             }
         } else {
-            String::new()
+            Ok(String::new())
         };
     }
 
@@ -306,23 +314,28 @@ impl App {
         let input = Paragraph::new(self.source.as_ref())
             .block(Block::default().borders(Borders::ALL).title("Input"));
         f.render_widget(input, layout[1]);
-        // Make the cursor visible and ask tui-rs to put it at the specified coordinates after rendering
         f.set_cursor(
-            // Put cursor past the end of the input text
             layout[1].x + self.source.width() as u16 + 1,
-            // Move one line down, from the border to the input line
             layout[1].y + 1,
         );
 
-        fn block<'a>(title: &'a str, content: &'a str) -> List<'a> {
+        fn block<'a>(title: &'a str, content: &'a ResultText) -> List<'a> {
+            let style = if content.is_err() {
+                Style::default().fg(Color::Red)
+            } else {
+                Style::default()
+            };
+            let content = match content.as_ref() {
+                Ok(text) => text,
+                Err(text) => text,
+            };
             let items = content
                 .lines()
-                .map(|line| {
-                    let content = vec![Spans::from(Span::raw(line))];
-                    ListItem::new(content)
-                })
+                .map(|line| ListItem::new(vec![Spans::from(Span::raw(line))]))
                 .collect::<Vec<_>>();
-            List::new(items).block(Block::default().borders(Borders::ALL).title(title))
+            List::new(items)
+                .style(style)
+                .block(Block::default().borders(Borders::ALL).title(title))
         }
 
         let result = block("Result", &self.result);
