@@ -5,6 +5,7 @@ use crossterm::terminal::{
 };
 use std::io;
 use std::io::Write;
+use std::str::Chars;
 use tree_sitter::{InputEdit, Language, Node, Parser, Tree};
 use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Constraint, Direction, Layout};
@@ -140,12 +141,109 @@ impl<'a> Interpreter<'a> {
     }
 }
 
+pub struct SexpFormatter<'a> {
+    src: &'a str,
+    cur: Chars<'a>,
+    indent: usize,
+}
+
+impl<'a> SexpFormatter<'a> {
+    pub fn new(src: &'a str) -> Self {
+        Self {
+            src,
+            cur: src.chars(),
+            indent: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for SexpFormatter<'a> {
+    type Item = (usize, &'a str);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(c) = self.cur.next() {
+            if c == '(' {
+                break;
+            }
+        }
+
+        let mut next_indent = self.indent + 1;
+        while let Some(c) = self.cur.next() {
+            match c {
+                '(' => {
+                    let mut idx = self.src.len() - self.cur.as_str().len() - 1;
+                    let mut line = self.src[..idx].trim_end();
+                    if line.ends_with(':') {
+                        idx = line
+                            .char_indices()
+                            .rev()
+                            .find_map(|(i, c)| (c == ' ').then(|| i))
+                            .unwrap_or(0);
+                        line = line[..idx].trim_end();
+                    }
+
+                    self.src = &self.src[idx..];
+                    self.cur = self.src.chars();
+                    let indent = self.indent;
+                    self.indent = next_indent;
+                    return Some((indent, line));
+                }
+                ')' => {
+                    next_indent = next_indent.saturating_sub(1);
+                }
+                _ => continue,
+            }
+        }
+
+        if !self.src.is_empty() {
+            let src = self.src;
+            self.src = "";
+            self.cur = "".chars();
+            return Some((self.indent, src));
+        }
+
+        None
+    }
+}
+
 enum Edit {
     Char(char),
     Del,
 }
 
-type ResultText = std::result::Result<String, String>;
+#[repr(transparent)]
+struct ResultText(std::result::Result<String, String>);
+
+impl Default for ResultText {
+    fn default() -> Self {
+        ResultText(Ok(String::new()))
+    }
+}
+
+impl ResultText {
+    fn ok(msg: String) -> Self {
+        Self(Ok(msg))
+    }
+
+    fn err(msg: String) -> Self {
+        Self(Err(msg))
+    }
+
+    fn text(&self) -> &str {
+        match self.0.as_ref() {
+            Ok(t) => t,
+            Err(t) => t,
+        }
+    }
+
+    fn style(&self) -> Style {
+        if self.0.is_err() {
+            Style::default().fg(Color::Red)
+        } else {
+            Style::default()
+        }
+    }
+}
 
 struct App {
     kinds: NodeKinds,
@@ -166,10 +264,10 @@ impl App {
             kinds: NodeKinds::new(lang),
             fields: NodeFields::new(lang),
             source: String::new(),
-            sexp: Ok(String::new()),
+            sexp: ResultText::default(),
             parser,
             tree: None,
-            result: Ok(String::new()),
+            result: ResultText::default(),
         })
     }
 
@@ -178,12 +276,12 @@ impl App {
             let root = tree.root_node();
             let sexp = root.to_sexp();
             if root.has_error() {
-                Err(sexp)
+                ResultText::err(sexp)
             } else {
-                Ok(sexp)
+                ResultText::ok(sexp)
             }
         } else {
-            Err("Could not parse input (Parser::parse returned None)".to_string())
+            ResultText::err("Could not parse input (Parser::parse returned None)".to_string())
         };
     }
 
@@ -199,14 +297,14 @@ impl App {
             let root = tree.root_node();
             if root.child_count() > 0 {
                 match interpreter.eval(&root) {
-                    Ok(ret) => Ok(ret.to_string()),
-                    Err(err) => Err(format!("{}", err)),
+                    Ok(ret) => ResultText::ok(ret.to_string()),
+                    Err(err) => ResultText::err(format!("{}", err)),
                 }
             } else {
-                Ok(String::new())
+                ResultText::default()
             }
         } else {
-            Ok(String::new())
+            ResultText::default()
         };
     }
 
@@ -319,28 +417,24 @@ impl App {
             layout[1].y + 1,
         );
 
-        fn block<'a>(title: &'a str, content: &'a ResultText) -> List<'a> {
-            let style = if content.is_err() {
-                Style::default().fg(Color::Red)
-            } else {
-                Style::default()
-            };
-            let content = match content.as_ref() {
-                Ok(text) => text,
-                Err(text) => text,
-            };
-            let items = content
-                .lines()
-                .map(|line| ListItem::new(vec![Spans::from(Span::raw(line))]))
-                .collect::<Vec<_>>();
-            List::new(items)
-                .style(style)
-                .block(Block::default().borders(Borders::ALL).title(title))
-        }
-
-        let result = block("Result", &self.result);
+        let result = Paragraph::new(self.result.text())
+            .style(self.result.style())
+            .block(Block::default().borders(Borders::ALL).title("Result"));
         f.render_widget(result, layout[2]);
-        let sexp = block("S-expression", &self.sexp);
+
+        let items = SexpFormatter::new(self.sexp.text())
+            .map(|(indent, line)| {
+                let mut spans = Vec::with_capacity(indent + 1);
+                for _ in 0..indent {
+                    spans.push(Span::raw("  "));
+                }
+                spans.push(Span::raw(line));
+                ListItem::new(Spans::from(spans))
+            })
+            .collect::<Vec<_>>();
+        let sexp = List::new(items)
+            .style(self.sexp.style())
+            .block(Block::default().borders(Borders::ALL).title("S-expression"));
         f.render_widget(sexp, layout[3]);
     }
 
