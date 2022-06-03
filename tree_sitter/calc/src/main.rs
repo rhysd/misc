@@ -71,12 +71,12 @@ impl<'a> Interpreter<'a> {
             "-" => Ok(left - right),
             "*" => Ok(left * right),
             "/" if right == 0.0 => {
-                let s = node.start_position();
+                let s = operator.start_position();
                 bail!("divide by zero at line:{},col:{}", s.row + 1, s.column + 1)
             }
             "/" => Ok(left / right),
             t => {
-                let s = node.start_position();
+                let s = operator.start_position();
                 bail!(
                     "unexpected binary operator '{}' at line:{},col:{}",
                     t,
@@ -95,7 +95,7 @@ impl<'a> Interpreter<'a> {
             "+" => Ok(operand),
             "-" => Ok(-operand),
             t => {
-                let s = node.start_position();
+                let s = operator.start_position();
                 bail!(
                     "unexpected unary operator '{}' at line:{},col:{}",
                     t,
