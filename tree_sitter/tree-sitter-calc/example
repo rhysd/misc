@@ -4,6 +4,7 @@
 0x0
 0xff
 0x1f2e
+0b1010
 
 # unary expression
 -1

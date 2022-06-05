@@ -8,10 +8,18 @@ constants
 0x0
 0xff
 0x01f3e
+0b0
+0b1010
+0b0101
+0b1111
 
 --------------------------------------------------------------------------------
 
 (source_file
+  (constant)
+  (constant)
+  (constant)
+  (constant)
   (constant)
   (constant)
   (constant)

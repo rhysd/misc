@@ -109,12 +109,21 @@ impl<'a> Interpreter<'a> {
 
     fn eval_const(&self, node: &Node) -> Result<f64> {
         let tok = self.token(node);
-        if tok.starts_with("0x") {
-            u64::from_str_radix(&tok[2..], 16)
+        let base = if tok.starts_with("0x") {
+            Some(16)
+        } else if tok.starts_with("0b") {
+            Some(2)
+        } else {
+            None
+        };
+
+        if let Some(base) = base {
+            u64::from_str_radix(&tok[2..], base)
                 .with_context(|| {
                     let s = node.start_position();
                     format!(
-                        "could not parse hex integer constant '{}' as number at line:{},col:{}",
+                        "could not parse integer (base={}) constant '{}' as number at line:{},col:{}",
+                        base,
                         tok,
                         s.row + 1,
                         s.column + 1,
