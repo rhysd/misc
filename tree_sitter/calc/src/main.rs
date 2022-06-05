@@ -109,7 +109,7 @@ impl<'a> Interpreter<'a> {
 
     fn eval_const(&self, node: &Node) -> Result<f64> {
         let tok = self.token(node);
-        let base = if tok.starts_with("0x") {
+        let radix = if tok.starts_with("0x") {
             Some(16)
         } else if tok.starts_with("0b") {
             Some(2)
@@ -117,12 +117,12 @@ impl<'a> Interpreter<'a> {
             None
         };
 
-        if let Some(base) = base {
-            u64::from_str_radix(&tok[2..], base)
+        if let Some(radix) = radix {
+            u64::from_str_radix(&tok[2..], radix)
                 .with_context(|| {
                     let s = node.start_position();
                     format!(
-                        "could not parse integer (base={}) constant '{}' as number at line:{},col:{}",
+                        "could not parse integer (radix={}) constant '{}' as number at line:{},col:{}",
                         base,
                         tok,
                         s.row + 1,
@@ -324,7 +324,19 @@ impl App {
             if root.child_count() > 0 {
                 match interpreter.eval(&root) {
                     Ok(ret) => ResultText::ok(ret.to_string()),
-                    Err(err) => ResultText::err(format!("{}", err)),
+                    Err(err) => {
+                        let mut msg = format!("{}", err);
+                        let mut src = err.source();
+                        loop {
+                            if let Some(err) = src {
+                                msg.push_str(&format!(": {}", err));
+                                src = err.source();
+                            } else {
+                                break;
+                            }
+                        }
+                        ResultText::err(msg)
+                    }
                 }
             } else {
                 ResultText::default()
