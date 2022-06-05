@@ -5,10 +5,16 @@ constants
 1
 123456
 0
+0x0
+0xff
+0x01f3e
 
 --------------------------------------------------------------------------------
 
 (source_file
+  (constant)
+  (constant)
+  (constant)
   (constant)
   (constant)
   (constant))

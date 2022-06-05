@@ -43,6 +43,7 @@ module.exports = grammar({
         )),
 
         constant: $ => token(choice(
+            seq('0x', /[0-9a-fA-F]+/),
             '0',
             seq(/[1-9]/, /\d*/),
         )),

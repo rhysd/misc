@@ -1,6 +1,9 @@
 # constants
 0
 42
+0x0
+0xff
+0x1f2e
 
 # unary expression
 -1

@@ -6,6 +6,7 @@ use crossterm::terminal::{
 use std::io;
 use std::io::Write;
 use std::str::Chars;
+use std::u64;
 use tree_sitter::{InputEdit, Language, Node, Parser, Tree};
 use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Constraint, Direction, Layout};
@@ -108,15 +109,29 @@ impl<'a> Interpreter<'a> {
 
     fn eval_const(&self, node: &Node) -> Result<f64> {
         let tok = self.token(node);
-        tok.parse().with_context(|| {
-            let s = node.start_position();
-            format!(
-                "could not parse constant '{}' as number at line:{},col:{}",
-                tok,
-                s.row + 1,
-                s.column + 1,
-            )
-        })
+        if tok.starts_with("0x") {
+            u64::from_str_radix(&tok[2..], 16)
+                .with_context(|| {
+                    let s = node.start_position();
+                    format!(
+                        "could not parse hex integer constant '{}' as number at line:{},col:{}",
+                        tok,
+                        s.row + 1,
+                        s.column + 1,
+                    )
+                })
+                .map(|i| i as f64)
+        } else {
+            tok.parse().with_context(|| {
+                let s = node.start_position();
+                format!(
+                    "could not parse constant '{}' as number at line:{},col:{}",
+                    tok,
+                    s.row + 1,
+                    s.column + 1,
+                )
+            })
+        }
     }
 
     fn eval(&self, node: &Node) -> Result<f64> {
