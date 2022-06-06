@@ -46,11 +46,12 @@ module.exports = grammar({
             const hexLit = seq(choice('0x', '0X'), /[0-9a-fA-F]+/);
             const binLit = seq(choice('0b', '0B'), /[01]+/);
 
-            const digits = choice('0', seq(/[1-9]/, /\d*/));
+            const integer = choice('0', seq(/[1-9]/, /\d*/));
+            const digits = /\d+/;
             const decimal = seq('.', digits);
             const exponent = seq(choice('e', 'E'), digits)
             const decimalLit = seq(
-                digits,
+                integer,
                 optional(decimal),
                 optional(exponent),
             );
