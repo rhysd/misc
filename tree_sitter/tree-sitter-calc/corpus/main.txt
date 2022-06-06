@@ -5,9 +5,19 @@ constants
 1
 123456
 0
+0.0
+0.0e0
+0.0000e00000
+0.0123e012
+12.3456
+12.3456e78
+1234e56
+0e12
 0x0
 0xff
 0x01f3e
+0X0
+0X1
 0b0
 0b1010
 0b0101
@@ -25,6 +35,55 @@ constants
   (constant)
   (constant)
   (constant)
+  (constant)
+  (constant)
+  (constant)
+  (constant)
+  (constant)
+  (constant)
+  (constant)
+  (constant)
+  (constant)
+  (constant)
+  (constant))
+
+================================================================================
+constants error
+================================================================================
+
+.1
+1.
+1.e1
+1e
+0b01e01
+0x1.0
+0b1.0
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (ERROR
+    (UNEXPECTED '.'))
+  (constant)
+  (ERROR
+    (constant)
+    (UNEXPECTED '.')
+    (constant)
+    (UNEXPECTED '.'))
+  (constant)
+  (ERROR
+    (constant)
+    (UNEXPECTED 'e')
+    (constant)
+    (UNEXPECTED 'e')
+    (constant)
+    (constant)
+    (constant)
+    (UNEXPECTED '.'))
+  (constant)
+  (ERROR
+    (constant)
+    (UNEXPECTED '.'))
   (constant))
 
 ================================================================================
