@@ -123,7 +123,7 @@ impl<'a> Interpreter<'a> {
                     let s = node.start_position();
                     format!(
                         "could not parse integer (radix={}) constant '{}' as number at line:{},col:{}",
-                        base,
+                        radix,
                         tok,
                         s.row + 1,
                         s.column + 1,
