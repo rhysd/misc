@@ -1,10 +1,18 @@
 # constants
 0
 42
+1.0
+0.0
+3.141592
+123.456
+2.3e10
+1e3
 0x0
 0xff
 0x1f2e
+0X1
 0b1010
+0B0101
 
 # unary expression
 -1

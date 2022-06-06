@@ -42,12 +42,25 @@ module.exports = grammar({
             field('operand', $._expression),
         )),
 
-        constant: $ => token(choice(
-            seq('0x', /[0-9a-fA-F]+/),
-            seq('0b', /[01]+/),
-            '0',
-            seq(/[1-9]/, /\d*/),
-        )),
+        constant: $ => {
+            const hexLit = seq(choice('0x', '0X'), /[0-9a-fA-F]+/);
+            const binLit = seq(choice('0b', '0B'), /[01]+/);
+
+            const digits = choice('0', seq(/[1-9]/, /\d*/));
+            const decimal = seq('.', digits);
+            const exponent = seq(choice('e', 'E'), digits)
+            const decimalLit = seq(
+                digits,
+                optional(decimal),
+                optional(exponent),
+            );
+
+            return token(choice(
+                hexLit,
+                binLit,
+                decimalLit,
+            ));
+        },
 
         paren_expression: $ => seq('(', $._expression, ')'),
 
