@@ -32,12 +32,12 @@ fn usage(options: Options) {
 fn file_url(path: PathBuf) -> String {
     #[cfg(not(target_os = "windows"))]
     {
-        format!("file://{}/dist/index.html", path.display())
+        format!("file://{}", path.display())
     }
     #[cfg(target_os = "windows")]
     {
         let slash = path.to_string_lossy().replace('\\', "/");
-        format!("file://{}/dist/index.html", slash)
+        format!("file://{}", slash)
     }
 }
 
@@ -54,6 +54,12 @@ fn main() -> Result<()> {
 
     let arg = matches.free.first().map(fs::read_to_string).transpose()?;
     let debug = env::var("DEBUG").is_ok();
+    let url = {
+        let mut path = env::current_dir()?;
+        path.push("dist");
+        path.push("index.html");
+        file_url(path)
+    };
 
     let event_loop = EventLoop::with_user_event();
     let window = WindowBuilder::new()
@@ -61,7 +67,7 @@ fn main() -> Result<()> {
         .build(&event_loop)?;
     let proxy = event_loop.create_proxy();
     let webview = WebViewBuilder::new(window)?
-        .with_url(&file_url(env::current_dir()?))?
+        .with_url(&url)?
         .with_devtools(debug)
         .with_ipc_handler(move |_w, s| {
             let m: MessageFromWebview = serde_json::from_str(&s).unwrap();
