@@ -8,13 +8,19 @@ Screenshot when viewing README document of [hgrep](https://github.com/rhysd/hgre
 ## How to build
 
 ```sh
-npm install
-npm run bundle
-cargo build
+# Debug build
+make build
+
+# Release build
+make release
 ```
 
 ## How to run
 
 ```sh
-cargo run path/to/document.md
+# Debug build
+target/debug/rust-webview path/to/document.md
+
+# Release build
+target/release/rust-webview path/to/document.md
 ```

@@ -75,8 +75,9 @@ fn main() -> Result<()> {
         })
         .build()?;
 
+    #[cfg(debug_assertions)]
     if debug {
-        webview.open_devtools();
+        webview.open_devtools(); // This method is defined in debug build only
     }
 
     event_loop.run(move |event, _, control_flow| {
