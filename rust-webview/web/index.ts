@@ -1,4 +1,4 @@
-import {marked} from 'marked';
+import { marked } from 'marked';
 import hljs from 'highlight.js';
 
 interface Ipc {
@@ -13,12 +13,12 @@ declare global {
 }
 
 type MessageFromMain = {
-    kind: "content";
+    kind: 'content';
     content: string;
 };
 
 type MessageToMain = {
-    kind: "init";
+    kind: 'init';
 };
 
 function sendMessage(m: MessageToMain): void {
@@ -28,7 +28,7 @@ function sendMessage(m: MessageToMain): void {
 marked.setOptions({
     highlight: (code, lang) => {
         const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-        return hljs.highlight(code, {language}).value;
+        return hljs.highlight(code, { language }).value;
     },
     langPrefix: 'hljs language-',
     gfm: true,
@@ -37,20 +37,20 @@ marked.setOptions({
 class MyPreviewApp {
     receive(msg: MessageFromMain): void {
         switch (msg.kind) {
-        case "content":
-            const elem = document.getElementById('preview');
-            if (elem === null) {
-                console.error("'preview' element is not found");
-                return;
-            }
-            elem.innerHTML = marked.parse(msg.content);
-            break;
-        default:
-            console.error("Unknown message:", msg);
-            break;
+            case 'content':
+                const elem = document.getElementById('preview');
+                if (elem === null) {
+                    console.error("'preview' element is not found");
+                    return;
+                }
+                elem.innerHTML = marked.parse(msg.content);
+                break;
+            default:
+                console.error('Unknown message:', msg);
+                break;
         }
     }
 }
 
 window.myMarkdownPreview = new MyPreviewApp();
-sendMessage({kind: "init"});
+sendMessage({ kind: 'init' });
