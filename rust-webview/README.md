@@ -1,7 +1,7 @@
 Markdown Previewer in Rust
 ==========================
 
-Screenshot when viewing README document of [hgrep](https://github.com/rhysd/hgrep):
+Screenshot when viewing this README document:
 
 ![example screenshot](https://github.com/rhysd/ss/blob/master/rust-webview-example/main.png?raw=true)
 
@@ -19,8 +19,8 @@ make release
 
 ```sh
 # Debug build
-target/debug/rust-webview path/to/document.md
+target/debug/markdown-preview path/to/document.md
 
 # Release build
-target/release/rust-webview path/to/document.md
+target/release/markdown-preview path/to/document.md
 ```

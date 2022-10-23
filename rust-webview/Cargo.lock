@@ -936,6 +936,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "markdown-preview"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "getopts",
+ "serde",
+ "serde_json",
+ "wry",
+]
+
+[[package]]
 name = "markup5ever"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1463,17 +1474,6 @@ name = "regex-syntax"
 version = "0.6.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a3f87b73ce11b1619a3c6332f45341e0047173771e8b8b73f87bfeefb7b56244"
-
-[[package]]
-name = "rust-webview"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "getopts",
- "serde",
- "serde_json",
- "wry",
-]
 
 [[package]]
 name = "rustc_version"
