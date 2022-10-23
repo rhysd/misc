@@ -34,7 +34,6 @@ const RE_ANCHOR_START = /^<a /;
 
 class MyRenderer extends marked.Renderer {
     override link(href: string, title: string, text: string): string {
-        console.log({ href, title, text });
         const rendered = super.link(href, title, text);
         return rendered.replace(RE_ANCHOR_START, '<a onclick="window.myMarkdownPreview.onLinkClicked(event)" ');
     }
