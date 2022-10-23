@@ -4,8 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use wry::application::accelerator::Accelerator;
 use wry::application::event::{Event, StartCause, WindowEvent};
 use wry::application::event_loop::{ControlFlow, EventLoop};
+use wry::application::keyboard::{KeyCode, ModifiersState};
+use wry::application::menu::{AboutMetadata, MenuBar, MenuItem, MenuItemAttributes};
 use wry::application::window::WindowBuilder;
 use wry::webview::{FileDropEvent, WebView, WebViewBuilder};
 
@@ -82,11 +85,26 @@ fn main() -> Result<()> {
     };
 
     let event_loop = EventLoop::with_user_event();
+    let ipc_proxy = event_loop.create_proxy();
+    let file_drop_proxy = event_loop.create_proxy();
+
     let window = WindowBuilder::new()
         .with_title("Markdown Preview")
         .build(&event_loop)?;
-    let ipc_proxy = event_loop.create_proxy();
-    let file_drop_proxy = event_loop.create_proxy();
+
+    let mut menu = MenuBar::new();
+    let mut sub_menu = MenuBar::new();
+    sub_menu.add_native_item(MenuItem::About(
+        "Markdown Preview".to_string(),
+        AboutMetadata::default(),
+    ));
+    let quit_item = sub_menu.add_item(MenuItemAttributes::new("Quit").with_accelerators(
+        &Accelerator::new(Some(ModifiersState::SUPER), KeyCode::KeyQ),
+    ));
+    let quit_item_id = quit_item.id();
+    menu.add_submenu("File", true, sub_menu);
+    window.set_menu(Some(menu));
+
     let webview = WebViewBuilder::new(window)?
         .with_url(&url)?
         .with_devtools(debug)
@@ -148,6 +166,9 @@ fn main() -> Result<()> {
                     MessageToWebView::preview(&path, &webview).unwrap();
                 }
             },
+            Event::MenuEvent { menu_id, .. } if menu_id == quit_item_id => {
+                *control_flow = ControlFlow::Exit;
+            }
             _ => (),
         }
     });
