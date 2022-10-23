@@ -3,17 +3,33 @@ use getopts::Options;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use wry::application::event::{Event, StartCause, WindowEvent};
 use wry::application::event_loop::{ControlFlow, EventLoop};
 use wry::application::window::WindowBuilder;
-use wry::webview::WebViewBuilder;
+use wry::webview::{WebView, WebViewBuilder};
 
 #[derive(Serialize)]
 #[serde(tag = "kind")]
 #[serde(rename_all = "snake_case")]
-enum MessageToWebview<'a> {
+enum MessageToWebView<'a> {
     Content { content: &'a str },
+}
+
+impl<'a> MessageToWebView<'a> {
+    fn send_to(&self, webview: &WebView) -> Result<()> {
+        let mut buf = b"window.myMarkdownPreview.receive(".to_vec();
+        serde_json::to_writer(&mut buf, self)?;
+        buf.push(b')');
+        webview.evaluate_script(&String::from_utf8(buf).unwrap())?; // XXX: This UTF-8 validation is redundant
+        Ok(())
+    }
+
+    fn preview(path: impl AsRef<Path>, webview: &WebView) -> Result<()> {
+        let content = fs::read_to_string(path.as_ref())?;
+        let msg = MessageToWebView::Content { content: &content };
+        msg.send_to(webview)
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -21,6 +37,7 @@ enum MessageToWebview<'a> {
 #[serde(rename_all = "snake_case")]
 enum MessageFromWebview {
     Init,
+    Open { link: String },
 }
 
 fn usage(options: Options) {
@@ -50,9 +67,6 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    println!("{}", file_url(env::current_dir()?));
-
-    let arg = matches.free.first().map(fs::read_to_string).transpose()?;
     let debug = env::var("DEBUG").is_ok();
     let url = {
         let mut path = env::current_dir()?;
@@ -91,15 +105,25 @@ fn main() -> Result<()> {
             } => *control_flow = ControlFlow::Exit,
             Event::UserEvent(msg) => match msg {
                 MessageFromWebview::Init => {
-                    if let Some(content) = &arg {
-                        let msg = MessageToWebview::Content { content };
-                        let mut buf = b"window.myMarkdownPreview.receive(".to_vec();
-                        serde_json::to_writer(&mut buf, &msg).unwrap();
-                        buf.push(b')');
-                        webview
-                            .evaluate_script(&String::from_utf8(buf).unwrap())
-                            .unwrap();
+                    if let Some(path) = matches.free.first() {
+                        MessageToWebView::preview(path, &webview).unwrap();
                     }
+                }
+                MessageFromWebview::Open { link }
+                    if link.starts_with("https://") || link.starts_with("http://") =>
+                {
+                    open::that(link).unwrap();
+                }
+                MessageFromWebview::Open { mut link } => {
+                    if link.starts_with("file://") {
+                        link.drain(.."file://".len());
+                        #[cfg(target_os = "windows")]
+                        {
+                            link = link.replace('/', "\\");
+                        }
+                    }
+                    // TODO: Open markdown document in this app
+                    let _ = open::that(link);
                 }
             },
             _ => (),

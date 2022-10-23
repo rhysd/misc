@@ -17,15 +17,31 @@ type MessageFromMain = {
     content: string;
 };
 
-type MessageToMain = {
-    kind: 'init';
-};
+type MessageToMain =
+    | {
+          kind: 'init';
+      }
+    | {
+          kind: 'open';
+          link: string;
+      };
 
 function sendMessage(m: MessageToMain): void {
     window.ipc.postMessage(JSON.stringify(m));
 }
 
+const RE_ANCHOR_START = /^<a /;
+
+class MyRenderer extends marked.Renderer {
+    override link(href: string, title: string, text: string): string {
+        console.log({ href, title, text });
+        const rendered = super.link(href, title, text);
+        return rendered.replace(RE_ANCHOR_START, '<a onclick="window.myMarkdownPreview.onLinkClicked(event)" ');
+    }
+}
+
 marked.setOptions({
+    renderer: new MyRenderer(),
     highlight: (code, lang) => {
         const language = hljs.getLanguage(lang) ? lang : 'plaintext';
         return hljs.highlight(code, { language }).value;
@@ -49,6 +65,18 @@ class MyPreviewApp {
                 console.error('Unknown message:', msg);
                 break;
         }
+    }
+
+    onLinkClicked(event: MouseEvent): void {
+        event.preventDefault();
+        if (event.target === null) {
+            return;
+        }
+        const a = event.target as HTMLAnchorElement;
+        sendMessage({
+            kind: 'open',
+            link: a.href,
+        });
     }
 }
 
