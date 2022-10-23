@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use wry::application::event::{Event, StartCause, WindowEvent};
 use wry::application::event_loop::{ControlFlow, EventLoop};
 use wry::application::window::WindowBuilder;
-use wry::webview::{WebView, WebViewBuilder};
+use wry::webview::{FileDropEvent, WebView, WebViewBuilder};
 
 #[derive(Serialize)]
 #[serde(tag = "kind")]
@@ -35,9 +35,15 @@ impl<'a> MessageToWebView<'a> {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "kind")]
 #[serde(rename_all = "snake_case")]
-enum MessageFromWebview {
+enum MessageFromWebView {
     Init,
     Open { link: String },
+}
+
+#[derive(Debug)]
+enum UserEvent {
+    FromWebView(MessageFromWebView),
+    FileDrop(PathBuf),
 }
 
 fn usage(options: Options) {
@@ -79,13 +85,24 @@ fn main() -> Result<()> {
     let window = WindowBuilder::new()
         .with_title("Markdown Preview")
         .build(&event_loop)?;
-    let proxy = event_loop.create_proxy();
+    let ipc_proxy = event_loop.create_proxy();
+    let file_drop_proxy = event_loop.create_proxy();
     let webview = WebViewBuilder::new(window)?
         .with_url(&url)?
         .with_devtools(debug)
         .with_ipc_handler(move |_w, s| {
-            let m: MessageFromWebview = serde_json::from_str(&s).unwrap();
-            proxy.send_event(m).unwrap();
+            let m: MessageFromWebView = serde_json::from_str(&s).unwrap();
+            ipc_proxy.send_event(UserEvent::FromWebView(m)).unwrap();
+        })
+        .with_file_drop_handler(move |_w, e| {
+            if let FileDropEvent::Dropped(paths) = e {
+                if let Some(path) = paths.into_iter().next() {
+                    file_drop_proxy
+                        .send_event(UserEvent::FileDrop(path))
+                        .unwrap();
+                }
+            }
+            true
         })
         .build()?;
 
@@ -103,27 +120,32 @@ fn main() -> Result<()> {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
-            Event::UserEvent(msg) => match msg {
-                MessageFromWebview::Init => {
-                    if let Some(path) = matches.free.first() {
-                        MessageToWebView::preview(path, &webview).unwrap();
-                    }
-                }
-                MessageFromWebview::Open { link }
-                    if link.starts_with("https://") || link.starts_with("http://") =>
-                {
-                    open::that(link).unwrap();
-                }
-                MessageFromWebview::Open { mut link } => {
-                    if link.starts_with("file://") {
-                        link.drain(.."file://".len());
-                        #[cfg(target_os = "windows")]
-                        {
-                            link = link.replace('/', "\\");
+            Event::UserEvent(event) => match event {
+                UserEvent::FromWebView(msg) => match msg {
+                    MessageFromWebView::Init => {
+                        if let Some(path) = matches.free.first() {
+                            MessageToWebView::preview(path, &webview).unwrap();
                         }
                     }
-                    // TODO: Open markdown document in this app
-                    let _ = open::that(link);
+                    MessageFromWebView::Open { link }
+                        if link.starts_with("https://") || link.starts_with("http://") =>
+                    {
+                        open::that(link).unwrap();
+                    }
+                    MessageFromWebView::Open { mut link } => {
+                        if link.starts_with("file://") {
+                            link.drain(.."file://".len());
+                            #[cfg(target_os = "windows")]
+                            {
+                                link = link.replace('/', "\\");
+                            }
+                        }
+                        // TODO: Open markdown document in this app
+                        let _ = open::that(link);
+                    }
+                },
+                UserEvent::FileDrop(path) => {
+                    MessageToWebView::preview(&path, &webview).unwrap();
                 }
             },
             _ => (),
