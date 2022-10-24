@@ -23,10 +23,7 @@ fn main() {
     println!("cargo:rerun-if-changed=dist/bundle.js");
 
     let html = fs::read_to_string(from_slash("dist/template.html")).unwrap();
-    let html = embed(
-        "node_modules/github-markdown-css/github-markdown.css",
-        &html,
-    );
+    let html = embed("node_modules/github-markdown-css/github-markdown.css", &html);
     let html = embed("node_modules/highlight.js/styles/github.css", &html);
     let html = embed("dist/bundle.js", &html);
 

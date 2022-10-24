@@ -61,11 +61,7 @@ fn usage(options: Options) {
 
 fn main() -> Result<()> {
     let debug = env::var("DEBUG").is_ok();
-    let level = if debug {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Info
-    };
+    let level = if debug { log::LevelFilter::Debug } else { log::LevelFilter::Info };
 
     env_logger::builder().filter_level(level).init();
 
@@ -81,20 +77,17 @@ fn main() -> Result<()> {
     let ipc_proxy = event_loop.create_proxy();
     let file_drop_proxy = event_loop.create_proxy();
 
-    let window = WindowBuilder::new()
-        .with_title("Markdown Preview")
-        .build(&event_loop)?;
+    let window = WindowBuilder::new().with_title("Markdown Preview").build(&event_loop)?;
     log::debug!("Event loop and window were created successfully");
 
     let mut menu = MenuBar::new();
     let mut sub_menu = MenuBar::new();
-    sub_menu.add_native_item(MenuItem::About(
-        "Markdown Preview".to_string(),
-        AboutMetadata::default(),
-    ));
-    let quit_item = sub_menu.add_item(MenuItemAttributes::new("Quit").with_accelerators(
-        &Accelerator::new(Some(ModifiersState::SUPER), KeyCode::KeyQ),
-    ));
+    sub_menu
+        .add_native_item(MenuItem::About("Markdown Preview".to_string(), AboutMetadata::default()));
+    let quit_item = sub_menu.add_item(
+        MenuItemAttributes::new("Quit")
+            .with_accelerators(&Accelerator::new(Some(ModifiersState::SUPER), KeyCode::KeyQ)),
+    );
     let quit_item = quit_item.id();
     menu.add_submenu("File", true, sub_menu);
     window.set_menu(Some(menu));
@@ -112,10 +105,7 @@ fn main() -> Result<()> {
         })
         .with_file_drop_handler(move |_w, e| {
             if let FileDropEvent::Dropped(paths) = e {
-                log::debug!(
-                    "Files were dropped (the first one will be opened): {:?}",
-                    paths
-                );
+                log::debug!("Files were dropped (the first one will be opened): {:?}", paths);
                 if let Some(path) = paths.into_iter().next() {
                     if let Err(e) = file_drop_proxy.send_event(UserEvent::FileDrop(path)) {
                         log::error!("Could not send user event for file drop: {}", e);
@@ -140,10 +130,7 @@ fn main() -> Result<()> {
             Event::NewEvents(StartCause::Init) => {
                 log::debug!("Application has started");
             }
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => {
+            Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 log::debug!("Closing window was requested");
                 *control_flow = ControlFlow::Exit;
             }
