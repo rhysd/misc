@@ -8,7 +8,7 @@
     "watch-bundle": "npm run bundle -- --watch",
     "watch-ts": "npm run ts -- --watch",
     "watch-rs": "cargo watch --watch src",
-    "bundle": "esbuild web/index.ts --bundle --outfile=dist/index.js --platform=browser",
+    "bundle": "esbuild web/index.ts --bundle --outfile=dist/bundle.js --platform=browser",
     "ts": "tsc --noEmit",
     "rs": "cargo check",
     "fmt": "cargo fmt && prettier --write 'web/*.ts'",

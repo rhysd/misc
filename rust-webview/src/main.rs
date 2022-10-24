@@ -12,6 +12,8 @@ use wry::application::menu::{AboutMetadata, MenuBar, MenuItem, MenuItemAttribute
 use wry::application::window::WindowBuilder;
 use wry::webview::{FileDropEvent, WebView, WebViewBuilder};
 
+const HTML: &str = include_str!("bundle.html");
+
 #[derive(Serialize)]
 #[serde(tag = "kind")]
 #[serde(rename_all = "snake_case")]
@@ -57,18 +59,6 @@ fn usage(options: Options) {
     println!("{}", options.usage(&header));
 }
 
-fn file_url(path: PathBuf) -> String {
-    #[cfg(not(target_os = "windows"))]
-    {
-        format!("file://{}", path.display())
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let slash = path.to_string_lossy().replace('\\', "/");
-        format!("file://{}", slash)
-    }
-}
-
 fn main() -> Result<()> {
     let debug = env::var("DEBUG").is_ok();
     let level = if debug {
@@ -86,14 +76,6 @@ fn main() -> Result<()> {
         usage(options);
         return Ok(());
     }
-
-    let url = {
-        let mut path = env::current_dir()?;
-        path.push("dist");
-        path.push("index.html");
-        file_url(path)
-    };
-    log::debug!("Initial URL: {:?}", url);
 
     let event_loop = EventLoop::with_user_event();
     let ipc_proxy = event_loop.create_proxy();
@@ -119,7 +101,7 @@ fn main() -> Result<()> {
     log::debug!("Added menubar to window (quit={:?})", quit_item);
 
     let webview = WebViewBuilder::new(window)?
-        .with_url(&url)?
+        .with_html(HTML)?
         .with_devtools(debug)
         .with_ipc_handler(move |_w, s| {
             let m: MessageFromWebView = serde_json::from_str(&s).unwrap();

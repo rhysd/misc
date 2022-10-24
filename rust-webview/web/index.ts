@@ -72,9 +72,13 @@ class MyPreviewApp {
             return;
         }
         const a = event.target as HTMLAnchorElement;
+        const link = a.getAttribute('href');
+        if (!link) {
+            return;
+        }
         sendMessage({
             kind: 'open',
-            link: a.href,
+            link,
         });
     }
 }

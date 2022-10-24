@@ -4,17 +4,9 @@ RS_SRC := $(wildcard src/*.rs)
 node_modules:
 	npm install
 
-dist/github-markdown.css: node_modules
-	cp node_modules/github-markdown-css/github-markdown.css dist/github-markdown.css
-
-dist/hljs-github.css: node_modules
-	cp node_modules/highlight.js/styles/github.css dist/hljs-github.css
-
-dist/index.js: node_modules $(TS_SRC)
+dist/bundle.js: node_modules $(TS_SRC)
 	npm run ts
 	npm run bundle
-
-webapp: dist/github-markdown.css dist/hljs-github.css dist/index.js
 
 target/debug/rust-webview: $(RS_SRC)
 	cargo build
@@ -22,8 +14,8 @@ target/debug/rust-webview: $(RS_SRC)
 target/release/rust-webview: $(RS_SRC)
 	cargo build --release
 
-build: webapp target/debug/rust-webview
+build: dist/bundle.js target/debug/rust-webview
 
-release: webapp target/release/rust-webview
+release: dist/bundle.js target/release/rust-webview
 
-.PHONY: webapp build release
+.PHONY: build release
