@@ -5,6 +5,7 @@ const data = require('./test.json');
 const lodashCloneDeep = require('lodash.clonedeep');
 const rfdc = require('rfdc')({ proto: true, circles: false });
 const cloneDeep = require('clone-deep');
+const { copy: fastestClone } = require('fastest-json-copy');
 
 function structuredCloneJson(x) {
     return JSON.parse(JSON.stringify(x));
@@ -80,6 +81,9 @@ suite
     })
     .add('RFDC', function () {
         rfdc(data);
+    })
+    .add('FastestClone', function () {
+        fastestClone(data);
     })
     .add('MyImpl', function () {
         myClone(data);
