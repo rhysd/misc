@@ -1,0 +1,20 @@
+[package]
+name = "markdown-parser"
+publish = false
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[[bench]]
+name = "bench"
+harness = false
+
+[dependencies]
+cmark-gfm = "0.1.1"
+comrak = { version = "0.14.0", default-features = false, features = [] }
+pulldown-cmark = { version = "0.9.2", default-features = false, features = [] }
+
+[dev-dependencies]
+criterion = "0.4.0"
