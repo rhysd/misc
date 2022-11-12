@@ -1,6 +1,7 @@
 use pulldown_cmark::{
-    html, Alignment, CodeBlockKind, Event, HeadingLevel, LinkType, Options, Parser, Tag,
+    html, Alignment, CodeBlockKind, CowStr, Event, HeadingLevel, LinkType, Options, Parser, Tag,
 };
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io;
@@ -69,18 +70,20 @@ enum T {
     Row,
 }
 
-struct Json<W: Write> {
+struct Json<'a, W: Write> {
     w: W,
     table: T,
     is_start: bool,
+    ids: HashMap<CowStr<'a>, usize>,
 }
 
-impl<W: Write> Json<W> {
+impl<'a, W: Write> Json<'a, W> {
     fn new(w: W) -> Self {
         Self {
             w,
             table: T::Head,
             is_start: true,
+            ids: HashMap::new(),
         }
     }
 
@@ -132,7 +135,12 @@ impl<W: Write> Json<W> {
         })
     }
 
-    pub fn push(&mut self, event: Event) -> io::Result<()> {
+    fn id(&mut self, name: CowStr<'a>) -> usize {
+        let new = self.ids.len() + 1;
+        *self.ids.entry(name).or_insert(new)
+    }
+
+    pub fn push(&mut self, event: Event<'a>) -> io::Result<()> {
         use Event::*;
 
         match event {
@@ -175,7 +183,8 @@ impl<W: Write> Json<W> {
                 self.comma()?;
                 self.w(r#"{"tag":"footnote-ref","name":"#)?;
                 self.s(&name)?;
-                self.w("}")
+                let id = self.id(name);
+                write!(self.w, r#","id":{}}}"#, id)
             }
             TaskListMarker(checked) => {
                 self.comma()?;
@@ -184,7 +193,7 @@ impl<W: Write> Json<W> {
         }
     }
 
-    fn start_tag(&mut self, tag: Tag) -> io::Result<()> {
+    fn start_tag(&mut self, tag: Tag<'a>) -> io::Result<()> {
         use Tag::*;
         match tag {
             Paragraph => self.w(r#"{"tag":"p","children":["#)?,
@@ -271,15 +280,16 @@ impl<W: Write> Json<W> {
             }
             FootnoteDefinition(name) => {
                 self.w(r#"{"tag":"footnote-def","name":"#)?;
-                self.s(name)?;
-                self.w(r#","children":["#)?;
+                self.s(&name)?;
+                let id = self.id(name);
+                write!(self.w, r#","id":{},"children":["#, id)?;
             }
         }
         self.is_start = true;
         Ok(())
     }
 
-    fn end_tag(&mut self, tag: Tag) -> io::Result<()> {
+    fn end_tag(&mut self, tag: Tag<'a>) -> io::Result<()> {
         use Tag::*;
         match tag {
             Paragraph
