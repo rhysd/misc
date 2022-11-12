@@ -20,6 +20,12 @@ To generate HTML for comparison:
 ./target/release/dump-markdown-ast html input_example.md
 ```
 
+To dump paraser events for debugging:
+
+```sh
+./target/release/dump-markdown-ast events input_example.md
+```
+
 [`output_example.json`](output_example.json) was generated from [`input_example.json`](input_example.md).
 
 ## Performance

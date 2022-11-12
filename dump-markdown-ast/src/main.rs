@@ -21,17 +21,24 @@ fn parser(s: &str) -> Parser<'_, '_> {
     Parser::new_ext(s, options)
 }
 
-fn html<W: io::Write>(s: &str, w: W) -> io::Result<()> {
+fn html<W: Write>(s: &str, w: W) -> io::Result<()> {
     html::write_html(w, parser(s))
 }
 
-fn json<W: io::Write>(s: &str, w: W) -> io::Result<()> {
+fn json<W: Write>(s: &str, w: W) -> io::Result<()> {
     let mut json = Json::new(w);
     json.begin()?;
     for event in parser(s) {
         json.push(event)?;
     }
     json.end()
+}
+
+fn events<W: Write>(s: &str, mut w: W) -> io::Result<()> {
+    for (event, range) in parser(s).into_offset_iter() {
+        writeln!(w, "{:?} ... [{:?}]", event, range)?;
+    }
+    Ok(())
 }
 
 fn main() -> io::Result<()> {
@@ -52,6 +59,7 @@ fn main() -> io::Result<()> {
     match kind.as_str() {
         "html" => html(&source, stdout),
         "json" => json(&source, stdout),
+        "events" => events(&source, stdout),
         _ => err(format!("Usage: {} [html|json] FILE", program)),
     }
 }
