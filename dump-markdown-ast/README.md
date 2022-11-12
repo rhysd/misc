@@ -31,11 +31,15 @@ To dump paraser events for debugging:
 ## Performance
 
 ```
-Benchmark 1: ./rust-cmark html test.md
-  Time (mean ± σ):       2.0 ms ±   0.4 ms    [User: 0.8 ms, System: 0.5 ms]
-  Range (min … max):     1.8 ms …   8.8 ms    663 runs
+Benchmark 1: ./dump-markdown-ast html input_example.md
+  Time (mean ± σ):       2.0 ms ±   0.3 ms    [User: 0.8 ms, System: 0.5 ms]
+  Range (min … max):     1.8 ms …   3.6 ms    662 runs
 
-Benchmark 2: ./rust-cmark json test.md
-  Time (mean ± σ):       2.2 ms ±   0.3 ms    [User: 1.0 ms, System: 0.5 ms]
-  Range (min … max):     2.0 ms …   4.9 ms    632 runs
+Benchmark 2: ./dump-markdown-ast json input_example.md
+  Time (mean ± σ):       2.0 ms ±   0.2 ms    [User: 0.8 ms, System: 0.5 ms]
+  Range (min … max):     1.8 ms …   3.4 ms    678 runs
+
+Summary
+  './dump-markdown-ast json input_example.md' ran
+    1.02 ± 0.15 times faster than './dump-markdown-ast html input_example.md'
 ```

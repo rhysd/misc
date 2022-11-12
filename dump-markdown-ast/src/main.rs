@@ -109,18 +109,28 @@ impl<'a, W: Write> Json<'a, W> {
     }
 
     fn s(&mut self, s: impl AsRef<str>) -> io::Result<()> {
+        #[rustfmt::skip]
+        const ESCAPE_TABLE: [u8; 128] = [
+            0, 0, 0,    0, 0, 0, 0, 0, b'b', b't', b'n', 0, b'f',  b'r', 0, 0, // 16
+            0, 0, 0,    0, 0, 0, 0, 0, 0,    0,    0,    0, 0,     0,    0, 0, // 32
+            1, 1, b'"', 1, 1, 1, 1, 1, 1,    1,    1,    1, 1,     1,    1, 1, // 48
+            1, 1, 1,    1, 1, 1, 1, 1, 1,    1,    1,    1, 1,     1,    1, 1, // 64
+            1, 1, 1,    1, 1, 1, 1, 1, 1,    1,    1,    1, 1,     1,    1, 1, // 80
+            1, 1, 1,    1, 1, 1, 1, 1, 1,    1,    1,    1, b'\\', 1,    1, 1, // 96
+            1, 1, 1,    1, 1, 1, 1, 1, 1,    1,    1,    1, 1,     1,    1, 1, // 112
+            1, 1, 1,    1, 1, 1, 1, 1, 1,    1,    1,    1, 1,     1,    1, 0, // 128
+        ];
+
         self.w("\"")?;
         for c in s.as_ref().chars() {
-            match c {
-                '\\' => self.w("\\\\")?,
-                '\u{0008}' => self.w("\\b")?,
-                '\u{000c}' => self.w("\\f")?,
-                '\n' => self.w("\\n")?,
-                '\r' => self.w("\\r")?,
-                '\t' => self.w("\\t")?,
-                '"' => self.w("\\\"")?,
-                c if c.is_control() => write!(self.w, "\\u{:04x}", c as u32)?,
-                c => write!(self.w, "{}", c)?,
+            if c < (128 as char) {
+                match ESCAPE_TABLE[c as usize] {
+                    1 => self.w.write_all(&[c as u8])?,
+                    0 => write!(self.w, "\\u{:04x}", c as u32)?,
+                    b => self.w.write_all(&[b'\\', b])?,
+                }
+            } else {
+                write!(self.w, "{}", c)?
             }
         }
         self.w("\"")
