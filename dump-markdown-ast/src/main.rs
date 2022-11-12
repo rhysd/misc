@@ -7,8 +7,9 @@ use std::fs;
 use std::io;
 use std::io::{BufWriter, Read, Write};
 
-fn err(msg: impl AsRef<str>) -> io::Result<()> {
-    Err(io::Error::new(io::ErrorKind::Other, msg.as_ref()))
+fn usage(program: &str) -> io::Result<()> {
+    let msg = format!("usage: {} [html|json] file", program);
+    Err(io::Error::new(io::ErrorKind::Other, msg))
 }
 
 fn parser(s: &str) -> Parser<'_, '_> {
@@ -46,8 +47,11 @@ fn main() -> io::Result<()> {
     let mut args = env::args();
     let program = args.next().unwrap();
     let Some(kind) = args.next() else {
-        return err(format!("Usage: {} [html|json] FILE", program));
+        return usage(&program);
     };
+    if kind == "help" || kind == "--help" || kind == "-h" {
+        return usage(&program);
+    }
     let source = if let Some(path) = args.next() {
         fs::read_to_string(path)?
     } else {
@@ -61,7 +65,7 @@ fn main() -> io::Result<()> {
         "html" => html(&source, stdout),
         "json" => json(&source, stdout),
         "events" => events(&source, stdout),
-        _ => err(format!("Usage: {} [html|json] FILE", program)),
+        _ => usage(&program),
     }
 }
 
@@ -237,7 +241,7 @@ impl<'a, W: Write> Json<'a, W> {
             }
             TableHead => {
                 self.table = T::Head;
-                self.w(r#"{"tag":"thread","children":[{"tag":"tr","children":["#)?;
+                self.w(r#"{"tag":"thead","children":[{"tag":"tr","children":["#)?;
             }
             TableRow => {
                 self.table = T::Row;
