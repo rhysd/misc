@@ -1,0 +1,25 @@
+{
+  "name": "large-dom-bench",
+  "private": true,
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently -c auto npm:serve npm:watch:react",
+    "serve": "http-server -p 1234 ./dist",
+    "watch:react": "npm run react -- --watch",
+    "react": "esbuild react.jsx --bundle --minify --color=true --platform=browser --outfile=dist/react.js"
+  },
+  "author": "rhysd <lin90162@yahoo.co.jp> (https://rhysd.github.io/)",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.6.0",
+    "esbuild": "^0.15.15",
+    "http-server": "^14.1.1"
+  },
+  "dependencies": {
+    "html-react-parser": "^3.0.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

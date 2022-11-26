@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1, user-scalable=yes" />
+    <title>react bench</title>
+  </head>
+  <body>
+    <button id="button">Run</button>
+    <div id="result"></div>
+    <div id="root"></div>
+    <script>
+      'use strict';
+      fetch('/test.html').then(res => {
+          if (!res.ok) {
+              throw Error('Could not fetch test.html');
+          }
+          return res.text();
+      }).then(text => {
+          const btn = document.getElementById('button');
+          const root = document.getElementById('root');
+          const result = document.getElementById('result');
+          let count = 0;
+          btn.addEventListener('click', () => {
+            const start = Date.now();
+            root.innerHTML = text;
+            const end = Date.now();
+            const elapsed = end - start;
+            console.log(`Trial ${count}: ${elapsed}ms`);
+            result.innerText = `${count}: ${elapsed}ms`;
+            count++;
+          });
+      }).catch(console.error);
+    </script>
+  </body>
+</html>
