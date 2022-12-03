@@ -1,0 +1,16 @@
+{
+  "name": "create-element",
+  "private": true,
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "rhysd <lin90162@yahoo.co.jp> (https://rhysd.github.io/)",
+  "license": "MIT",
+  "dependencies": {
+    "benchmark": "^2.1.4",
+    "react": "^18.2.0"
+  }
+}
