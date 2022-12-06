@@ -9,9 +9,7 @@ fn covers(r1: &Range, r2: &Range) -> bool {
 }
 
 fn overwraps(r1: &Range, r2: &Range) -> bool {
-    r1.contains(r2.start())
-        || r1.contains(r2.end())
-        || r2.contains(r1.start()) && r2.contains(r1.end())
+    !(r1.end() < r2.start() || r2.end() < r1.start())
 }
 
 fn parse(line: String) -> (Range, Range) {
