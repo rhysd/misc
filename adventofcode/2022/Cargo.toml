@@ -24,7 +24,6 @@ path = "4.rs"
 name = "5"
 path = "5.rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-paste = "1.0.9"
+[[bin]]
+name = "6"
+path = "6.rs"
