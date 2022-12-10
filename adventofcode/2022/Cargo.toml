@@ -39,3 +39,7 @@ path = "8.rs"
 [[bin]]
 name = "9"
 path = "9.rs"
+
+[[bin]]
+name = "10"
+path = "10.rs"
