@@ -10,6 +10,10 @@ test/%_2.stdout: %.rs test/% test/%_2.want
 	cargo run --bin $* 2 < test/$* > test/$*_2.stdout
 	diff -u test/$*_2.stdout test/$*_2.want | tee test/$*_2.diff
 
+test/%-2_2.stdout: %.rs test/%-2 test/%-2_2.want
+	cargo run --bin $* 2 < test/$*-2 > test/$*-2_2.stdout
+	diff -u test/$*-2_2.stdout test/$*-2_2.want | tee test/$*_2-2.diff
+
 test: $(STDOUT)
 
 clean:
