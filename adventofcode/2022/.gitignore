@@ -2,3 +2,4 @@
 /template.rs
 /test/*.stdout
 /test/*.diff
+/*.txt
