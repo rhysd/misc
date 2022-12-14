@@ -68,28 +68,19 @@ fn part2(lines: impl Iterator<Item = String>) {
         (ymax + 1, xmax + 1, xmin - 1)
     };
 
-    let mut count = 1;
-    loop {
-        let mut pos = START;
+    let mut count = 0;
+    let mut stack = vec![START];
+    while let Some(mut pos) = stack.pop() {
         loop {
             let (x, y) = pos;
-            if y == ymax {
-                blocks.insert(pos);
-                break;
-            }
-
             if let Some(next) = [(x, y + 1), (x - 1, y + 1), (x + 1, y + 1)]
                 .iter()
-                .filter(|(x, _)| (xmin..=xmax).contains(x))
+                .filter(|(x, y)| (xmin..=xmax).contains(x) && *y <= ymax)
                 .find(|p| !blocks.contains(p))
             {
+                stack.push(pos);
                 pos = *next;
                 continue;
-            }
-
-            if pos == START {
-                println!("{}", count);
-                return;
             }
 
             blocks.insert(pos);
@@ -102,6 +93,8 @@ fn part2(lines: impl Iterator<Item = String>) {
             1
         }
     }
+
+    println!("{}", count);
 }
 
 fn main() {
