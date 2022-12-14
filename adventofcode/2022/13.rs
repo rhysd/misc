@@ -57,8 +57,8 @@ fn part2(lines: impl Iterator<Item = String>) {
     all.push(div1.clone());
     all.push(div2.clone());
     all.sort_unstable();
-    let idx1 = all.iter().position(|p| p == &div1).unwrap() + 1;
-    let idx2 = all.iter().position(|p| p == &div2).unwrap() + 1;
+    let idx1 = all.binary_search(&div1).unwrap() + 1;
+    let idx2 = all.binary_search(&div2).unwrap() + 1;
     println!("{}", idx1 * idx2);
 }
 
