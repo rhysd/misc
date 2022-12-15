@@ -73,18 +73,34 @@ fn part1(lines: impl Iterator<Item = String>) {
 fn part2(lines: impl Iterator<Item = String>) {
     let sensors: Vec<_> = lines.map(|l| Sensor::parse(&l)).collect();
     let max = if is_test(&sensors) { 20 } else { 4000000 };
-    let found = (0..=max).into_par_iter().find_map_any(|y| {
-        let covered: Vec<_> = sensors.iter().flat_map(|s| s.scanned_x(y)).collect();
-        let mut x = 0;
-        while x <= max {
-            if let Some(range) = covered.iter().find(|r| r.contains(&x)) {
-                x = range.end() + 1;
-                continue;
+    let range = 0..=max;
+
+    let found = sensors.iter().find_map(|s| {
+        let (x, y) = s.pos;
+        let edge = s.distance + 1;
+        (-edge..edge).into_par_iter().find_map_any(|dx| {
+            let x = x + dx;
+            if !range.contains(&x) {
+                return None;
             }
-            return Some((x, y));
-        }
-        None
+            let remain = edge - dx;
+            for y in [y + remain, y - remain] {
+                if !range.contains(&y) {
+                    continue;
+                }
+                if sensors
+                    .iter()
+                    .flat_map(|s| s.scanned_x(y))
+                    .any(|r| r.contains(&x))
+                {
+                    continue;
+                }
+                return Some((x, y));
+            }
+            None
+        })
     });
+
     let (x, y) = found.unwrap();
     println!("{}", x * 4000000 + y);
 }
