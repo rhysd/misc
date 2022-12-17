@@ -187,8 +187,14 @@ fn solve2(
     }
     let cloned = state.2;
 
-    let dist_me = dist[me.idx].as_slice();
-    let dist_you = dist[you.idx].as_slice();
+    let prepare_dist = |idx: Idx| {
+        let dist = dist[idx].as_slice();
+        let min = closed.iter().copied().map(|i| dist[i]).min().unwrap_or(0);
+        (dist, min)
+    };
+
+    let (dist_me, min_dist_me) = prepare_dist(me.idx);
+    let (dist_you, min_dist_you) = prepare_dist(you.idx);
 
     let mut max = 0;
     for idx_me in cloned.iter().copied() {
@@ -199,7 +205,7 @@ fn solve2(
             let mut pressure = 0;
 
             macro_rules! next {
-                ($player:ident, $idx:ident, $dist:ident) => {
+                ($player:ident, $idx:ident, $dist:ident, $min_dist:ident) => {
                     'blk: {
                         let cost = $dist[$idx];
                         if $player.remain <= cost + 1 {
@@ -207,7 +213,7 @@ fn solve2(
                         }
                         let remain = $player.remain - cost - 1;
                         pressure += remain * valves[$idx].rate;
-                        if remain <= 2 {
+                        if remain <= 2 + $min_dist {
                             break 'blk None;
                         }
                         closed.swap_remove(closed.iter().position(|&i| $idx == i).unwrap());
@@ -216,8 +222,8 @@ fn solve2(
                 };
             }
 
-            let me = next!(me, idx_me, dist_me);
-            let you = next!(you, idx_you, dist_you);
+            let me = next!(me, idx_me, dist_me, min_dist_me);
+            let you = next!(you, idx_you, dist_you, min_dist_you);
 
             match (me, you) {
                 (Some(me), Some(you)) => {
