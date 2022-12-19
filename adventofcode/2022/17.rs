@@ -1,187 +1,166 @@
 use std::env;
 use std::io::{self, BufRead};
 
-type Shape = &'static [&'static [u8]];
+type Shape = &'static [(usize, usize)];
 
-#[rustfmt::skip]
 const SHAPES: &[Shape] = &[
-    &[
-        b"####",
-    ],
-    &[
-        b".#.",
-        b"###",
-        b".#.",
-    ],
-    &[
-        b"..#",
-        b"..#",
-        b"###",
-    ],
-    &[
-        b"#",
-        b"#",
-        b"#",
-        b"#",
-    ],
-    &[
-        b"##",
-        b"##",
-    ],
+    // ####
+    &[(0, 0), (1, 0), (2, 0), (3, 0)],
+    // .#.
+    // ###
+    // .#.
+    &[(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)],
+    // ..#
+    // ..#
+    // ###
+    &[(2, 0), (2, 1), (0, 2), (1, 2), (2, 2)],
+    // #
+    // #
+    // #
+    // #
+    &[(0, 0), (0, 1), (0, 2), (0, 3)],
+    // ##
+    // ##
+    &[(0, 0), (1, 0), (0, 1), (1, 1)],
 ];
 
-struct Board {
-    rocks: Vec<[bool; 7]>,
-    inuse: Vec<[bool; 7]>,
-    base: usize,
+#[derive(Clone, Copy)]
+enum Dir {
+    L,
+    R,
+    D,
 }
-impl Default for Board {
-    fn default() -> Self {
-        Self {
-            rocks: vec![[false; 7]; 4],
-            inuse: vec![[false; 7]; 4],
-            base: 0,
-        }
-    }
+
+#[derive(Default)]
+struct Board {
+    rocks: Vec<(usize, usize)>,
+    inuse: Vec<u8>,
 }
 
 impl Board {
+    const WIDTH: usize = 7;
+
     fn top_blanks(&self) -> usize {
         self.inuse
             .iter()
+            .copied()
             .rev()
-            .take_while(|xs| !xs.contains(&true))
+            .take_while(|&l| l == 0)
             .count()
     }
 
-    fn is_all_clear(&self) -> bool {
-        self.inuse.iter().all(|l| l.iter().all(|b| !*b))
+    fn height(&self) -> usize {
+        self.inuse.len() - self.top_blanks()
+    }
+
+    fn inuse(&self, x: usize, y: usize) -> bool {
+        self.inuse[y] >> (Self::WIDTH - x - 1) & 1 != 0
     }
 
     fn start(&mut self, shape: Shape) {
         let blanks = self.top_blanks();
-        if blanks < 3 + shape.len() {
-            for _ in 0..3 + shape.len() - blanks {
-                self.inuse.push([false; 7]);
-                self.rocks.push([false; 7]);
+        let init_height = shape.iter().map(|(_, y)| y).max().unwrap() + 1 + 3;
+        if blanks < init_height {
+            for _ in 0..init_height - blanks {
+                self.inuse.push(0);
             }
-        } else if blanks > 3 + shape.len() {
-            for _ in 0..blanks - (3 + shape.len()) {
+        } else if blanks > init_height {
+            for _ in 0..blanks - init_height {
                 self.inuse.pop();
-                self.rocks.pop();
             }
         }
 
-        for (y, xs) in shape.iter().enumerate() {
-            for (x, &b) in xs.iter().enumerate() {
-                if b != b'#' {
-                    continue;
-                }
-                let y = self.rocks.len() - y - 1;
-                self.rocks[y][x + 2] = true;
-            }
+        let len = self.inuse.len();
+        self.rocks
+            .extend(shape.iter().map(|(x, y)| (x + 2, len - y - 1)));
+    }
+
+    fn collision(&self, x: usize, y: usize, dir: Dir) -> bool {
+        match dir {
+            Dir::L if x == 0 => true,
+            Dir::R if x == Self::WIDTH - 1 => true,
+            Dir::D if y == 0 => true,
+            Dir::L => self.inuse(x - 1, y),
+            Dir::R => self.inuse(x + 1, y),
+            Dir::D => self.inuse(x, y - 1),
         }
     }
 
-    fn collision(&self, rocks: &[[bool; 7]]) -> bool {
-        for y in 0..rocks.len() {
-            for x in 0..rocks[y].len() {
-                if rocks[y][x] && self.inuse[y][x] {
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
-    fn jet(&mut self, left: bool) {
-        for line in self.rocks.iter() {
-            if left && line.starts_with(&[true]) {
-                return;
-            }
-            if !left && line.ends_with(&[true]) {
-                return;
-            }
-        }
-
-        let mut next = self.rocks.clone();
-        for line in next.iter_mut() {
-            if left {
-                line.rotate_left(1);
-            } else {
-                line.rotate_right(1);
-            }
-        }
-
-        if self.collision(&next) {
-            return;
-        }
-
-        self.rocks = next;
-    }
-
-    fn fall(&mut self) -> bool {
-        if self.rocks[0].contains(&true) {
-            return false; // Reached floor
-        }
-        let mut next = self.rocks[1..].to_vec();
-        next.push([false; 7]);
-        if self.collision(&next) {
+    fn jet(&mut self, dir: Dir) -> bool {
+        if self
+            .rocks
+            .iter()
+            .copied()
+            .any(|(x, y)| self.collision(x, y, dir))
+        {
             return false;
         }
-        self.rocks = next;
+        for (x, y) in self.rocks.iter_mut() {
+            match dir {
+                Dir::L => *x -= 1,
+                Dir::R => *x += 1,
+                Dir::D => *y -= 1,
+            }
+        }
         true
     }
 
     fn settle(&mut self) {
-        for y in 0..self.rocks.len() {
-            for x in 0..self.rocks[y].len() {
-                if self.rocks[y][x] {
-                    self.inuse[y][x] = true;
-                }
-            }
+        for (x, y) in self.rocks.iter().copied() {
+            self.inuse[y] |= 1 << (Self::WIDTH - x - 1);
         }
-        for y in (0..self.inuse.len()).rev() {
-            if self.inuse[y].iter().all(|b| *b) {
-                self.rocks.drain(..=y);
-                self.inuse.drain(..=y);
-                self.base += y + 1;
-                break;
-            }
-        }
-        for line in self.rocks.iter_mut() {
-            *line = [false; 7];
-        }
+        self.rocks.clear();
     }
 
     fn simulate(&mut self, shape: Shape, mut input: impl Iterator<Item = u8>) {
         self.start(shape);
         loop {
-            // self.print();
             match input.next().unwrap() {
-                b'<' => self.jet(true),
-                b'>' => self.jet(false),
+                b'<' => self.jet(Dir::L),
+                b'>' => self.jet(Dir::R),
                 _ => unreachable!(),
-            }
-            if !self.fall() {
+            };
+            if !self.jet(Dir::D) {
                 self.settle();
                 return;
             }
         }
     }
 
+    fn detect_cycle(&self) -> Option<(usize, usize, usize)> {
+        let blanks = self.top_blanks();
+        let len = self.inuse.len() - blanks;
+        if len < 2 {
+            return None;
+        }
+
+        let mut window = 5; // {min height of any shape} + 1
+        while window * 2 < len {
+            let left_start = len - window;
+            let left = &self.inuse[left_start..len];
+            let right_start = len - window * 2;
+            let right = &self.inuse[right_start..left_start];
+            if left == right {
+                return Some((right_start, left_start, len));
+            }
+            window += 1;
+        }
+
+        None
+    }
+
     #[allow(unused)]
     fn print(&self) {
-        for y in (0..self.rocks.len()).rev() {
-            for x in 0..self.rocks[y].len() {
-                let b = if self.rocks[y][x] {
+        for (y, line) in self.inuse.iter().enumerate().rev() {
+            for x in 0..Self::WIDTH {
+                let c = if self.rocks.contains(&(x, y)) {
                     '@'
-                } else if self.inuse[y][x] {
+                } else if self.inuse(x, y) {
                     '#'
                 } else {
                     '.'
                 };
-                eprint!("{}", b);
+                eprint!("{}", c);
             }
             eprintln!();
         }
@@ -192,55 +171,51 @@ impl Board {
 fn part1(mut lines: impl Iterator<Item = String>) {
     let mut b = Board::default();
     let mut shapes = SHAPES.iter().copied().cycle();
-    let mut limit = 2022;
     let line = lines.next().unwrap();
     let mut input = line.as_bytes().iter().copied().cycle();
-    while limit > 0 {
+    for _ in 0..2022 {
         b.simulate(shapes.next().unwrap(), &mut input);
-        limit -= 1;
     }
-    println!("{}", b.rocks.len() - b.top_blanks() + b.base);
+    println!("{}", b.height());
 }
 
 fn part2(mut lines: impl Iterator<Item = String>) {
     let mut b = Board::default();
     let mut shapes = SHAPES.iter().copied().cycle();
-    let mut count = 0;
     let line = lines.next().unwrap();
     let mut input = line.as_bytes().iter().copied().cycle();
 
-    // Detect cycle
-    let mut prev_clear = 0;
-    let mut prev_prev_clear = 0;
-    let mut prev_base = 0;
-    let mut prev_prev_base = 0;
-    loop {
+    let mut age = 0;
+    let mut history = vec![];
+    let (start_height, end_height, current_height) = loop {
         b.simulate(shapes.next().unwrap(), &mut input);
-        count += 1;
-        if b.is_all_clear() {
-            if count - prev_clear == prev_clear - prev_prev_clear
-                && b.base - prev_base == prev_base - prev_prev_base
-            {
-                break;
-            }
-            prev_prev_clear = prev_clear;
-            prev_clear = count;
-            prev_prev_base = prev_base;
-            prev_base = b.base;
+        age += 1;
+        history.push((age, b.height()));
+        if let Some(detected) = b.detect_cycle() {
+            break detected;
         }
-    }
+    };
+    let height_delta = end_height - start_height;
+    let find_age = move |age| {
+        history
+            .iter()
+            .find_map(|(c, h)| (*h == age).then_some(*c))
+            .unwrap()
+    };
+    let start_age = find_age(start_height);
+    let end_age = find_age(end_height);
+    let age_delta = end_age - start_age;
 
-    let count_delta = count - prev_clear;
-    let base_delta = b.base - prev_base;
-    let remain = 1000000000000usize - count;
-    b.base += remain / count_delta * base_delta;
+    let remain = 1000000000000usize - start_age;
 
-    let mut limit = remain % count_delta;
-    while limit > 0 {
+    for _ in 0..remain % age_delta {
         b.simulate(shapes.next().unwrap(), &mut input);
-        limit -= 1;
     }
-    println!("{}", b.rocks.len() - b.top_blanks() + b.base);
+    let height_before_cycles = start_height - 1; // start_height is the height at the first cycle start
+    let height_after_cycles = b.height() - current_height;
+    let height = height_before_cycles + remain / age_delta * height_delta + height_after_cycles;
+
+    println!("{}", height);
 }
 
 fn main() {
