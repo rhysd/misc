@@ -5,6 +5,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+arrayvec = "0.7.2"
 fxhash = "0.2.1"
 rayon = "1.6.1"
 serde = { version = "1.0.150", features = ["derive"] }
@@ -101,3 +102,7 @@ path = "22.rs"
 [[bin]]
 name = "23"
 path = "23.rs"
+
+[[bin]]
+name = "24"
+path = "24.rs"
