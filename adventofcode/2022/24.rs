@@ -1,5 +1,6 @@
 use arrayvec::ArrayVec;
 use fxhash::FxHashSet;
+use num::Integer;
 use std::collections::VecDeque;
 use std::env;
 use std::io::{self, BufRead};
@@ -70,8 +71,9 @@ impl Sim {
         let mut field = vec![field];
         let width = field[0][0].len() - 2;
         let height = field[0].len() - 2;
+        let cycle = width.lcm(&height);
 
-        loop {
+        for _ in 1..cycle {
             let current = field.last().unwrap();
             let mut next: Field = current
                 .iter()
@@ -114,14 +116,9 @@ impl Sim {
                 }
             }
 
-            if next == field[0] {
-                break;
-            }
-
             field.push(next);
         }
 
-        let cycle = field.len();
         Self {
             field,
             start,

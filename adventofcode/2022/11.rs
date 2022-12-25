@@ -1,3 +1,4 @@
+use num::Integer;
 use std::env;
 use std::io::{self, BufRead};
 use std::mem;
@@ -107,7 +108,7 @@ fn part1(lines: impl Iterator<Item = String>) {
 
 fn part2(lines: impl Iterator<Item = String>) {
     let monkeys = parse_monkeys(lines);
-    let divider: i64 = monkeys.iter().map(|m| m.div_cond).product();
+    let divider: i64 = monkeys.iter().fold(1, |acc, m| acc.lcm(&m.div_cond));
     println!("{}", solve(10000, monkeys, move |i| i % divider));
 }
 
