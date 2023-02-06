@@ -1,0 +1,17 @@
+[package]
+name = "glidesort_bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+bench = false
+
+[[bench]]
+name = "sort"
+harness = false
+
+[dependencies]
+criterion = "0.4.0"
+glidesort = "0.1.1"
+rand = { version = "0.8.5", features = ["small_rng"] }
