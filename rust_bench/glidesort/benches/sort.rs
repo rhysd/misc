@@ -1,6 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::prelude::*;
-use std::cmp::Reverse;
 use std::iter::repeat_with;
 
 const SEED: u64 = 2023_02_06_21_54;
@@ -126,6 +125,6 @@ criterion_group!(
     random_ints,
     sorted_ints,
     reversed_ints,
-    random_pairs
+    random_pairs,
 );
 criterion_main!(benches);
