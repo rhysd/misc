@@ -1,7 +1,9 @@
 #include "kernel.h"
 #include "common.h"
 
-extern char __bss[], __bss_end[], __stack_top[];
+extern char __bss[], __bss_end[], __stack_top[], __free_ram[], __free_ram_end[];
+
+struct process procs[PROCS_MAX]; // Note: All elements are zero-initialized so the state is PROC_STATE_UNUSED
 
 // Chapter 3. Binary Encoding
 //   fid = SBI function ID, eid = SBI extension ID
@@ -40,7 +42,13 @@ __attribute__((aligned(4))) // because stvec contains the execution mode in the 
 void
 exception_handler(void) {
     __asm__ __volatile__(
-        "csrw sscratch, sp\n"
+        // Get the bottom address of the current process's kernel stack from sscratch register which was saved to
+        // sscratch register in yield() function. Instead, the current stack pointer (where the exception happened)
+        // is saved to sscratch register.
+        //   tmp = sp; sp = sscratch; sscratch = tmp;
+        "csrrw sp, sscratch, sp\n"
+
+        // Save registers before calling trap handler
         "addi sp, sp, -4 * 31\n"
         "sw ra,  4 * 0(sp)\n"
         "sw gp,  4 * 1(sp)\n"
@@ -73,12 +81,18 @@ exception_handler(void) {
         "sw s10, 4 * 28(sp)\n"
         "sw s11, 4 * 29(sp)\n"
 
+        // Push the sp (where the exception happened) to stack
         "csrr a0, sscratch\n"
         "sw a0, 4 * 30(sp)\n"
+
+        // Reset the kernel stack to sscratch register again
+        "addi a0, sp, 4 * 31\n"
+        "csrw sscratch, a0\n"
 
         "mv a0, sp\n"
         "call handle_trap\n"
 
+        // Restore registers after calling trap handler
         "lw ra,  4 * 0(sp)\n"
         "lw gp,  4 * 1(sp)\n"
         "lw tp,  4 * 2(sp)\n"
@@ -126,6 +140,117 @@ paddr_t alloc_pages(uint32_t const n) {
     return paddr;
 }
 
+__attribute__((naked)) void switch_context(uint32_t *prev_sp, uint32_t *next_sp) {
+    __asm__ __volatile__(
+        // Save ra and saved registers on current process's stack
+        "addi sp, sp, -13 * 4\n"
+        "sw ra,  0  * 4(sp)\n"
+        "sw s0,  1  * 4(sp)\n"
+        "sw s1,  2  * 4(sp)\n"
+        "sw s2,  3  * 4(sp)\n"
+        "sw s3,  4  * 4(sp)\n"
+        "sw s4,  5  * 4(sp)\n"
+        "sw s5,  6  * 4(sp)\n"
+        "sw s6,  7  * 4(sp)\n"
+        "sw s7,  8  * 4(sp)\n"
+        "sw s8,  9  * 4(sp)\n"
+        "sw s9,  10 * 4(sp)\n"
+        "sw s10, 11 * 4(sp)\n"
+        "sw s11, 12 * 4(sp)\n"
+        "sw sp, (a0)\n" // Save the current stack pointer to `prev_sp` (=a0)
+
+        // Restore ra and saved registers saved on next process's stack
+        "lw sp, (a1)\n" // Load the current stack pointer from `next_sp` (=a1)
+        "lw ra,  0  * 4(sp)\n"
+        "lw s0,  1  * 4(sp)\n"
+        "lw s1,  2  * 4(sp)\n"
+        "lw s2,  3  * 4(sp)\n"
+        "lw s3,  4  * 4(sp)\n"
+        "lw s4,  5  * 4(sp)\n"
+        "lw s5,  6  * 4(sp)\n"
+        "lw s6,  7  * 4(sp)\n"
+        "lw s7,  8  * 4(sp)\n"
+        "lw s8,  9  * 4(sp)\n"
+        "lw s9,  10 * 4(sp)\n"
+        "lw s10, 11 * 4(sp)\n"
+        "lw s11, 12 * 4(sp)\n"
+        "addi sp, sp, 13 * 4\n"
+        "ret\n" // Return to next process's ra
+    );
+}
+
+struct process *create_process(uint32_t const pc) {
+    // Search available slot
+    struct process *proc = NULL;
+    int i;
+    for (i = 0; i < PROCS_MAX; i++) {
+        if (procs[i].state == PROC_STATE_UNUSED) {
+            proc = &procs[i];
+            break;
+        }
+    }
+
+    if (!proc) {
+        PANIC("no free process slots");
+    }
+
+    uint32_t *sp = (uint32_t *)&proc->stack[sizeof(proc->stack)]; // The bottom address of stack
+
+    // Push first saved register values so that the process can be restored by context switch
+    *--sp = 0;  // s11
+    *--sp = 0;  // s10
+    *--sp = 0;  // s9
+    *--sp = 0;  // s8
+    *--sp = 0;  // s7
+    *--sp = 0;  // s6
+    *--sp = 0;  // s5
+    *--sp = 0;  // s4
+    *--sp = 0;  // s3
+    *--sp = 0;  // s2
+    *--sp = 0;  // s1
+    *--sp = 0;  // s0
+    *--sp = pc; // ra
+
+    proc->pid = i + 1; // PID starts from 1
+    proc->state = PROC_STATE_RUNNABLE;
+    proc->sp = (uint32_t)sp;
+    return proc;
+}
+
+struct process *current_proc; // The process currently running
+struct process *idle_proc;    // The idle process (PID=-1) which runs when no process is runnable
+
+void yield(void) {
+    // Search the runnable process to run next
+    struct process *next = idle_proc;
+    for (int i = 0; i < PROCS_MAX; i++) {
+        struct process *proc = &procs[(current_proc->pid + i) % PROCS_MAX];
+        if (proc->state == PROC_STATE_RUNNABLE && proc->pid > 0) {
+            next = proc;
+            break;
+        }
+    }
+
+    // Only the current process is running. No context switch is needed
+    if (next == current_proc) {
+        return;
+    }
+
+    // Save the next process's stack bottom address to sscratch register for exception handling.
+    __asm__ __volatile__(
+        "csrw sscratch, %[sscratch]\n"
+        :
+        : [sscratch] "r"((uint32_t)&next->stack[sizeof(next->stack)]));
+
+    // Switch context from the current process to the next runnable process
+    struct process *prev = current_proc;
+    current_proc = next;
+    switch_context(&prev->sp, &next->sp);
+}
+
+struct process *proc_a;
+struct process *proc_b;
+
 void kernel_main(void) {
     // There is no guarantee that bootloader initializes bss with zeros
     memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
@@ -133,11 +258,12 @@ void kernel_main(void) {
     // Set exception handler
     WRITE_CSR(stvec, (uint32_t)exception_handler);
 
-    printf("\n\nHello %s\n", "World!");
-    printf("%x == %d\n", 0x1234abcd, 0x1234abcd);
+    // The idle process is a special process which runs when there is no runnable process
+    current_proc = idle_proc = create_process((uint32_t)NULL);
+    idle_proc->pid = -1;
 
-    for (;;) {
-    }
+    yield();
+    PANIC("switched to idle process");
 }
 
 // Kernel entrypoint

@@ -3,10 +3,21 @@
 #include "common.h"
 
 #define PAGE_SIZE 4096              // Page size is 4KiB
+#define PROCS_MAX 8                 // Maximum number of processes
+#define PROC_STATE_UNUSED 0         // Process is unused
+#define PROC_STATE_RUNNABLE 1       // Process is runnable
+#define PROC_KERNEL_STACK_SIZE 8192 // Stack size of process in bytes
 
 struct sbiret {
     long error;
     long value;
+};
+
+struct process {
+    int pid;                               // Process ID
+    int state;                             // ...
+    vaddr_t sp;                            // Stack pointer on context switch
+    uint8_t stack[PROC_KERNEL_STACK_SIZE]; // Kernel stack
 };
 
 #define PANIC(fmt, ...)                                                       \
