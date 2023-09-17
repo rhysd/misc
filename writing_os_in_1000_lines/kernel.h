@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#define PAGE_SIZE 4096              // Page size is 4KiB
+
 struct sbiret {
     long error;
     long value;
