@@ -8,6 +8,13 @@
 #define PROC_STATE_RUNNABLE 1       // Process is runnable
 #define PROC_KERNEL_STACK_SIZE 8192 // Stack size of process in bytes
 
+#define SATP_SV32 (1u << 31) // The satp register bit to indicate to enable Sv32 mode paging
+#define PAGE_V (1 << 0)      // The page is enabled
+#define PAGE_R (1 << 1)      // The page is readable
+#define PAGE_W (1 << 2)      // The page is writable
+#define PAGE_X (1 << 3)      // The page is executable
+#define PAGE_U (1 << 4)      // The page is accessible from user land
+
 struct sbiret {
     long error;
     long value;
@@ -17,6 +24,7 @@ struct process {
     int pid;                               // Process ID
     int state;                             // ...
     vaddr_t sp;                            // Stack pointer on context switch
+    uint32_t *page_table;                  // Page table for virtual address mapping
     uint8_t stack[PROC_KERNEL_STACK_SIZE]; // Kernel stack
 };
 

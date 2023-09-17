@@ -1,7 +1,7 @@
 #include "kernel.h"
 #include "common.h"
 
-extern char __bss[], __bss_end[], __stack_top[], __free_ram[], __free_ram_end[];
+extern char __bss[], __bss_end[], __stack_top[], __free_ram[], __free_ram_end[], __kernel_base[];
 
 struct process procs[PROCS_MAX]; // Note: All elements are zero-initialized so the state is PROC_STATE_UNUSED
 
@@ -140,6 +140,43 @@ paddr_t alloc_pages(uint32_t const n) {
     return paddr;
 }
 
+// Register the mapping between the virtual address and the physical address in the page table
+void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags) {
+    // Sv32 is a two-phase lookup table. It means a tree structure where depth is 3.
+    // Depth-1 is VPN[1], depth-2 is VPN[0], depth-3 is the page offset in the 4KiB page.
+    //
+    // Example of Sv32 page mapping
+    // ┌──────────────────────────────────┐
+    // │             8001123              │ Virtual address
+    // └──────────────────────────────────┘
+    // ┌──────────┬──────────┬────────────┐
+    // │0000100000│0000000001│000100100011│ Page table entry
+    // └──────────┴──────────┴────────────┘
+    //    VPN[1]     VPN[0]     page offset
+    //   (10 bits)  (10 bits)  (12 bits)
+    //     =32        =1         =0x123
+
+    if (!is_aligned(vaddr, PAGE_SIZE)) {
+        PANIC("unaligned vaddr %x", vaddr);
+    }
+
+    if (!is_aligned(paddr, PAGE_SIZE)) {
+        PANIC("unaligned paddr %x", paddr);
+    }
+
+    uint32_t const vpn1 = (vaddr >> (10 + 12)) & 0x3ff; // Extract the first page table index
+    if ((table1[vpn1] & PAGE_V) == 0) {
+        // The second page table does not exist. Create it.
+        uint32_t const pt_paddr = alloc_pages(1);
+        table1[vpn1] = ((pt_paddr / PAGE_SIZE) << 10) | PAGE_V;
+    }
+
+    // Insert the new page entry to the second page table
+    uint32_t const vpn0 = (vaddr >> 12) & 0x3ff; // Extract the second page table index
+    uint32_t *table0 = (uint32_t *)((table1[vpn1] >> 10) * PAGE_SIZE);
+    table0[vpn0] = ((paddr / PAGE_SIZE) << 10) | flags | PAGE_V;
+}
+
 __attribute__((naked)) void switch_context(uint32_t *prev_sp, uint32_t *next_sp) {
     __asm__ __volatile__(
         // Save ra and saved registers on current process's stack
@@ -211,9 +248,17 @@ struct process *create_process(uint32_t const pc) {
     *--sp = 0;  // s0
     *--sp = pc; // ra
 
+    // Create kernel page mapping (from __kernel_base to __free_ram_end) so that kernel can access
+    // to both static area (e.g. .text) and dynamically allocated area by alloc_pages().
+    uint32_t *page_table = (uint32_t *)alloc_pages(1);
+    for (paddr_t paddr = (paddr_t)__kernel_base; paddr < (paddr_t)__free_ram_end; paddr += PAGE_SIZE) {
+        map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
+    }
+
     proc->pid = i + 1; // PID starts from 1
     proc->state = PROC_STATE_RUNNABLE;
     proc->sp = (uint32_t)sp;
+    proc->page_table = page_table;
     return proc;
 }
 
@@ -236,20 +281,25 @@ void yield(void) {
         return;
     }
 
-    // Save the next process's stack bottom address to sscratch register for exception handling.
     __asm__ __volatile__(
+        // Switch the page table by registering VPN[1] to satp register.
+        // The sfence.vma instruction is a memory barrier to
+        // - ensure modifying the page table finishes
+        // - remove the cache of the page table entry (TLB)
+        "sfence.vma\n"
+        "csrw satp, %[satp]\n"
+        "sfence.vma\n"
+        // Save the next process's stack bottom address to sscratch register for exception handling.
         "csrw sscratch, %[sscratch]\n"
         :
-        : [sscratch] "r"((uint32_t)&next->stack[sizeof(next->stack)]));
+        : [satp] "r"(SATP_SV32 | ((uint32_t)next->page_table / PAGE_SIZE)),
+          [sscratch] "r"((uint32_t)&next->stack[sizeof(next->stack)]));
 
     // Switch context from the current process to the next runnable process
     struct process *prev = current_proc;
     current_proc = next;
     switch_context(&prev->sp, &next->sp);
 }
-
-struct process *proc_a;
-struct process *proc_b;
 
 void kernel_main(void) {
     // There is no guarantee that bootloader initializes bss with zeros

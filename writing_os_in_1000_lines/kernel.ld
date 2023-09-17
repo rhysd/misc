@@ -11,6 +11,7 @@ ENTRY(boot)
 
 SECTIONS {
     . = 0x80200000; /* base address */
+    __kernel_base = .;
 
     .text :{
         KEEP(*(.text.boot)); /* Start with .text.boot section */
