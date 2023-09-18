@@ -3,6 +3,9 @@
 
 extern char __bss[], __bss_end[], __stack_top[], __free_ram[], __free_ram_end[], __kernel_base[];
 
+// Start and end address of the raw binary shell.bin.o
+extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
+
 struct process procs[PROCS_MAX]; // Note: All elements are zero-initialized so the state is PROC_STATE_UNUSED
 
 // Chapter 3. Binary Encoding
@@ -216,7 +219,24 @@ __attribute__((naked)) void switch_context(uint32_t *prev_sp, uint32_t *next_sp)
     );
 }
 
-struct process *create_process(uint32_t const pc) {
+__attribute__((naked)) void user_entry(void) {
+    __asm__ __volatile__(
+        // PC after switching to U-mode
+        "csrw sepc, %[sepc]\n"
+        // Set SPIE bit. This enables interrupts in U-mode so that trap handler in stvec is called
+        // same as exceptions.
+        // Note: Our implementation does not use interrupts actually (use polling instead) so this
+        // flag is actually unnecessary. But it is a good idea to always enable this bit so that
+        // interrupts are not ignored.
+        "csrw sstatus, %[sstatus]\n"
+        // Switch from S-mode to U-mode
+        "sret\n"
+        :
+        : [sepc] "r"(USER_BASE_ADDR),
+          [sstatus] "r"(SSTATUS_SPIE));
+}
+
+struct process *create_process(void const *image, size_t const image_size) {
     // Search available slot
     struct process *proc = NULL;
     int i;
@@ -234,25 +254,34 @@ struct process *create_process(uint32_t const pc) {
     uint32_t *sp = (uint32_t *)&proc->stack[sizeof(proc->stack)]; // The bottom address of stack
 
     // Push first saved register values so that the process can be restored by context switch
-    *--sp = 0;  // s11
-    *--sp = 0;  // s10
-    *--sp = 0;  // s9
-    *--sp = 0;  // s8
-    *--sp = 0;  // s7
-    *--sp = 0;  // s6
-    *--sp = 0;  // s5
-    *--sp = 0;  // s4
-    *--sp = 0;  // s3
-    *--sp = 0;  // s2
-    *--sp = 0;  // s1
-    *--sp = 0;  // s0
-    *--sp = pc; // ra
+    *--sp = 0;                    // s11
+    *--sp = 0;                    // s10
+    *--sp = 0;                    // s9
+    *--sp = 0;                    // s8
+    *--sp = 0;                    // s7
+    *--sp = 0;                    // s6
+    *--sp = 0;                    // s5
+    *--sp = 0;                    // s4
+    *--sp = 0;                    // s3
+    *--sp = 0;                    // s2
+    *--sp = 0;                    // s1
+    *--sp = 0;                    // s0
+    *--sp = (uint32_t)user_entry; // ra
 
     // Create kernel page mapping (from __kernel_base to __free_ram_end) so that kernel can access
     // to both static area (e.g. .text) and dynamically allocated area by alloc_pages().
     uint32_t *page_table = (uint32_t *)alloc_pages(1);
     for (paddr_t paddr = (paddr_t)__kernel_base; paddr < (paddr_t)__free_ram_end; paddr += PAGE_SIZE) {
         map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
+    }
+
+    // Create user page mapping.
+    // Note: If memcpy is not used and the image binary is mapped directly, all processes which run
+    // the same binary shares the same physical address.
+    for (uint32_t offset = 0; offset < image_size; offset += PAGE_SIZE) {
+        paddr_t const page = alloc_pages(1);
+        memcpy((void *)page, image + offset, PAGE_SIZE);
+        map_page(page_table, USER_BASE_ADDR + offset, page, PAGE_U | PAGE_R | PAGE_W | PAGE_X);
     }
 
     proc->pid = i + 1; // PID starts from 1
@@ -309,10 +338,13 @@ void kernel_main(void) {
     WRITE_CSR(stvec, (uint32_t)exception_handler);
 
     // The idle process is a special process which runs when there is no runnable process
-    current_proc = idle_proc = create_process((uint32_t)NULL);
+    current_proc = idle_proc = create_process(NULL, 0);
     idle_proc->pid = -1;
 
-    yield();
+    // Run shell.bin.o
+    create_process(_binary_shell_bin_start, (size_t)_binary_shell_bin_size);
+
+    yield(); // Try to run the first runnable process
     PANIC("switched to idle process");
 }
 

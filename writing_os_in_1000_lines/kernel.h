@@ -15,6 +15,13 @@
 #define PAGE_X (1 << 3)      // The page is executable
 #define PAGE_U (1 << 4)      // The page is accessible from user land
 
+// Base address of user land. This must match to the address in user.ld. This magic number is necessary
+// since we use raw binary format. If we use general executable format like ELF, we can know this address
+// from the executable's header.
+#define USER_BASE_ADDR 0x1000000
+// 4.1.1 Supervisor Status Register (sstatus)
+#define SSTATUS_SPIE (1 << 5)
+
 struct sbiret {
     long error;
     long value;
