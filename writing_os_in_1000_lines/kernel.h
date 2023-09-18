@@ -6,6 +6,7 @@
 #define PROCS_MAX 8                 // Maximum number of processes
 #define PROC_STATE_UNUSED 0         // Process is unused
 #define PROC_STATE_RUNNABLE 1       // Process is runnable
+#define PROC_STATE_EXITED 2         // Process exited
 #define PROC_KERNEL_STACK_SIZE 8192 // Stack size of process in bytes
 
 #define SATP_SV32 (1u << 31) // The satp register bit to indicate to enable Sv32 mode paging

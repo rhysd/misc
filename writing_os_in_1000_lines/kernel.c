@@ -37,6 +37,12 @@ void putchar(char ch) {
     sbi_call(ch, 0, 0, 0, 0, 0, 0, 1 /* Console Putchar */);
 }
 
+// 5.3. Extension: Console Getchar (EID #0x02)
+long getchar() {
+    struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, 2 /* Console Getchar */);
+    return ret.error;
+}
+
 // Exception handler.
 // - Save and restore registers using stack. The fp registers are not needed to be saved because they are not used by kernel
 // - The sscratch register is used to save/restore stack pointer
@@ -364,6 +370,27 @@ void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
     case SYSCALL_PUTCHAR:
         putchar(f->a0);
+        break;
+    case SYSCALL_GETCHAR:
+        for (;;) {
+            long const ch = getchar();
+            if (ch >= 0) {
+                // When some character is returned, write it to a0 and return from syscall
+                f->a0 = ch;
+                break;
+            }
+            // When return value is -1, it means that no character was input. Try getchar() again.
+            // However, busy loop stops entire kernel and prevents all processes execution.
+            // To avoid it, yield the execution to some runnable process then try getchar() later.
+            yield();
+        }
+        break;
+    case SYSCALL_EXIT:
+        printf("process %d exited\n", current_proc->pid);
+        current_proc->state = PROC_STATE_EXITED;
+        // TODO: Release process struct instance (kernel stack, page table, ...) since it will no longer used.
+        yield();
+        PANIC("unreachable");
         break;
     default:
         PANIC("unexpected syscall a3=%x\n", f->a3);

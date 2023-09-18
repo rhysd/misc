@@ -2,11 +2,6 @@
 
 extern char __stack_top[];
 
-__attribute__((noreturn)) void exit(void) {
-    for (;;) {
-    }
-}
-
 __attribute__((section(".text.start")))
 __attribute__((naked)) void
 start(void) {
@@ -36,4 +31,14 @@ int syscall(int const sysno, int const arg0, int const arg1, int const arg2) {
 
 void putchar(char c) {
     syscall(SYSCALL_PUTCHAR, (int)c, /*unused*/ 0, /*unused*/ 0);
+}
+
+int getchar(void) {
+    return syscall(SYSCALL_GETCHAR, /*unused*/ 0, /*unused*/ 0, /*unused*/ 0);
+}
+
+__attribute__((noreturn)) void exit(void) {
+    syscall(SYSCALL_EXIT, 0, 0, 0);
+    for (;;) {
+    } // To make sure noreturn
 }
