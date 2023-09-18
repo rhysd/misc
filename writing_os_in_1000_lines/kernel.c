@@ -360,13 +360,32 @@ boot(void) {
         : [stack_top] "r"(__stack_top));
 }
 
-void handle_trap(struct trap_frame *f) {
-    (void)f;
+void handle_syscall(struct trap_frame *f) {
+    switch (f->a3) {
+    case SYSCALL_PUTCHAR:
+        putchar(f->a0);
+        break;
+    default:
+        PANIC("unexpected syscall a3=%x\n", f->a3);
+    }
+}
 
+void handle_trap(struct trap_frame *f) {
     uint32_t scause, stval, user_pc;
     READ_CSR(scause, scause);
     READ_CSR(stval, stval);
     READ_CSR(user_pc, sepc);
 
-    PANIC("unexpected trap scause=%x, stval=%x, sepc=%x\n", scause, stval, user_pc);
+    switch (scause) {
+    case SCAUSE_ECALL:
+        handle_syscall(f);
+        // Increment PC to the next to ecall instruction
+        user_pc += 4;
+        break;
+    default:
+        PANIC("unexpected trap scause=%x, stval=%x, sepc=%x\n", scause, stval, user_pc);
+        break;
+    }
+
+    WRITE_CSR(sepc, user_pc);
 }

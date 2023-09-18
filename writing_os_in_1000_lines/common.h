@@ -20,6 +20,8 @@ typedef uint32_t vaddr_t; // Virtual address type
 #define va_end __builtin_va_end
 #define va_arg __builtin_va_arg
 
+#define SYSCALL_PUTCHAR 1
+
 void *memset(void *buf, char c, size_t n);
 void *memcpy(void *dst, void const *src, size_t n);
 char *strcpy(char *dst, char const *src);

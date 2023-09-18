@@ -21,6 +21,8 @@
 #define USER_BASE_ADDR 0x1000000
 // 4.1.1 Supervisor Status Register (sstatus)
 #define SSTATUS_SPIE (1 << 5)
+// Environment call from U-mode. See Table 4.2 in 4.1.8 Supervisor Cause Register (scause)
+#define SCAUSE_ECALL 8
 
 struct sbiret {
     long error;
