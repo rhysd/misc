@@ -36,6 +36,26 @@ int strcmp(char const *s1, char const *s2) {
     return *s1 - *s2;
 }
 
+int strlen(char const *s) {
+    for (int i = 0;; i++) {
+        if (s[i] == '\0') {
+            return i;
+        }
+    }
+}
+
+bool startswith(char const *heystack, char const *needle) {
+    for (int i = 0;; i++) {
+        char const h = heystack[i], n = needle[i];
+        if (n == '\0') {
+            return true;
+        }
+        if (h != n) {
+            return false;
+        }
+    }
+}
+
 void printf(char const *fmt, ...) {
     va_list vargs;
     va_start(vargs, fmt);

@@ -30,4 +30,6 @@ void *memset(void *buf, char c, size_t n);
 void *memcpy(void *dst, void const *src, size_t n);
 char *strcpy(char *dst, char const *src);
 int strcmp(char const *s1, char const *s2);
+int strlen(char const *s);
+bool startswith(char const *heystack, char const *needle);
 void printf(char const *fmt, ...);

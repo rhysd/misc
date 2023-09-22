@@ -27,13 +27,41 @@ void main(void) {
             printf("Hello world from shell!\n");
         } else if (strcmp(cmdline, "exit") == 0) {
             exit();
-        } else if (strcmp(cmdline, "readfile") == 0) {
+        } else if (startswith(cmdline, "readfile ")) {
             char buf[128];
-            int len = readfile("./hello.txt", buf, sizeof(buf));
+
+            char const *filename = cmdline + 9;
+            if (*filename == '\0') {
+                printf("empty file name: %s\n", filename);
+                continue;
+            }
+
+            int const len = readfile(filename, buf, sizeof(buf));
+            if (len < 0) {
+                printf("file does not exist: %s\n", filename);
+                continue;
+            }
             buf[len] = '\0';
-            printf("%s\n", buf);
-        } else if (strcmp(cmdline, "writefile") == 0) {
-            writefile("./hello.txt", "Hello from shell!\n", 19);
+            printf("%s:\n%s\n", filename, buf);
+        } else if (startswith(cmdline, "writefile ")) {
+            char *filename = cmdline + 10;
+            if (*filename == '\0') {
+                printf("empty file name: %s\n", filename);
+                continue;
+            }
+
+            char *data = filename;
+            while (*data != ' ' && *data != '\0') {
+                data++;
+            }
+            if (*data == ' ') {
+                *data++ = '\0';
+            }
+
+            int const len = writefile(filename, data, strlen(data));
+            if (len < 0) {
+                printf("file does not exist: %s\n", filename);
+            }
         } else {
             printf("unknown command: %s\n", cmdline);
         }
