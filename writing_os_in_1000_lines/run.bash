@@ -1,14 +1,14 @@
 #!/bin/bash
 
-set -xuo pipefail
-
-if [ ! -f opensbi-riscv32-generic-fw_dynamic.bin ]; then
-    curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic-fw_dynamic.bin
-fi
-
-set -x
+set -xeuo pipefail
 
 # -nographic        : No window
 # -serial mon:stdio : Connect stdio to serial port
 # --no-reboot       : Do not reboot on panic
-qemu-system-riscv32 -machine virt -bios default -nographic -serial mon:stdio --no-reboot -kernel kernel.elf
+# -drive            : Define disk drive
+# -device           : Add device
+qemu-system-riscv32 -machine virt -bios default -nographic -serial mon:stdio --no-reboot \
+    -d unimp,guest_errors,int,cpu_reset -D qemu.log \
+    -drive id=drive0,file=disk.tar,format=raw \
+    -device virtio-blk-device,drive=drive0,bus=virtio-mmio-bus.0 \
+    -kernel kernel.elf

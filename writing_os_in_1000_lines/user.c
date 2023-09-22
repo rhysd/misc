@@ -42,3 +42,11 @@ __attribute__((noreturn)) void exit(void) {
     for (;;) {
     } // To make sure noreturn
 }
+
+int readfile(char const *filename, char *buf, int const len) {
+    return syscall(SYSCALL_READFILE, (int)filename, (int)buf, len);
+}
+
+int writefile(char const *filename, char const *buf, int const len) {
+    return syscall(SYSCALL_WRITEFILE, (int)filename, (int)buf, len);
+}

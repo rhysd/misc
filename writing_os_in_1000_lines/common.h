@@ -23,6 +23,8 @@ typedef uint32_t vaddr_t; // Virtual address type
 #define SYSCALL_PUTCHAR 1
 #define SYSCALL_GETCHAR 2
 #define SYSCALL_EXIT 3
+#define SYSCALL_READFILE 4
+#define SYSCALL_WRITEFILE 5
 
 void *memset(void *buf, char c, size_t n);
 void *memcpy(void *dst, void const *src, size_t n);
