@@ -1,6 +1,22 @@
 Writing OS in 1000 lines
 ========================
 
+This is a very small toy OS written in about 1000 lines following the below guide.
+
+https://operating-system-in-1000-lines.vercel.app/ja/welcome
+
+```console
+$ tokei *.c *.h                                                                                                                                                                                                                                                                              [Husky.local][09/22 23:09]
+===============================================================================
+ Language            Files        Lines         Code     Comments       Blanks
+===============================================================================
+ C                       4          948          715          108          125
+ C Header                3          247          206           15           26
+===============================================================================
+ Total                   7         1195          921          123          151
+===============================================================================
+```
+
 ### Repository structure
 
 ```
@@ -14,5 +30,19 @@ Writing OS in 1000 lines
 ├── user.c    - Libraries for user land: Functions for using system calls, ...
 ├── user.h    - Libraries for user land: Structs and constants
 ├── user.ld   - User land: Linker script (definition of memory layout)
-└── run.sh    - Build script
+├── Makefile  - Build script
+└── run.sh    - Script to run kernel with QEMU
+```
+
+### How to build
+
+```sh
+source env.sh  # For macOS
+make
+```
+
+### How to run QEMU
+
+```sh
+./run.bash
 ```
