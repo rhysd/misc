@@ -1,4 +1,4 @@
-#include "user.h"
+#include "stdlib.h"
 
 extern char __stack_top[];
 
@@ -14,7 +14,7 @@ start(void) {
         : [stack_top] "r"(__stack_top));
 }
 
-int syscall(int const sysno, int const arg0, int const arg1, int const arg2) {
+static int syscall(int const sysno, int const arg0, int const arg1, int const arg2) {
     // These arguments are stored in the trap frame and will be referred by kernel land
     register int a0 __asm__("a0") = arg0;
     register int a1 __asm__("a1") = arg1;

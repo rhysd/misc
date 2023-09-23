@@ -5,13 +5,13 @@ FS := $(wildcard disk/*)
 
 all: kernel.elf shell.bin.o disk.tar opensbi-riscv32-generic-fw_dynamic.bin
 
-kernel.elf: kernel.ld kernel.c kernel.h common.c common.h shell.bin.o
+kernel.elf: kernel.ld kernel.h kernel.c fs.c proc.c common.h common.c shell.bin.o
 	$(CC) $(CFLAGS) -Wl,-Tkernel.ld -Wl,-Map=kernel.map -o kernel.elf \
-		kernel.c common.c shell.bin.o
+		kernel.c fs.c proc.c common.c shell.bin.o
 
-shell.elf: user.ld shell.c user.c user.h common.c common.h
+shell.elf: user.ld shell.c stdlib.h stdlib.c common.h common.c
 	$(CC) $(CFLAGS) -Wl,-Tuser.ld -Wl,-Map=shell.map -o shell.elf \
-		shell.c user.c common.c
+		shell.c stdlib.c common.c
 shell.bin: shell.elf
 	$(OBJCOPY) --set-section-flags .bss=alloc,contents -O binary shell.elf shell.bin
 shell.bin.o: shell.bin
