@@ -24,6 +24,6 @@ opensbi-riscv32-generic-fw_dynamic.bin:
 	curl -LO https://github.com/qemu/qemu/raw/v8.0.4/pc-bios/opensbi-riscv32-generic-fw_dynamic.bin
 
 clean:
-	rm *.elf *.map *.bin *.o disk.tar
+	rm -f *.elf *.map *.bin *.o disk.tar *.log
 
 .PHONY: clean all
