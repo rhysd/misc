@@ -1,0 +1,107 @@
+[package]
+name = "advent_of_code_2023"
+publish = false
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[[bin]]
+name = "1"
+path = "1.rs"
+
+[[bin]]
+name = "2"
+path = "2.rs"
+
+[[bin]]
+name = "3"
+path = "3.rs"
+
+[[bin]]
+name = "4"
+path = "4.rs"
+
+[[bin]]
+name = "5"
+path = "5.rs"
+
+[[bin]]
+name = "6"
+path = "6.rs"
+
+[[bin]]
+name = "7"
+path = "7.rs"
+
+[[bin]]
+name = "8"
+path = "8.rs"
+
+[[bin]]
+name = "9"
+path = "9.rs"
+
+[[bin]]
+name = "10"
+path = "10.rs"
+
+[[bin]]
+name = "11"
+path = "11.rs"
+
+[[bin]]
+name = "12"
+path = "12.rs"
+
+[[bin]]
+name = "13"
+path = "13.rs"
+
+[[bin]]
+name = "14"
+path = "14.rs"
+
+[[bin]]
+name = "15"
+path = "15.rs"
+
+[[bin]]
+name = "16"
+path = "16.rs"
+
+[[bin]]
+name = "17"
+path = "17.rs"
+
+[[bin]]
+name = "18"
+path = "18.rs"
+
+[[bin]]
+name = "19"
+path = "19.rs"
+
+[[bin]]
+name = "20"
+path = "20.rs"
+
+[[bin]]
+name = "21"
+path = "21.rs"
+
+[[bin]]
+name = "22"
+path = "22.rs"
+
+[[bin]]
+name = "23"
+path = "23.rs"
+
+[[bin]]
+name = "24"
+path = "24.rs"
+
+[[bin]]
+name = "25"
+path = "25.rs"
