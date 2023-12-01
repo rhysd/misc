@@ -12,7 +12,7 @@ Answer:
 
 ```sh
 # Create answer for part 1 of day 1
-make want/1-1
+make ans/1-1
 ```
 
 Clean results:
@@ -24,7 +24,7 @@ make clean
 ## Directories
 
 - `in/` : Input files
-- `want/` : Expected output files
+- `ans/` : Expected answer files
 - `out/` : Actual output files
 - `diff/` : Diff of expected/actual outputs
 
