@@ -4,13 +4,20 @@ Answers for https://adventofcode.com/2023
 
 Run tests:
 
-```
+```sh
 make
+```
+
+Answer:
+
+```sh
+# Create answer for part 1 of day 1
+make want/1-1
 ```
 
 Clean results:
 
-```
+```sh
 make clean
 ```
 
