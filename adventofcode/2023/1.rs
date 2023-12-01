@@ -20,23 +20,18 @@ impl Iterator for Calibs<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let l = self.0;
-            let c = l.chars().next()?;
-            self.0 = &self.0[1..];
-            if let Some(u) = c
-                .to_digit(10)
-                .or_else(|| l.starts_with("one").then_some(1))
-                .or_else(|| l.starts_with("two").then_some(2))
-                .or_else(|| l.starts_with("three").then_some(3))
-                .or_else(|| l.starts_with("four").then_some(4))
-                .or_else(|| l.starts_with("five").then_some(5))
-                .or_else(|| l.starts_with("six").then_some(6))
-                .or_else(|| l.starts_with("seven").then_some(7))
-                .or_else(|| l.starts_with("eight").then_some(8))
-                .or_else(|| l.starts_with("nine").then_some(9))
-            {
+            if let Some(u) = self.0.chars().next()?.to_digit(10).or_else(|| {
+                [
+                    "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+                ]
+                .into_iter()
+                .position(|s| self.0.starts_with(s))
+                .map(|i| i as u32 + 1)
+            }) {
+                self.0 = &self.0[1..];
                 return Some(u);
             };
+            self.0 = &self.0[1..];
         }
     }
 }
