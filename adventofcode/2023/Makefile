@@ -1,39 +1,38 @@
 SHELL := /bin/bash -e -o pipefail
-STDOUT := $(patsubst ans/%,diff/%,$(wildcard ans/*))
+ANS := $(wildcard ans/*)
+OUT := $(patsubst ans/%,out/%,$(ANS))
+ALL := out diff $(patsubst ans/%,diff/%,$(ANS))
 
-default: $(STDOUT)
+default: $(ALL)
 
-out/ diff/:
+out diff:
 	mkdir -p out diff
 
-out/%-1: %.rs in/%-1 out/
+out/%-1: %.rs in/%-1
 	cargo run --release --bin $* -- 1 < in/$*-1 > out/$*-1
-
-out/%-2: %.rs in/%-2 ans/%-2 out/
+out/%-2: %.rs in/%-2 ans/%-2
 	cargo run --release --bin $* -- 2 < in/$*-2 > out/$*-2
-
-out/%-2: %.rs in/%-1 ans/%-2 out/
+out/%-2: %.rs in/%-1 ans/%-2
 	cargo run --release --bin $* -- 2 < in/$*-1 > out/$*-2
-
-out/%-s1: %.rs in/%-s1 ans/%-s1 out/
+out/%-s1: %.rs in/%-s1 ans/%-s1
 	cargo run --release --bin $* -- 1 < in/$*-s1 > out/$*-s1
-
-out/%-s2: %.rs in/%-s2 ans/%-s2 out/
+out/%-s2: %.rs in/%-s2 ans/%-s2
 	cargo run --release --bin $* -- 2 < in/$*-s2 > out/$*-s2
+out/%-s2: %.rs in/%-s1 ans/%-s2
+	cargo run --release --bin $* -- 2 < in/$*-s1 > out/$*-s2
 
-diff/%: out/% ans/% diff/
+diff/%: out/% ans/%
 	diff -u out/$* ans/$* | tee diff/$*
 
-ans/%-1: in/%-1 out/
+ans/%-1: in/%-1
 	cargo run --release --bin $* -- 1 < in/$*-1 | tee ans/$*-1
-
-ans/%-2: in/%-2 out/
+ans/%-2: in/%-2
 	cargo run --release --bin $* -- 2 < in/$*-2 | tee ans/$*-2
-
-ans/%-2: in/%-1 out/
+ans/%-2: in/%-1
 	cargo run --release --bin $* -- 2 < in/$*-1 | tee ans/$*-2
 
 clean:
 	rm -f out/* diff/*
 
 .PHONY: default clean
+.PRECIOUS: $(OUT)

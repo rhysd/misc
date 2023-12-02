@@ -8,6 +8,12 @@ Run tests:
 make
 ```
 
+[watchexec][] is useful:
+
+```sh
+watchexec make
+```
+
 Answer:
 
 ```sh
@@ -35,3 +41,4 @@ make clean
 - `*/N-s1` : Sample of part 1 for day N
 - `*/N-s2` : Sample of part 2 for day N
 
+[watchexec]: https://github.com/watchexec/watchexec
