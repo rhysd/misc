@@ -15,11 +15,11 @@ out/%-2: %.rs in/%-2 ans/%-2
 out/%-2: %.rs in/%-1 ans/%-2
 	cargo run --release --bin $* -- 2 < in/$*-1 > out/$*-2
 out/%-s1: %.rs in/%-s1 ans/%-s1
-	cargo run --release --bin $* -- 1 < in/$*-s1 > out/$*-s1
+	cargo run --bin $* -- 1 < in/$*-s1 > out/$*-s1
 out/%-s2: %.rs in/%-s2 ans/%-s2
-	cargo run --release --bin $* -- 2 < in/$*-s2 > out/$*-s2
+	cargo run --bin $* -- 2 < in/$*-s2 > out/$*-s2
 out/%-s2: %.rs in/%-s1 ans/%-s2
-	cargo run --release --bin $* -- 2 < in/$*-s1 > out/$*-s2
+	cargo run --bin $* -- 2 < in/$*-s1 > out/$*-s2
 
 diff/%: out/% ans/%
 	diff -u out/$* ans/$* | tee diff/$*
