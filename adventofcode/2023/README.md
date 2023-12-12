@@ -30,6 +30,8 @@ make clean
 ## Directories
 
 - `in/` : Input files
+  - If `in/N-2` doesn't exist, `in/N-1` is used for the answer for part 2
+  - If `in/N-s2` doesn't exist, `in/N-s1` is used for the sample of part 2
 - `ans/` : Expected answer files
 - `out/` : Actual output files
 - `diff/` : Diff of expected/actual outputs
