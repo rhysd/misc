@@ -30,42 +30,44 @@ impl Brick {
     fn surface(&self) -> Surface {
         ((self.lower.0, self.lower.1), (self.upper.0, self.upper.1))
     }
+
+    fn top_z(&self) -> usize {
+        self.upper.2 + 1
+    }
+
+    fn fall_to(&mut self, z: usize) {
+        self.upper.2 -= self.lower.2 - z;
+        self.lower.2 = z;
+    }
 }
 
-fn settle(bricks: &mut Vec<Brick>) -> usize {
-    let mut count = 0;
+fn collide(((lx1, ly1), (ux1, uy1)): Surface, ((lx2, ly2), (ux2, uy2)): Surface) -> bool {
+    fn overwrap(s1: usize, e1: usize, s2: usize, e2: usize) -> bool {
+        !(e1 < s2 || e2 < s1)
+    }
+    overwrap(lx1, ux1, lx2, ux2) && overwrap(ly1, uy1, ly2, uy2)
+}
 
+fn settle(bricks: &mut Vec<Brick>) {
     for i in 0..bricks.len() {
-        let b = &bricks[i];
-        let ((x1, y1), (x2, y2)) = b.surface();
-
-        let mut z = b.lower.2;
-        'fall: while z > 1 {
-            for x in x1..=x2 {
-                for y in y1..=y2 {
-                    for b in &bricks[..i] {
-                        if b.upper.2 + 1 != z {
-                            continue;
-                        }
-                        let ((x1, y1), (x2, y2)) = b.surface();
-                        if (x1..=x2).contains(&x) && (y1..=y2).contains(&y) {
-                            break 'fall;
-                        }
-                    }
-                }
-            }
-            z -= 1;
-        }
+        let falling = &bricks[i];
+        let surface = falling.surface();
+        let z = falling.lower.2;
+        let z = if let Some(collided) = bricks[..i]
+            .iter()
+            .filter(|b| b.top_z() <= z && collide(surface, b.surface()))
+            .max_by_key(|b| b.upper.2)
+        {
+            collided.top_z()
+        } else {
+            1
+        };
 
         let b = &mut bricks[i];
         if b.lower.2 != z {
-            b.upper.2 -= b.lower.2 - z;
-            b.lower.2 = z;
-            count += 1;
+            b.fall_to(z);
         }
     }
-
-    count
 }
 
 fn part1(lines: impl Iterator<Item = String>) {
@@ -83,18 +85,13 @@ fn part1(lines: impl Iterator<Item = String>) {
             if z == 1 {
                 continue;
             }
-            let ((ux1, uy1), (ux2, uy2)) = upper.surface();
+            let upper_surface = upper.surface();
             for lower in tower {
-                if z != lower.upper.2 + 1 {
+                if z != lower.top_z() {
                     continue;
                 }
-                let ((lx1, ly1), (lx2, ly2)) = lower.surface();
-                for x in lx1..=lx2 {
-                    for y in ly1..=ly2 {
-                        if (ux1..=ux2).contains(&x) && (uy1..=uy2).contains(&y) {
-                            continue 'upper;
-                        }
-                    }
+                if collide(upper_surface, lower.surface()) {
+                    continue 'upper;
                 }
             }
             return false;
@@ -115,42 +112,40 @@ fn part1(lines: impl Iterator<Item = String>) {
 }
 
 fn part2(lines: impl Iterator<Item = String>) {
-    let mut snapshot: Vec<_> = lines.map(|l| Brick::parse(&l)).collect();
-    snapshot.sort_by_key(|b| b.lower.2);
-
-    let mut settled = Vec::<Brick>::new();
-    for mut brick in snapshot {
-        let ((x1, y1), (x2, y2)) = brick.surface();
-
-        let mut z = brick.lower.2;
-        'fall: while z > 1 {
-            for x in x1..=x2 {
-                for y in y1..=y2 {
-                    for b in settled.iter() {
-                        if b.upper.2 + 1 != z {
-                            continue;
-                        }
-                        let ((x1, y1), (x2, y2)) = b.surface();
-                        if (x1..=x2).contains(&x) && (y1..=y2).contains(&y) {
-                            break 'fall;
-                        }
-                    }
-                }
-            }
-            z -= 1;
-        }
-
-        brick.upper.2 -= brick.lower.2 - z;
-        brick.lower.2 = z;
-        settled.push(brick);
-    }
-    settled.sort_by_key(|b| b.lower.2);
+    let mut tower: Vec<_> = lines.map(|l| Brick::parse(&l)).collect();
+    tower.sort_by_key(|b| b.lower.2);
+    settle(&mut tower);
+    tower.sort_by_key(|b| b.lower.2);
 
     let mut count: usize = 0;
-    for i in 0..settled.len() {
-        let mut tower = settled[..i].to_vec();
-        tower.extend_from_slice(&settled[i + 1..]);
-        count += settle(&mut tower);
+    for i in 0..tower.len() {
+        let mut settled = Vec::with_capacity(tower.len() - 1);
+        settled.extend_from_slice(&tower[..i]);
+        let maybe_fall = &tower[i + 1..];
+
+        for b in maybe_fall.iter() {
+            let surface = b.surface();
+
+            let mut z = b.lower.2;
+            'fall: while z > 1 {
+                for b in settled.iter() {
+                    if b.top_z() != z {
+                        continue;
+                    }
+                    if collide(surface, b.surface()) {
+                        break 'fall;
+                    }
+                }
+                z -= 1;
+            }
+
+            let mut b = b.clone();
+            if b.lower.2 != z {
+                b.fall_to(z);
+                count += 1;
+            }
+            settled.push(b);
+        }
     }
 
     println!("{count}");
