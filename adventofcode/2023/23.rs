@@ -1,9 +1,6 @@
-use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::io::{self, BufRead};
-
-type Pos = (usize, usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Dir {
@@ -108,8 +105,8 @@ fn part2(lines: impl Iterator<Item = String>) {
     let goal = (goal_x, y_len - 1);
 
     let mut graph = HashMap::from([(start, HashMap::new())]);
-    for y in 1..y_len {
-        for x in 0..x_len {
+    for y in 1..y_len - 1 {
+        for x in 1..x_len - 1 {
             if maze[y][x] == Cell::Forest {
                 continue;
             }
@@ -129,36 +126,10 @@ fn part2(lines: impl Iterator<Item = String>) {
         }
     }
 
-    struct Shortest {
-        cost: usize,
-        from: Pos,
-        cur: Pos,
-    }
-    impl PartialEq for Shortest {
-        fn eq(&self, other: &Self) -> bool {
-            self.cost == other.cost
-        }
-    }
-    impl Eq for Shortest {}
-    impl Ord for Shortest {
-        fn cmp(&self, other: &Self) -> Ordering {
-            other.cost.cmp(&self.cost)
-        }
-    }
-    impl PartialOrd for Shortest {
-        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-            Some(self.cmp(other))
-        }
-    }
-
-    let mut queue = BinaryHeap::from([Shortest {
-        cost: 0,
-        from: start,
-        cur: start,
-    }]);
+    let mut queue = vec![(0, start, start)];
     let mut seen = HashMap::new();
 
-    while let Some(Shortest { cost, from, cur }) = queue.pop() {
+    while let Some((cost, from, cur)) = queue.pop() {
         if cur == goal {
             graph.get_mut(&from).unwrap().insert(goal, cost);
             continue;
@@ -194,26 +165,43 @@ fn part2(lines: impl Iterator<Item = String>) {
                 seen.insert(cur, (from, cost));
                 (from, cost)
             };
-            queue.push(Shortest { cost, from, cur });
+            queue.push((cost, from, cur));
         }
     }
     let graph = graph;
 
-    let mut stack = vec![(0, start, HashSet::new())];
+    // Note:
+    // - In this case, Vec's O(n) search is faster than HashSet's O(1) search
+    // - HashSet does not implement Hash so it is unavailable for keys of memoization
+    let mut avail: Vec<_> = graph.keys().copied().filter(|&p| p != start).collect();
+    avail.push(goal);
+
+    let mut stack = vec![(0, start, avail)];
     let mut max = 0;
-    while let Some((cost, src, mut path)) = stack.pop() {
+    while let Some((cost, src, avail)) = stack.pop() {
         if src == goal {
             max = max.max(cost);
             continue;
         }
-        path.insert(src);
-        for (&dest, dist) in graph[&src].iter() {
-            if path.contains(&dest) {
-                continue;
+        for (dest, dist) in graph[&src].iter() {
+            if let Some(i) = avail.iter().position(|p| p == dest) {
+                // Note: In this case,
+                // ```
+                // let mut a = avail.clone();
+                // a.remove(i);
+                // ```
+                // is faster than
+                // ```
+                // let mut a = avail[i..].to_vec();
+                // a.extend_from_slice(&avail[i+1..]);
+                // ```
+                let mut avail = avail.clone();
+                avail.remove(i);
+                stack.push((cost + dist, *dest, avail));
             }
-            stack.push((cost + dist, dest, path.clone()));
         }
     }
+
     println!("{max}");
 }
 
