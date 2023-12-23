@@ -76,11 +76,8 @@ fn part1(lines: impl Iterator<Item = String>) {
     settle(&mut tower);
     tower.sort_by_key(|b| b.lower.2);
 
-    fn is_safe(tower: &[Brick]) -> bool {
-        if tower.iter().all(|b| b.lower.2 != 1) {
-            return false;
-        }
-        'upper: for upper in tower {
+    fn is_safe(tower: &[Brick], from: usize) -> bool {
+        'upper: for upper in &tower[from..] {
             let z = upper.lower.2;
             if z == 1 {
                 continue;
@@ -102,7 +99,7 @@ fn part1(lines: impl Iterator<Item = String>) {
     let mut count: usize = 0;
     for i in 0..tower.len() {
         let removed = tower.remove(i);
-        if is_safe(&tower) {
+        if is_safe(&tower, i) {
             count += 1;
         }
         tower.insert(i, removed);
