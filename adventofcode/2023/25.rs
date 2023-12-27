@@ -20,50 +20,47 @@ fn part1(lines: impl Iterator<Item = String>) {
     }
     let (edges, nodes) = (edges, nodes);
 
-    // Algorithm: https://www.reddit.com/r/adventofcode/comments/18qbsxs/comment/kew43y5/
-    'again: loop {
+    // Randomized algorithm. Try to find the answer and retry if not found. There are only 3 cut nodes.
+    // So almost all edges belong to one of the two node groups. Optimistically consider randomly chosen
+    // edges are not a cut.
+    // When one node of a edge is in a group, assume another one is also in the group. Repeat it until all
+    // edges are processed. Finally check the built two sets meet the requirements by counting cut nodes.
+    loop {
         let (mut l, mut r) = (HashSet::new(), HashSet::new());
         let mut e = edges.clone();
         e.shuffle(&mut rng);
 
+        // Assume the first two edges are belong to `l` and `r` respectively
         for set in [&mut l, &mut r] {
             let (s, d) = e.pop().unwrap();
             set.insert(s);
             set.insert(d);
         }
 
-        while e.len() > NUM_CUT_EDGES {
+        while !e.is_empty() {
             let mut i = 0;
             while i < e.len() {
                 let (src, dst) = e[i];
-                if l.contains(&src) {
-                    if r.contains(&dst) {
-                        continue 'again;
-                    }
-                    l.insert(dst);
+
+                let inserted = if l.contains(&src) {
+                    // When `src` is in `l` and `dst` is in `r`, we assume this edge is a cut. Cut nodes are
+                    // useless to separate nodes into two groups so we ignore them.
+                    !r.contains(&dst) && l.insert(dst)
                 } else if r.contains(&src) {
-                    if l.contains(&dst) {
-                        continue 'again;
-                    }
-                    r.insert(dst);
+                    !l.contains(&dst) && r.insert(dst)
                 } else if l.contains(&dst) {
-                    if r.contains(&src) {
-                        continue 'again;
-                    }
-                    l.insert(src);
+                    !r.contains(&src) && l.insert(src)
                 } else if r.contains(&dst) {
-                    if l.contains(&src) {
-                        continue 'again;
-                    }
-                    r.insert(src);
+                    !l.contains(&src) && r.insert(src)
                 } else {
+                    // We don't know which set this edge belongs to. Skip and check it again in later iteration
                     i += 1;
-                    continue; // We don't know which set this edge belongs to. Skip and check it later
-                }
+                    continue;
+                };
 
                 e.swap_remove(i);
 
-                if !l.is_empty() && !r.is_empty() && l.len() + r.len() == nodes.len() {
+                if inserted && !l.is_empty() && !r.is_empty() && l.len() + r.len() == nodes.len() {
                     let cuts = edges
                         .iter()
                         .filter(|(s, d)| {
