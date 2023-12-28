@@ -50,4 +50,17 @@ cargo run --release --bin 3 -- 2
 - `*/N-s1` : Sample of part 1 for day N
 - `*/N-s2` : Sample of part 2 for day N
 
+## Fetch input files automatically
+
+You can put your input files in `in/` directory. Alternatively, `Makefile` provides a rule to download
+them via `curl` command. To run it, save your cookie session in `AOC_SESSION` environment variable and
+run `make in/N-1` (for day N input).
+
+```sh
+# Find your cookie session via Chrome DevTools
+export AOC_SESSION=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Download the input file for day 4
+make in/4-1
+```
+
 [watchexec]: https://github.com/watchexec/watchexec

@@ -6,7 +6,10 @@ ALL := out diff $(patsubst ans/%,diff/%,$(ANS))
 default: $(ALL)
 
 out diff:
-	mkdir -p out diff
+	mkdir -p out diff in
+
+in/%-1:
+	curl -A 'https://github.com/rhysd/misc/tree/master/adventofcode by lin90162@yahoo.co.jp' -L -o in/$*-1 --cookie "session=${AOC_SESSION}" 'https://adventofcode.com/2023/day/$*/input'
 
 out/%-1: %.rs in/%-1
 	cargo run --release --bin $* -- 1 < in/$*-1 > out/$*-1
