@@ -3,7 +3,7 @@ use std::cmp;
 use std::fs;
 
 fn load() -> String {
-    fs::read_to_string("rust-sso.md").unwrap()
+    fs::read_to_string("test.txt").unwrap()
 }
 
 fn modify(s: &str, mut off: usize) -> String {

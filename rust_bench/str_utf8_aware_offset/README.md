@@ -1,16 +1,18 @@
 UTF-8 index v.s. byte index on finding modified byte offset
 ===========================================================
 
-Problem: Calculate a byte offset of the first modified position in two given strings.
+Problem: Calculate a byte offset of the first modified position in two given strings taking care of UTF-8 character boundaries.
 
 - `utf8` : Iterate two strings in UTF-8 character-wise
 - `byte` : Iterate two strings in byte-wise then find the nearest character-wise offset
 
 How to run:
 
-```sh
-cargo bench
-```
+1. Prepare an input file as `test.txt` at the root of this repository
+2. Run the following command
+   ```sh
+   cargo bench
+   ```
 
 Result:
 
