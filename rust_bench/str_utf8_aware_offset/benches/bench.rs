@@ -1,6 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::cmp;
 use std::fs;
+use std::iter;
 
 fn load() -> String {
     fs::read_to_string("test.txt").unwrap()
@@ -49,6 +50,27 @@ fn by_byte_index(prev: &str, now: &str) -> Option<usize> {
         })
 }
 
+fn by_byte_chunks<const N: usize>(prev_str: &str, now_str: &str) -> Option<usize> {
+    let prev = prev_str.as_bytes();
+    let now = now_str.as_bytes();
+
+    let offset = iter::zip(prev.chunks_exact(N), now.chunks_exact(N))
+        .take_while(|(x, y)| x == y)
+        .count()
+        * N;
+    let mut index = offset
+        + iter::zip(&prev[offset..], &now[offset..])
+            .take_while(|(x, y)| x == y)
+            .count();
+    if index == cmp::min(prev.len(), now.len()) {
+        return None;
+    }
+    while !now_str.is_char_boundary(index) {
+        index -= 1;
+    }
+    Some(index)
+}
+
 fn begin(c: &mut Criterion) {
     let prev = load();
     let modified = modify(&prev, 100);
@@ -62,6 +84,18 @@ fn begin(c: &mut Criterion) {
     c.bench_function("begin::byte", |b| {
         b.iter(|| {
             let actual = by_byte_index(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
+    c.bench_function("begin::chunk_64bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<64>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
+    c.bench_function("begin::chunk_128bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<128>(&prev, &modified);
             assert_eq!(actual, expected);
         })
     });
@@ -83,6 +117,18 @@ fn middle(c: &mut Criterion) {
             assert_eq!(actual, expected);
         })
     });
+    c.bench_function("middle::chunk_64bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<64>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
+    c.bench_function("middle::chunk_128bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<128>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
 }
 
 fn end(c: &mut Criterion) {
@@ -101,6 +147,18 @@ fn end(c: &mut Criterion) {
             assert_eq!(actual, expected);
         })
     });
+    c.bench_function("end::chunk_64bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<64>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
+    c.bench_function("end::chunk_128bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<128>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
 }
 
 fn unmodified(c: &mut Criterion) {
@@ -115,6 +173,18 @@ fn unmodified(c: &mut Criterion) {
     c.bench_function("unmodified::byte", |b| {
         b.iter(|| {
             let actual = by_byte_index(&prev, &unmodified);
+            assert_eq!(actual, None);
+        })
+    });
+    c.bench_function("unmodified::chunk_64bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<64>(&prev, &unmodified);
+            assert_eq!(actual, None);
+        })
+    });
+    c.bench_function("unmodified::chunk_128bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<128>(&prev, &unmodified);
             assert_eq!(actual, None);
         })
     });
