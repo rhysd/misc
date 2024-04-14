@@ -5,9 +5,7 @@ Problem: Calculate a byte offset of the first modified position in two given str
 
 - `utf8` : Iterate two strings in UTF-8 character-wise
 - `byte` : Iterate two strings in byte-wise then find the nearest character-wise offset
-- `chunk_32_bytes` : Iterate two strings per 64 bytes chunks and find the first mismatch in the chunk, then find the nearest character-wise offset
-- `chunk_64_bytes` : Iterate two strings per 64 bytes chunks and find the first mismatch in the chunk, then find the nearest character-wise offset
-- `chunk_128_bytes` : Iterate two strings per 128 bytes chunks and find the first mismatch in the chunk, then find the nearest character-wise offset
+- `chunk_32_bytes`, `chunk_64_bytes`, `chunk_128_bytes`, `chunk_256_bytes` : Iterate two strings per 32/64/128/256 bytes chunks and find the first mismatch in the chunk in byte-wise, then find the nearest character-wise offset
 
 How to run:
 
@@ -19,32 +17,19 @@ How to run:
 
 Result summary:
 
-| Benchmark                     | Min       | Est       | Max       |
-|-------------------------------|-----------|-----------|-----------|
-| `begin::utf8`                 | 94.593 ns | 94.947 ns | 95.380 ns |
-| `begin::byte`                 | 49.030 ns | 49.136 ns | 49.249 ns |
-| `begin::chunk_32_bytes`       | 7.6623 ns | 7.6841 ns | 7.7073 ns |
-| `begin::chunk_64_bytes`       | 20.027 ns | 20.103 ns | 20.186 ns |
-| `begin::chunk_128_bytes`      | 47.786 ns | 47.887 ns | 47.992 ns |
-| `begin::chunk_256_bytes`      | 55.765 ns | 55.893 ns | 56.041 ns |
-| `middle::utf8`                | 293.18 µs | 294.25 µs | 295.54 µs |
-| `middle::byte`                | 147.18 µs | 147.56 µs | 147.97 µs |
-| `middle::chunk_32_bytes`      | 12.861 µs | 13.082 µs | 13.301 µs |
-| `middle::chunk_64_bytes`      | 22.515 µs | 22.576 µs | 22.647 µs |
-| `middle::chunk_128_bytes`     | 15.821 µs | 15.963 µs | 16.128 µs |
-| `middle::chunk_256_bytes`     | 13.723 µs | 13.955 µs | 14.185 µs |
-| `end::utf8`                   | 585.82 µs | 588.11 µs | 590.78 µs |
-| `end::byte`                   | 293.69 µs | 294.36 µs | 295.09 µs |
-| `end::chunk_32_bytes`         | 23.948 µs | 24.332 µs | 24.773 µs |
-| `end::chunk_64_bytes`         | 44.853 µs | 45.027 µs | 45.213 µs |
-| `end::chunk_128_bytes`        | 31.852 µs | 32.143 µs | 32.456 µs |
-| `end::chunk_256_bytes`        | 28.116 µs | 28.725 µs | 29.310 µs |
-| `unmodified::utf8`            | 585.93 µs | 587.56 µs | 589.37 µs |
-| `unmodified::byte`            | 293.37 µs | 293.93 µs | 294.52 µs |
-| `unmodified::chunk_32_bytes`  | 23.835 µs | 24.154 µs | 24.509 µs |
-| `unmodified::chunk_64_bytes`  | 44.814 µs | 45.017 µs | 45.265 µs |
-| `unmodified::chunk_128_bytes` | 31.514 µs | 31.843 µs | 32.204 µs |
-| `unmodified::chunk_256_bytes` | 27.106 µs | 27.489 µs | 27.917 µs |
+|                   | Begin     | Middle    | End       | Unmodified |
+|-------------------|-----------|-----------|-----------|------------|
+| `utf8`            | 94.947 ns | 294.25 µs | 588.11 µs | 587.56 µs  |
+| `byte`            | 49.136 ns | 147.56 µs | 294.36 µs | 293.93 µs  |
+| `chunk_32_bytes`  | 7.6841 ns | 13.082 µs | 24.332 µs | 24.154 µs  |
+| `chunk_64_bytes`  | 20.103 ns | 22.576 µs | 45.027 µs | 45.017 µs  |
+| `chunk_128_bytes` | 47.887 ns | 15.963 µs | 32.143 µs | 31.843 µs  |
+| `chunk_256_bytes` | 55.893 ns | 13.955 µs | 28.725 µs | 27.489 µs  |
+
+- **Begin**: The `100`th byte is modified
+- **Middle**: The `len / 2`th byte is modified
+- **End**: The `len - 100`th byte is modified
+- **Unmodified**: No byte is modified
 
 Result details:
 
