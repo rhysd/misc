@@ -62,8 +62,9 @@ fn by_byte_chunks<const N: usize>(prev_str: &str, now_str: &str) -> Option<usize
         + iter::zip(&prev[offset..], &now[offset..])
             .take_while(|(x, y)| x == y)
             .count();
-    if index == cmp::min(prev.len(), now.len()) {
-        return None;
+    let min = cmp::min(prev.len(), now.len());
+    if index == min {
+        return (prev.len() != now.len()).then_some(min);
     }
     while !now_str.is_char_boundary(index) {
         index -= 1;
@@ -87,15 +88,27 @@ fn begin(c: &mut Criterion) {
             assert_eq!(actual, expected);
         })
     });
-    c.bench_function("begin::chunk_64bytes", |b| {
+    c.bench_function("begin::chunk_32_bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<32>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
+    c.bench_function("begin::chunk_64_bytes", |b| {
         b.iter(|| {
             let actual = by_byte_chunks::<64>(&prev, &modified);
             assert_eq!(actual, expected);
         })
     });
-    c.bench_function("begin::chunk_128bytes", |b| {
+    c.bench_function("begin::chunk_128_bytes", |b| {
         b.iter(|| {
             let actual = by_byte_chunks::<128>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
+    c.bench_function("begin::chunk_256_bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<256>(&prev, &modified);
             assert_eq!(actual, expected);
         })
     });
@@ -117,15 +130,27 @@ fn middle(c: &mut Criterion) {
             assert_eq!(actual, expected);
         })
     });
-    c.bench_function("middle::chunk_64bytes", |b| {
+    c.bench_function("middle::chunk_32_bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<32>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
+    c.bench_function("middle::chunk_64_bytes", |b| {
         b.iter(|| {
             let actual = by_byte_chunks::<64>(&prev, &modified);
             assert_eq!(actual, expected);
         })
     });
-    c.bench_function("middle::chunk_128bytes", |b| {
+    c.bench_function("middle::chunk_128_bytes", |b| {
         b.iter(|| {
             let actual = by_byte_chunks::<128>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
+    c.bench_function("middle::chunk_256_bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<256>(&prev, &modified);
             assert_eq!(actual, expected);
         })
     });
@@ -147,15 +172,27 @@ fn end(c: &mut Criterion) {
             assert_eq!(actual, expected);
         })
     });
-    c.bench_function("end::chunk_64bytes", |b| {
+    c.bench_function("end::chunk_32_bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<32>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
+    c.bench_function("end::chunk_64_bytes", |b| {
         b.iter(|| {
             let actual = by_byte_chunks::<64>(&prev, &modified);
             assert_eq!(actual, expected);
         })
     });
-    c.bench_function("end::chunk_128bytes", |b| {
+    c.bench_function("end::chunk_128_bytes", |b| {
         b.iter(|| {
             let actual = by_byte_chunks::<128>(&prev, &modified);
+            assert_eq!(actual, expected);
+        })
+    });
+    c.bench_function("end::chunk_256_bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<256>(&prev, &modified);
             assert_eq!(actual, expected);
         })
     });
@@ -176,15 +213,27 @@ fn unmodified(c: &mut Criterion) {
             assert_eq!(actual, None);
         })
     });
-    c.bench_function("unmodified::chunk_64bytes", |b| {
+    c.bench_function("unmodified::chunk_32_bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<32>(&prev, &unmodified);
+            assert_eq!(actual, None);
+        })
+    });
+    c.bench_function("unmodified::chunk_64_bytes", |b| {
         b.iter(|| {
             let actual = by_byte_chunks::<64>(&prev, &unmodified);
             assert_eq!(actual, None);
         })
     });
-    c.bench_function("unmodified::chunk_128bytes", |b| {
+    c.bench_function("unmodified::chunk_128_bytes", |b| {
         b.iter(|| {
             let actual = by_byte_chunks::<128>(&prev, &unmodified);
+            assert_eq!(actual, None);
+        })
+    });
+    c.bench_function("unmodified::chunk_256_bytes", |b| {
+        b.iter(|| {
+            let actual = by_byte_chunks::<256>(&prev, &unmodified);
             assert_eq!(actual, None);
         })
     });
