@@ -1,5 +1,5 @@
 use std::fmt;
-use std::io::{self, Stdin, Stdout, Write};
+use std::io::{self, BufRead, Write};
 use std::iter;
 use std::mem;
 use std::str;
@@ -32,26 +32,26 @@ enum ReplInput<'input> {
     Statement(&'input str),
 }
 
-struct Repl {
+#[derive(Default)]
+struct Prompt {
     buffer: String,
-    stdout: Stdout,
-    stdin: Stdin,
 }
 
-impl Default for Repl {
-    fn default() -> Self {
-        Self { buffer: String::new(), stdout: io::stdout(), stdin: io::stdin() }
-    }
-}
-
-impl Repl {
-    fn prompt(&mut self) -> io::Result<ReplInput<'_>> {
-        self.stdout.write_all(b"db > ")?;
-        self.stdout.flush()?;
+impl Prompt {
+    fn input<R: BufRead, W: Write>(
+        &mut self,
+        mut stdin: R,
+        mut stdout: W,
+    ) -> io::Result<ReplInput<'_>> {
+        stdout.write_all(b"db > ")?;
+        stdout.flush()?;
         self.buffer.clear();
-        self.stdin.read_line(&mut self.buffer)?;
+        stdin.read_line(&mut self.buffer)?;
         if self.buffer.ends_with('\n') {
             self.buffer.pop();
+            if self.buffer.ends_with('\r') {
+                self.buffer.pop();
+            }
         }
         if let Some(meta) = self.buffer.strip_prefix('.') {
             Ok(ReplInput::Meta(meta))
@@ -207,7 +207,7 @@ impl<'input> Statement<'input> {
         }
     }
 
-    fn execute(&self, table: &mut Table) -> Result<(), ExecuteError> {
+    fn execute<W: Write>(&self, table: &mut Table, mut w: W) -> Result<(), ExecuteError> {
         match self {
             Self::Insert(row) => {
                 if table.num_rows as usize >= Table::MAX_ROWS {
@@ -223,7 +223,7 @@ impl<'input> Statement<'input> {
             Self::Select => {
                 for i in 0..table.num_rows {
                     let row = table.row_slot(i).deserialize();
-                    println!("{row}");
+                    writeln!(w, "{row}").unwrap();
                 }
                 Ok(())
             }
@@ -231,12 +231,12 @@ impl<'input> Statement<'input> {
     }
 }
 
-fn main() -> io::Result<()> {
+fn run<R: BufRead, W: Write>(mut stdin: R, mut stdout: W) -> io::Result<()> {
     let mut table = Table::default();
-    let mut repl = Repl::default();
+    let mut prompt = Prompt::default();
 
     loop {
-        match repl.prompt()? {
+        match prompt.input(&mut stdin, &mut stdout)? {
             ReplInput::Meta(input) => {
                 let Some(cmd) = MetaCommand::parse(input) else {
                     eprintln!("Unrecognized meta command: {input:?}");
@@ -247,7 +247,7 @@ fn main() -> io::Result<()> {
                 }
             }
             ReplInput::Statement(input) => match Statement::parse(input) {
-                Ok(statement) => match statement.execute(&mut table) {
+                Ok(statement) => match statement.execute(&mut table, &mut stdout) {
                     Ok(()) => eprintln!("Executed."),
                     Err(err) => eprintln!("Error while executing {statement:?}: {err}"),
                 },
@@ -257,4 +257,8 @@ fn main() -> io::Result<()> {
     }
 
     Ok(())
+}
+
+fn main() -> io::Result<()> {
+    run(io::stdin().lock(), io::stdout())
 }
