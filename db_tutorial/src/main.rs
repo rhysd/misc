@@ -14,11 +14,13 @@ impl<const N: usize> Default for InlineString<N> {
 }
 
 impl<const N: usize> InlineString<N> {
-    fn new(s: &str) -> Self {
+    fn new(s: &str) -> Result<Self, ExecuteError> {
         let s = s.as_bytes();
-        assert!(s.len() <= N);
+        if s.len() > N {
+            return Err(ExecuteError::StringTooLong(N as u32));
+        }
 
-        Self(std::array::from_fn(|i| s.get(i).copied().unwrap_or(0)))
+        Ok(Self(std::array::from_fn(|i| s.get(i).copied().unwrap_or(0))))
     }
 
     fn as_str(&self) -> &'_ str {
@@ -47,16 +49,11 @@ impl Prompt {
         stdout.flush()?;
         self.buffer.clear();
         stdin.read_line(&mut self.buffer)?;
-        if self.buffer.ends_with('\n') {
-            self.buffer.pop();
-            if self.buffer.ends_with('\r') {
-                self.buffer.pop();
-            }
-        }
-        if let Some(meta) = self.buffer.strip_prefix('.') {
+        let line = self.buffer.trim();
+        if let Some(meta) = line.strip_prefix('.') {
             Ok(ReplInput::Meta(meta))
         } else {
-            Ok(ReplInput::Statement(self.buffer.as_str()))
+            Ok(ReplInput::Statement(line))
         }
     }
 }
@@ -92,12 +89,14 @@ impl<'input> fmt::Display for ParseError<'input> {
 
 enum ExecuteError {
     TableFull,
+    StringTooLong(u32),
 }
 
 impl fmt::Display for ExecuteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::TableFull => write!(f, "Table is full"),
+            Self::StringTooLong(max) => write!(f, "String length exceeds max length {max}"),
         }
     }
 }
@@ -127,12 +126,12 @@ const _: () = {
 };
 
 impl SerializedRow {
-    fn serialize(row: &Row<'_>) -> Self {
-        Self {
+    fn serialize(row: &Row<'_>) -> Result<Self, ExecuteError> {
+        Ok(Self {
             id: row.id,
-            user_name: InlineString::new(row.user_name),
-            email: InlineString::new(row.email),
-        }
+            user_name: InlineString::new(row.user_name)?,
+            email: InlineString::new(row.email)?,
+        })
     }
 
     fn deserialize(&self) -> Row<'_> {
@@ -153,7 +152,7 @@ impl Page {
             let diff = idx + 1 - self.0.len();
             self.0.extend(iter::repeat_with(SerializedRow::default).take(diff));
         }
-        &mut self.0[idx as usize]
+        &mut self.0[idx]
     }
 }
 
@@ -200,7 +199,7 @@ impl<'input> Statement<'input> {
                     let row = Row { id, user_name, email };
                     Some(Statement::Insert(row))
                 };
-                parse().ok_or_else(|| ParseError::Syntax("insert {id} {user} {email}"))
+                parse().ok_or(ParseError::Syntax("insert {id} {user} {email}"))
             }
             "select" => Ok(Self::Select),
             c => Err(ParseError::Unknown(c)),
@@ -215,7 +214,7 @@ impl<'input> Statement<'input> {
                 }
 
                 let slot = table.row_slot(table.num_rows);
-                *slot = SerializedRow::serialize(row);
+                *slot = SerializedRow::serialize(row)?;
                 table.num_rows += 1;
 
                 Ok(())
@@ -239,7 +238,7 @@ fn run<R: BufRead, W: Write>(mut stdin: R, mut stdout: W) -> io::Result<()> {
         match prompt.input(&mut stdin, &mut stdout)? {
             ReplInput::Meta(input) => {
                 let Some(cmd) = MetaCommand::parse(input) else {
-                    eprintln!("Unrecognized meta command: {input:?}");
+                    writeln!(stdout, "Unrecognized meta command: {input:?}").unwrap();
                     continue;
                 };
                 match cmd {
@@ -248,10 +247,12 @@ fn run<R: BufRead, W: Write>(mut stdin: R, mut stdout: W) -> io::Result<()> {
             }
             ReplInput::Statement(input) => match Statement::parse(input) {
                 Ok(statement) => match statement.execute(&mut table, &mut stdout) {
-                    Ok(()) => eprintln!("Executed."),
-                    Err(err) => eprintln!("Error while executing {statement:?}: {err}"),
+                    Ok(()) => writeln!(stdout, "Executed: {input:?}").unwrap(),
+                    Err(err) => {
+                        writeln!(stdout, "Error while executing {statement:?}: {err}").unwrap();
+                    }
                 },
-                Err(err) => eprintln!("Error while executing {input:?}: {err}"),
+                Err(err) => writeln!(stdout, "Error while executing {input:?}: {err}").unwrap(),
             },
         }
     }
@@ -261,4 +262,86 @@ fn run<R: BufRead, W: Write>(mut stdin: R, mut stdout: W) -> io::Result<()> {
 
 fn main() -> io::Result<()> {
     run(io::stdin().lock(), io::stdout())
+}
+
+#[cfg(test)]
+#[rustfmt::skip::macros(format)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+    use std::fmt::Write as _;
+    use std::io::BufReader;
+
+    #[track_caller]
+    fn run_test(stdin: impl AsRef<str>) -> io::Result<String> {
+        let stdin = stdin.as_ref();
+        let mut stdout = Vec::<u8>::new();
+        let mut stdin = BufReader::new(stdin.as_bytes());
+        run(&mut stdin, &mut stdout)?;
+        Ok(String::from_utf8(stdout).unwrap())
+    }
+
+    #[test]
+    fn single_row_insert_select() {
+        let input = "\
+            insert 1 user1 person@example.com
+            select
+            .exit
+        ";
+        assert_snapshot!(run_test(input).unwrap());
+    }
+
+    #[test]
+    fn table_full_error() {
+        let mut s = String::new();
+        for i in 0..=1400 {
+            writeln!(s, "insert {i} user{i} person{i}@example.com").unwrap();
+        }
+        s.push_str(".exit\n");
+        assert_snapshot!(run_test(s).unwrap());
+    }
+
+    #[test]
+    fn max_user_name_and_email() {
+        let user = "a".repeat(32);
+        let email = "a".repeat(255);
+        let input = format!("\
+            insert 1 {user} {email}
+            select
+            .exit
+        ");
+        assert_snapshot!(run_test(input).unwrap());
+    }
+
+    #[test]
+    fn name_is_too_long() {
+        let user = "a".repeat(33);
+        let input = format!("\
+            insert 1 {user} foo@example.com
+            select
+            .exit
+        ");
+        assert_snapshot!(run_test(input).unwrap());
+    }
+
+    #[test]
+    fn email_is_too_long() {
+        let email = "a".repeat(256);
+        let input = format!("\
+            insert 1 foo {email}
+            select
+            .exit
+        ");
+        assert_snapshot!(run_test(input).unwrap());
+    }
+
+    #[test]
+    fn id_must_not_be_negative() {
+        let input = "\
+            insert -1 foo foo@example.com
+            select
+            .exit
+        ";
+        assert_snapshot!(run_test(input).unwrap());
+    }
 }
