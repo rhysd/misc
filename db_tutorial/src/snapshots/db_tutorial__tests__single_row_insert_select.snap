@@ -1,8 +1,8 @@
 ---
 source: src/main.rs
-expression: output
+expression: run_test(input).unwrap()
 ---
 db > Executed: "insert 1 user1 person@example.com"
 db > (1, "user1", "person@example.com")
 Executed: "select"
-db >
+db > Bye.

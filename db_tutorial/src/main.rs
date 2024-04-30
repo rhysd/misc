@@ -4,6 +4,26 @@ use std::iter;
 use std::mem;
 use std::str;
 
+enum Error<'input> {
+    Unknown(&'input str),
+    Syntax(&'static str),
+    TableFull,
+    StringTooLong(u32),
+}
+
+impl<'input> fmt::Display for Error<'input> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unknown(cmd) => write!(f, "Unrecognized command: {cmd:?}"),
+            Self::Syntax(usage) => write!(f, "Syntax error: {usage:?}"),
+            Self::TableFull => write!(f, "Table is full"),
+            Self::StringTooLong(max) => write!(f, "String length exceeds max length {max}"),
+        }
+    }
+}
+
+type Result<'a, T> = std::result::Result<T, Error<'a>>;
+
 // TODO: This must be allocated on heap since table row structure will be dynamic
 struct InlineString<const N: usize>([u8; N]);
 
@@ -14,10 +34,10 @@ impl<const N: usize> Default for InlineString<N> {
 }
 
 impl<const N: usize> InlineString<N> {
-    fn new(s: &str) -> Result<Self, ExecuteError> {
+    fn new(s: &str) -> Result<'_, Self> {
         let s = s.as_bytes();
         if s.len() > N {
-            return Err(ExecuteError::StringTooLong(N as u32));
+            return Err(Error::StringTooLong(N as u32));
         }
 
         Ok(Self(std::array::from_fn(|i| s.get(i).copied().unwrap_or(0))))
@@ -73,34 +93,6 @@ impl MetaCommand {
     }
 }
 
-enum ParseError<'input> {
-    Unknown(&'input str),
-    Syntax(&'static str),
-}
-
-impl<'input> fmt::Display for ParseError<'input> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Unknown(cmd) => write!(f, "Unrecognized command: {cmd:?}"),
-            Self::Syntax(usage) => write!(f, "Syntax error: {usage:?}"),
-        }
-    }
-}
-
-enum ExecuteError {
-    TableFull,
-    StringTooLong(u32),
-}
-
-impl fmt::Display for ExecuteError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::TableFull => write!(f, "Table is full"),
-            Self::StringTooLong(max) => write!(f, "String length exceeds max length {max}"),
-        }
-    }
-}
-
 #[derive(Debug)]
 struct Row<'a> {
     id: u32,
@@ -126,7 +118,7 @@ const _: () = {
 };
 
 impl SerializedRow {
-    fn serialize(row: &Row<'_>) -> Result<Self, ExecuteError> {
+    fn serialize<'a>(row: &Row<'a>) -> Result<'a, Self> {
         Ok(Self {
             id: row.id,
             user_name: InlineString::new(row.user_name)?,
@@ -185,10 +177,10 @@ enum Statement<'input> {
 }
 
 impl<'input> Statement<'input> {
-    fn parse(input: &'input str) -> Result<Self, ParseError<'input>> {
+    fn prepare(input: &'input str) -> Result<'input, Self> {
         let mut tokens = input.split_whitespace();
         let Some(cmd) = tokens.next() else {
-            return Err(ParseError::Unknown(""));
+            return Err(Error::Unknown(""));
         };
         match cmd {
             "insert" => {
@@ -199,18 +191,18 @@ impl<'input> Statement<'input> {
                     let row = Row { id, user_name, email };
                     Some(Statement::Insert(row))
                 };
-                parse().ok_or(ParseError::Syntax("insert {id} {user} {email}"))
+                parse().ok_or(Error::Syntax("insert {id} {user} {email}"))
             }
             "select" => Ok(Self::Select),
-            c => Err(ParseError::Unknown(c)),
+            c => Err(Error::Unknown(c)),
         }
     }
 
-    fn execute<W: Write>(&self, table: &mut Table, mut w: W) -> Result<(), ExecuteError> {
+    fn execute<W: Write>(&self, table: &mut Table, mut w: W) -> Result<'input, ()> {
         match self {
             Self::Insert(row) => {
                 if table.num_rows as usize >= Table::MAX_ROWS {
-                    return Err(ExecuteError::TableFull);
+                    return Err(Error::TableFull);
                 }
 
                 let slot = table.row_slot(table.num_rows);
@@ -242,10 +234,13 @@ fn run<R: BufRead, W: Write>(mut stdin: R, mut stdout: W) -> io::Result<()> {
                     continue;
                 };
                 match cmd {
-                    MetaCommand::Exit => break,
+                    MetaCommand::Exit => {
+                        writeln!(stdout, "Bye.").unwrap();
+                        break;
+                    }
                 }
             }
-            ReplInput::Statement(input) => match Statement::parse(input) {
+            ReplInput::Statement(input) => match Statement::prepare(input) {
                 Ok(statement) => match statement.execute(&mut table, &mut stdout) {
                     Ok(()) => writeln!(stdout, "Executed: {input:?}").unwrap(),
                     Err(err) => {
