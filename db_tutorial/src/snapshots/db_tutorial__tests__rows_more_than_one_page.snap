@@ -1,0 +1,36 @@
+---
+source: src/main.rs
+expression: run_test(s).unwrap()
+---
+db > Executed: "insert 1 user1 person1@example.com"
+db > Executed: "insert 2 user2 person2@example.com"
+db > Executed: "insert 3 user3 person3@example.com"
+db > Executed: "insert 4 user4 person4@example.com"
+db > Executed: "insert 5 user5 person5@example.com"
+db > Executed: "insert 6 user6 person6@example.com"
+db > Executed: "insert 7 user7 person7@example.com"
+db > Executed: "insert 8 user8 person8@example.com"
+db > Executed: "insert 9 user9 person9@example.com"
+db > Executed: "insert 10 user10 person10@example.com"
+db > Executed: "insert 11 user11 person11@example.com"
+db > Executed: "insert 12 user12 person12@example.com"
+db > Executed: "insert 13 user13 person13@example.com"
+db > Executed: "insert 14 user14 person14@example.com"
+db > Executed: "insert 15 user15 person15@example.com"
+db > (1, "user1", "person1@example.com")
+(2, "user2", "person2@example.com")
+(3, "user3", "person3@example.com")
+(4, "user4", "person4@example.com")
+(5, "user5", "person5@example.com")
+(6, "user6", "person6@example.com")
+(7, "user7", "person7@example.com")
+(8, "user8", "person8@example.com")
+(9, "user9", "person9@example.com")
+(10, "user10", "person10@example.com")
+(11, "user11", "person11@example.com")
+(12, "user12", "person12@example.com")
+(13, "user13", "person13@example.com")
+(14, "user14", "person14@example.com")
+(15, "user15", "person15@example.com")
+Executed: "select"
+db > Bye.

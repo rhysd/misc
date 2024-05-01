@@ -2,7 +2,6 @@
 source: src/main.rs
 expression: run_test(s).unwrap()
 ---
-db > Executed: "insert 0 user0 person0@example.com"
 db > Executed: "insert 1 user1 person1@example.com"
 db > Executed: "insert 2 user2 person2@example.com"
 db > Executed: "insert 3 user3 person3@example.com"
@@ -1402,5 +1401,6 @@ db > Executed: "insert 1396 user1396 person1396@example.com"
 db > Executed: "insert 1397 user1397 person1397@example.com"
 db > Executed: "insert 1398 user1398 person1398@example.com"
 db > Executed: "insert 1399 user1399 person1399@example.com"
-db > Error while executing Insert(Row { id: 1400, user_name: "user1400", email: "person1400@example.com" }): Table is full
+db > Executed: "insert 1400 user1400 person1400@example.com"
+db > Error while executing Insert(Row { id: 1401, user_name: "user1401", email: "person1401@example.com" }): Table is full
 db > Bye.

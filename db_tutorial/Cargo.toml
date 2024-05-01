@@ -6,3 +6,4 @@ publish = false
 
 [dev-dependencies]
 insta = "1.38.0"
+tempfile = "3.10.1"

@@ -1,0 +1,9 @@
+---
+source: src/main.rs
+expression: output
+---
+db > Executed: "insert 1 foo foo@example.com"
+db > Bye.
+db > (1, "foo", "foo@example.com")
+Executed: "select"
+db > Bye.

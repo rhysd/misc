@@ -394,6 +394,7 @@ fn repl<R: BufRead, W: Write>(mut stdin: R, mut stdout: W, mut table: Table) -> 
 }
 
 fn main() -> io::Result<()> {
+    dbg!(Page::ROWS_PER_PAGE);
     let table = if let Some(path) = env::args_os().nth(1) {
         Table::open(Path::new(&path))?
     } else {
@@ -409,14 +410,22 @@ mod tests {
     use insta::assert_snapshot;
     use std::fmt::Write as _;
     use std::io::BufReader;
+    use std::path::PathBuf;
+    use std::sync::OnceLock;
+    use tempfile::TempDir;
 
     #[track_caller]
-    fn run_test(stdin: impl AsRef<str>) -> io::Result<String> {
+    fn run_test_with_table(stdin: impl AsRef<str>, table: Table) -> io::Result<String> {
         let stdin = stdin.as_ref();
         let mut stdout = Vec::<u8>::new();
         let mut stdin = BufReader::new(stdin.as_bytes());
-        repl(&mut stdin, &mut stdout, Table::default())?;
+        repl(&mut stdin, &mut stdout, table)?;
         Ok(String::from_utf8(stdout).unwrap())
+    }
+
+    #[track_caller]
+    fn run_test(stdin: impl AsRef<str>) -> io::Result<String> {
+        run_test_with_table(stdin.as_ref(), Table::default())
     }
 
     #[test]
@@ -430,9 +439,20 @@ mod tests {
     }
 
     #[test]
+    fn rows_more_than_one_page() {
+        let mut s = String::new();
+        for i in 1..=15 {
+            writeln!(s, "insert {i} user{i} person{i}@example.com").unwrap();
+        }
+        s.push_str("select\n");
+        s.push_str(".exit\n");
+        assert_snapshot!(run_test(s).unwrap());
+    }
+
+    #[test]
     fn table_full_error() {
         let mut s = String::new();
-        for i in 0..=1400 {
+        for i in 1..=1401 {
             writeln!(s, "insert {i} user{i} person{i}@example.com").unwrap();
         }
         s.push_str(".exit\n");
@@ -481,5 +501,84 @@ mod tests {
             .exit
         ";
         assert_snapshot!(run_test(input).unwrap());
+    }
+
+    fn temp_dir() -> &'static TempDir {
+        static TEMP_DIR: OnceLock<TempDir> = OnceLock::new();
+        TEMP_DIR.get_or_init(|| tempfile::tempdir().unwrap())
+    }
+
+    fn temp_file(name: &str) -> PathBuf {
+        temp_dir().path().join(name)
+    }
+
+    #[track_caller]
+    fn run_test_persistent(name: &str, stdin: impl AsRef<str>) -> io::Result<String> {
+        let path = temp_file(name);
+        let table = Table::open(&path)?;
+        run_test_with_table(stdin.as_ref(), table)
+    }
+
+    #[test]
+    fn persistent_single_row() {
+        let mut output = run_test_persistent(
+            "single_row.db",
+            "insert 1 foo foo@example.com
+            .exit",
+        )
+        .unwrap();
+        output += &run_test_persistent(
+            "single_row.db",
+            "select
+            .exit",
+        )
+        .unwrap();
+        assert_snapshot!(output);
+    }
+
+    #[test]
+    fn persistent_single_page() {
+        let mut input = String::new();
+        for i in 1..=14 {
+            writeln!(input, "insert {i} user{i} user{i}@example.com").unwrap();
+        }
+        input.push_str(".exit\n");
+        let mut output = run_test_persistent("single_page.db", input).unwrap();
+        output += &run_test_persistent(
+            "single_page.db",
+            "select
+            .exit",
+        )
+        .unwrap();
+        assert_snapshot!(output);
+    }
+
+    #[test]
+    fn persistent_single_and_half_page() {
+        let mut input = String::new();
+        for i in 1..=21 {
+            writeln!(input, "insert {i} user{i} user{i}@example.com").unwrap();
+        }
+        input.push_str(".exit\n");
+        let mut output = run_test_persistent("single_half_page.db", input).unwrap();
+        output += &run_test_persistent(
+            "single_half_page.db",
+            "select
+            .exit",
+        )
+        .unwrap();
+        assert_snapshot!(output);
+    }
+
+    #[test]
+    fn persistent_no_row() {
+        let mut output = run_test_persistent("nothing.db", ".exit").unwrap();
+        output += &run_test_persistent(
+            "nothing.db",
+            "select
+            .exit",
+        )
+        .unwrap();
+        assert_snapshot!(output);
     }
 }
