@@ -447,12 +447,20 @@ fn main() -> io::Result<()> {
 #[rustfmt::skip::macros(format)]
 mod tests {
     use super::*;
+    #[cfg(not(miri))]
     use insta::assert_snapshot;
     use std::fmt::Write as _;
     use std::io::BufReader;
     use std::path::PathBuf;
     use std::sync::OnceLock;
     use tempfile::TempDir;
+
+    #[cfg(miri)]
+    macro_rules! assert_snapshot {
+        ($arg:expr) => {
+            let _ = $arg;
+        };
+    }
 
     #[track_caller]
     fn run_test_with_table(stdin: impl AsRef<str>, table: Table) -> io::Result<String> {
