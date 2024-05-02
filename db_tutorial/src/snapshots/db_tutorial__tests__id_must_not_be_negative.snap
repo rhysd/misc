@@ -2,6 +2,6 @@
 source: src/main.rs
 expression: run_test(input).unwrap()
 ---
-db > Error while executing "insert -1 foo foo@example.com": Syntax error: "insert {id} {user} {email}"
+db > Error while executing "insert -1 foo foo@example.com": Syntax error: insert {id} {user} {email}
 db > Executed: "select"
 db > Bye.

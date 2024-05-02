@@ -12,7 +12,7 @@ use std::str;
 enum Error {
     Unknown(String),
     Syntax(&'static str),
-    TableFull,
+    TableFull(usize),
     StringTooLong(u32),
     PageOutOfBounds(u32),
     Io(io::Error),
@@ -22,8 +22,8 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unknown(cmd) => write!(f, "Unrecognized command: {cmd:?}"),
-            Self::Syntax(usage) => write!(f, "Syntax error: {usage:?}"),
-            Self::TableFull => write!(f, "Table is full"),
+            Self::Syntax(usage) => write!(f, "Syntax error: {usage}"),
+            Self::TableFull(max) => write!(f, "Table is full (max size is {max})"),
             Self::StringTooLong(max) => write!(f, "String length exceeds max length {max}"),
             Self::PageOutOfBounds(idx) => write!(f, "Page index {idx} is out of bounds"),
             Self::Io(inner) => write!(f, "I/O error: {inner}"),
@@ -286,13 +286,6 @@ impl Table {
         Ok(Self { num_rows, pager })
     }
 
-    fn row_slot(&mut self, row_num: u32) -> Result<&mut SerializedRow> {
-        let page_num = row_num as usize / Page::ROWS_PER_PAGE;
-        let page = self.pager.page_at(page_num)?;
-        let row = page.row_at(row_num as usize % Page::ROWS_PER_PAGE);
-        Ok(row)
-    }
-
     fn close(&mut self) -> io::Result<()> {
         let num_full_pages = self.num_rows as usize / Page::ROWS_PER_PAGE;
         for idx in 0..num_full_pages {
@@ -305,6 +298,52 @@ impl Table {
         }
 
         Ok(())
+    }
+
+    fn cursor(&mut self) -> Cursor<'_> {
+        Cursor::start(self)
+    }
+
+    fn cursor_at_end(&mut self) -> Cursor<'_> {
+        Cursor::end(self)
+    }
+}
+
+struct Cursor<'table> {
+    table: &'table mut Table,
+    row_num: u32,
+    end: bool,
+}
+
+impl<'table> Cursor<'table> {
+    fn start(table: &'table mut Table) -> Self {
+        Self { row_num: 0, end: table.num_rows == 0, table }
+    }
+
+    fn end(table: &'table mut Table) -> Self {
+        Self { row_num: table.num_rows, end: true, table }
+    }
+
+    fn row(&mut self, row_num: usize) -> Result<&mut SerializedRow> {
+        let page_num = row_num / Page::ROWS_PER_PAGE;
+        let page = self.table.pager.page_at(page_num)?;
+        Ok(page.row_at(row_num % Page::ROWS_PER_PAGE))
+    }
+
+    fn current(&mut self) -> Result<&mut SerializedRow> {
+        self.row(self.row_num as usize)
+    }
+
+    // Note: `Iterator` cannot be implemented because `<Self as Iterator>::Item` must be a self
+    // reference but the associated type doesn't have a lifetime parameter for it.
+    fn next(&mut self) -> Option<Result<&mut SerializedRow>> {
+        if self.end {
+            return None;
+        }
+        let row_num = self.row_num as usize;
+        self.row_num += 1;
+        self.end = self.row_num >= self.table.num_rows;
+        Some(self.row(row_num))
     }
 }
 
@@ -340,18 +379,19 @@ impl<'input> Statement<'input> {
         match self {
             Self::Insert(row) => {
                 if table.num_rows as usize >= Table::MAX_ROWS {
-                    return Error::TableFull.err();
+                    return Error::TableFull(Table::MAX_ROWS).err();
                 }
 
-                let slot = table.row_slot(table.num_rows)?;
-                *slot = SerializedRow::serialize(row)?;
+                let mut end = table.cursor_at_end();
+                *end.current()? = SerializedRow::serialize(row)?;
                 table.num_rows += 1;
 
                 Ok(())
             }
             Self::Select => {
-                for i in 0..table.num_rows {
-                    let row = table.row_slot(i)?.deserialize();
+                let mut cursor = table.cursor();
+                while let Some(row) = cursor.next() {
+                    let row = row?.deserialize();
                     writeln!(w, "{row}").unwrap();
                 }
                 Ok(())

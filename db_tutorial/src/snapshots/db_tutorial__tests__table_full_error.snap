@@ -1402,5 +1402,5 @@ db > Executed: "insert 1397 user1397 person1397@example.com"
 db > Executed: "insert 1398 user1398 person1398@example.com"
 db > Executed: "insert 1399 user1399 person1399@example.com"
 db > Executed: "insert 1400 user1400 person1400@example.com"
-db > Error while executing Insert(Row { id: 1401, user_name: "user1401", email: "person1401@example.com" }): Table is full
+db > Error while executing Insert(Row { id: 1401, user_name: "user1401", email: "person1401@example.com" }): Table is full (max size is 1400)
 db > Bye.
