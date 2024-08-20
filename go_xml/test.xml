@@ -1,0 +1,9 @@
+<!DOCTYPE foo [
+<!ENTITY hello "hello">
+<!ENTITY foo "foo">
+]>
+<foo a="&foo;" b="boo">
+    <bar>
+        hello &hello; world
+    </bar>
+</foo>
