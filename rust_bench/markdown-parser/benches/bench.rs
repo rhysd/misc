@@ -10,13 +10,16 @@ fn bench(c: &mut Criterion) {
             let mut options = Options::empty();
             options.insert(
                 Options::ENABLE_STRIKETHROUGH
+                    | Options::ENABLE_TABLES
                     | Options::ENABLE_TASKLISTS
-                    | Options::ENABLE_FOOTNOTES,
+                    | Options::ENABLE_FOOTNOTES
+                    | Options::ENABLE_MATH
+                    | Options::ENABLE_GFM,
             );
             let parser = Parser::new(&input);
             let mut output = String::new();
             html::push_html(&mut output, parser);
-            assert!(output.len() > 0);
+            assert!(!output.is_empty());
         })
     });
 
@@ -28,8 +31,10 @@ fn bench(c: &mut Criterion) {
             options.extension.table = true;
             options.extension.tasklist = true;
             options.extension.footnotes = true;
+            options.extension.math_dollars = true;
+            options.extension.math_code = true;
             let output = markdown_to_html(&input, &options);
-            assert!(output.len() > 0);
+            assert!(!output.is_empty());
         })
     });
 
@@ -49,7 +54,7 @@ fn bench(c: &mut Criterion) {
 
             parser.parse(&input);
             let result = Render::to_html(&parser);
-            assert!(result.len() > 0);
+            assert!(!result.is_empty());
         })
     });
 }
