@@ -14,6 +14,7 @@ harness = false
 [dependencies]
 cmark-gfm = "0.1.1"
 comrak = { version = "0.28.0", default-features = false, features = [] }
+markdown = "1.0.0-alpha.20"
 pulldown-cmark = { version = "0.12.1", default-features = false, features = ["html"] }
 
 [dev-dependencies]

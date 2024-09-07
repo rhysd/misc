@@ -57,6 +57,13 @@ fn bench(c: &mut Criterion) {
             assert!(!result.is_empty());
         })
     });
+
+    c.bench_function("markdown-rs", |b| {
+        b.iter(|| {
+            let output = markdown::to_html(&input);
+            assert!(!output.is_empty());
+        })
+    });
 }
 
 criterion_group!(benches, bench);
