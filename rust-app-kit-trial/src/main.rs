@@ -1,6 +1,6 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 use objc2::rc::Retained;
-use objc2::runtime::ProtocolObject;
+use objc2::runtime::{AnyObject, ProtocolObject};
 use objc2::{declare_class, msg_send_id, mutability, sel, ClassType, DeclaredClass};
 use objc2_app_kit::{
     NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSMenu, NSMenuItem,
@@ -13,14 +13,8 @@ use objc2_foundation::{
 use std::cell::RefCell;
 use std::ptr::NonNull;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct Count(i32);
-
-impl Default for Count {
-    fn default() -> Self {
-        Self(0)
-    }
-}
 
 impl Count {
     pub fn inc(&mut self) {
@@ -29,6 +23,42 @@ impl Count {
 
     pub fn value(&self) -> i32 {
         self.0
+    }
+}
+
+declare_class!(
+    struct MenuItem;
+
+    unsafe impl ClassType for MenuItem {
+        type Super = NSMenuItem;
+        type Mutability = mutability::MainThreadOnly;
+        const NAME: &'static str = "MyMenuItem";
+    }
+
+    impl DeclaredClass for MenuItem {
+        type Ivars = ();
+    }
+
+    unsafe impl MenuItem {
+        #[method(onMenuItemClick:)]
+        fn on_menu_item_click(&self,  _sender: Option<&AnyObject>) {
+            println!("click!!!!!");
+        }
+    }
+);
+
+impl MenuItem {
+    fn new(mtm: MainThreadMarker) -> Retained<Self> {
+        let this = mtm.alloc();
+        let this = this.set_ivars(());
+        let this: Retained<Self> = unsafe {
+            msg_send_id![super(this), initWithTitle: ns_string!("Test"), action: Some(sel!(onMenuItemClick:)), keyEquivalent: ns_string!("")]
+        };
+        unsafe {
+            this.setEnabled(true);
+            this.setTarget(Some(&this));
+        }
+        this
     }
 }
 
@@ -103,14 +133,16 @@ impl AppDelegate {
             status.button(mtm).unwrap().setTitle(ns_string!("0"));
         }
 
-        let item = NSMenuItem::new(mtm);
-        unsafe {
-            item.setTitle(ns_string!("Test Item"));
-        }
         let menu = NSMenu::new(mtm);
-        menu.addItem(&item);
         unsafe {
-            menu.setTitle(ns_string!("Test Title"));
+            menu.setTitle(ns_string!("Test Menu"));
+            menu.setAutoenablesItems(false);
+        }
+
+        let item = MenuItem::new(mtm);
+        menu.addItem(&item);
+
+        unsafe {
             status.setMenu(Some(&menu));
         }
 
