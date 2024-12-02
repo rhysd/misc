@@ -1,31 +1,48 @@
 use std::env;
 use std::io::{self, BufRead};
 
-fn parse(report: &str) -> Vec<i32> {
-    report.split_whitespace().map(|n| n.parse().unwrap()).collect()
+fn parse(report: &str) -> impl Iterator<Item = i32> + '_ {
+    report.split_whitespace().map(|n| n.parse().unwrap())
 }
 
-fn is_safe(levels: &[i32]) -> bool {
-    levels.is_sorted_by(|&l, &r| l < r && r - l <= 3)
-        || levels.is_sorted_by(|&l, &r| l > r && l - r <= 3)
+fn is_safe_report(levels: impl Iterator<Item = i32>) -> bool {
+    fn is_safe(l: i32, r: i32) -> bool {
+        l < r && r - l <= 3
+    }
+
+    let mut levels = levels.peekable();
+
+    let (l, &r) = (levels.next().unwrap(), levels.peek().unwrap());
+    let predicate = if is_safe(l, r) {
+        is_safe
+    } else if is_safe(r, l) {
+        |l, r| is_safe(r, l) // flip
+    } else {
+        return false;
+    };
+
+    loop {
+        let (Some(l), Some(&r)) = (levels.next(), levels.peek()) else {
+            return true;
+        };
+        if !predicate(l, r) {
+            return false;
+        }
+    }
 }
 
 fn part1(lines: impl Iterator<Item = String>) {
-    println!("{}", lines.filter(|report| is_safe(&parse(report))).count());
+    println!("{}", lines.filter(|l| is_safe_report(parse(l))).count());
 }
 
 fn part2(lines: impl Iterator<Item = String>) {
     let count = lines
         .filter(|report| {
-            let mut levels = parse(report);
-            for i in 0..levels.len() {
-                let removed = levels.remove(i);
-                if is_safe(&levels) {
-                    return true;
-                }
-                levels.insert(i, removed);
-            }
-            false
+            let levels: Vec<i32> = parse(report).collect();
+            (0..levels.len()).any(|i| {
+                let (l, r) = (&levels[..i], &levels[i + 1..]);
+                is_safe_report(l.iter().copied().chain(r.iter().copied()))
+            })
         })
         .count();
     println!("{count}");
