@@ -13,11 +13,7 @@ fn part1(lines: impl Iterator<Item = String>) {
     }
     left.sort();
     right.sort();
-    let total: u32 = left
-        .into_iter()
-        .zip(right)
-        .map(|(l, r)| l.abs_diff(r))
-        .sum();
+    let total: u32 = left.into_iter().zip(right).map(|(l, r)| l.abs_diff(r)).sum();
     println!("{total}");
 }
 
@@ -30,10 +26,7 @@ fn part2(lines: impl Iterator<Item = String>) {
         left.push(parse());
         *counts.entry(parse()).or_default() += 1u32;
     }
-    let total: u32 = left
-        .into_iter()
-        .map(|x| x * counts.get(&x).copied().unwrap_or(0))
-        .sum();
+    let total: u32 = left.into_iter().map(|x| x * counts.get(&x).copied().unwrap_or(0)).sum();
     println!("{total}");
 }
 

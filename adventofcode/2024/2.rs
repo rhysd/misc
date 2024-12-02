@@ -2,10 +2,7 @@ use std::env;
 use std::io::{self, BufRead};
 
 fn parse(report: &str) -> Vec<i32> {
-    report
-        .split_whitespace()
-        .map(|n| n.parse().unwrap())
-        .collect()
+    report.split_whitespace().map(|n| n.parse().unwrap()).collect()
 }
 
 fn is_safe(levels: &[i32]) -> bool {
