@@ -23,7 +23,7 @@ fn part1(lines: impl Iterator<Item = String>) {
 
 fn part2(lines: impl Iterator<Item = String>) {
     let mut left = vec![];
-    let mut counts = HashMap::<u32, u32>::new();
+    let mut counts = HashMap::new();
     for line in lines {
         let mut s = line.split_whitespace();
         let mut parse = || s.next().unwrap().parse::<u32>().unwrap();
