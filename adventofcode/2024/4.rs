@@ -17,13 +17,13 @@ fn part1(lines: impl Iterator<Item = String>) {
     let board = Board(lines.map(|l| l.chars().collect()).collect());
     let (xlen, ylen) = board.size();
 
-    let is_xmas = |mut x, mut y, dx, dy| {
-        for c in "XMAS".chars() {
+    let is_mas = |mut x, mut y, dx, dy| {
+        for c in "MAS".chars() {
+            x += dx;
+            y += dy;
             if board.at(x, y) != Some(c) {
                 return false;
             }
-            x += dx;
-            y += dy;
         }
         true
     };
@@ -31,10 +31,12 @@ fn part1(lines: impl Iterator<Item = String>) {
     let mut count = 0;
     for y in 0..ylen {
         for x in 0..xlen {
-            for dy in [-1, 0, 1] {
-                for dx in [-1, 0, 1] {
-                    if is_xmas(x, y, dx, dy) {
-                        count += 1;
+            if board.at(x, y) == Some('X') {
+                for dy in -1..=1 {
+                    for dx in -1..1 {
+                        if (dx, dy) != (0, 0) && is_mas(x, y, dx, dy) {
+                            count += 1;
+                        }
                     }
                 }
             }
