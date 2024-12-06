@@ -33,6 +33,12 @@ impl Dir {
 }
 
 #[derive(Clone, Copy)]
+enum Cell {
+    Empty,
+    Block,
+}
+
+#[derive(Clone, Copy)]
 enum Action {
     Turn(Dir),
     Forward(Pos),
@@ -40,7 +46,7 @@ enum Action {
 
 #[derive(Clone)]
 struct Problem {
-    cells: Vec<Vec<bool>>,
+    cells: Vec<Vec<Cell>>,
     dir: Dir,
     pos: Pos,
     path: HashSet<(Dir, (usize, usize))>,
@@ -59,10 +65,10 @@ impl Problem {
                         '^' => {
                             pos = (x, y);
                             path.insert((Dir::U, pos));
-                            true
+                            Cell::Empty
                         }
-                        '.' => true,
-                        '#' => false,
+                        '.' => Cell::Empty,
+                        '#' => Cell::Block,
                         _ => unreachable!(),
                     })
                     .collect()
@@ -73,20 +79,31 @@ impl Problem {
 
     fn action(&self) -> Option<Action> {
         let (x, y) = self.dir.forward(self.pos)?;
-        let action = if *self.cells.get(y)?.get(x)? {
-            Action::Forward((x, y))
-        } else {
-            Action::Turn(self.dir.turn_right())
+        let action = match *self.cells.get(y)?.get(x)? {
+            Cell::Empty => Action::Forward((x, y)),
+            Cell::Block => Action::Turn(self.dir.turn_right()),
         };
         Some(action)
     }
 
+    fn tick(&mut self, action: Action) -> bool {
+        match action {
+            Action::Turn(dir) => {
+                self.dir = dir;
+                true
+            }
+            Action::Forward(pos) if self.path.insert((self.dir, pos)) => {
+                self.pos = pos;
+                true
+            }
+            Action::Forward(_) => false,
+        }
+    }
+
     fn solve(&mut self) -> bool {
         while let Some(action) = self.action() {
-            match action {
-                Action::Turn(dir) => self.dir = dir,
-                Action::Forward(pos) if self.path.insert((self.dir, pos)) => self.pos = pos,
-                Action::Forward(_) => return false,
+            if !self.tick(action) {
+                return false;
             }
         }
         true
@@ -101,23 +118,24 @@ fn part1(lines: impl Iterator<Item = String>) {
 }
 
 fn part2(lines: impl Iterator<Item = String>) {
-    let init = Problem::parse(lines);
+    let mut problem = Problem::parse(lines);
+    let mut count = 0;
 
-    let mut solved = init.clone();
-    assert!(solved.solve());
+    while let Some(action) = problem.action() {
+        if let Action::Forward((x, y)) = action {
+            if problem.path.iter().all(|(_, p)| *p != (x, y)) {
+                let mut problem = problem.clone();
+                problem.cells[y][x] = Cell::Block;
+                if !problem.solve() {
+                    count += 1;
+                }
+            }
+        }
+        if !problem.tick(action) {
+            break;
+        }
+    }
 
-    let count = solved
-        .path
-        .into_iter()
-        .map(|(_, p)| p)
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .filter(|&(x, y)| {
-            let mut problem = init.clone();
-            problem.cells[y][x] = false;
-            !problem.solve()
-        })
-        .count();
     println!("{count}");
 }
 
