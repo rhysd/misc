@@ -124,11 +124,13 @@ fn part2(lines: impl Iterator<Item = String>) {
     while let Some(action) = problem.action() {
         if let Action::Forward((x, y)) = action {
             if problem.path.iter().all(|(_, p)| *p != (x, y)) {
-                let mut problem = problem.clone();
+                let backup = (problem.path.clone(), problem.dir, problem.pos);
                 problem.cells[y][x] = Cell::Block;
                 if !problem.solve() {
                     count += 1;
                 }
+                problem.cells[y][x] = Cell::Empty;
+                (problem.path, problem.dir, problem.pos) = backup;
             }
         }
         if !problem.tick(action) {
