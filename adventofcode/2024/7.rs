@@ -9,11 +9,11 @@ fn parse(line: String) -> (usize, Vec<usize>) {
 }
 
 fn part1(lines: impl Iterator<Item = String>) {
-    fn solve(ans: usize, current: usize, ops: &[usize]) -> bool {
+    fn solve(ans: usize, cur: usize, ops: &[usize]) -> bool {
         let Some((head, tail)) = ops.split_first() else {
-            return ans == current;
+            return ans == cur;
         };
-        solve(ans, current + head, tail) || solve(ans, current * head, tail)
+        ans >= cur && (solve(ans, cur + head, tail) || solve(ans, cur * head, tail))
     }
 
     let total: usize = lines
@@ -32,9 +32,10 @@ fn part2(lines: impl Iterator<Item = String>) {
         let Some((&second, tail)) = tail.split_first() else {
             return ans == cur + first || ans == cur * first || ans == combine(cur, first);
         };
-        solve(ans, cur + first, second, tail)
-            || solve(ans, cur * first, second, tail)
-            || solve(ans, combine(cur, first), second, tail)
+        ans >= cur
+            && (solve(ans, cur + first, second, tail)
+                || solve(ans, cur * first, second, tail)
+                || solve(ans, combine(cur, first), second, tail))
     }
 
     let total: usize = lines
