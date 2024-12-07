@@ -105,4 +105,5 @@ path = "7.rs"
 # path = "25.rs"
 
 [dependencies]
+rayon = "1.10.0"
 regex = "1.11.1"

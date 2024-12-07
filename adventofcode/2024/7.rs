@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use std::env;
 use std::io::{self, BufRead};
 
@@ -16,6 +17,7 @@ fn part1(lines: impl Iterator<Item = String>) {
         ans >= cur && (solve(ans, cur + head, tail) || solve(ans, cur * head, tail))
     }
 
+    // Note: Using rayon is slower in this case
     let total: usize = lines
         .map(parse)
         .filter_map(|(ans, ops)| solve(ans, ops[0], &ops[1..]).then_some(ans))
@@ -38,8 +40,9 @@ fn part2(lines: impl Iterator<Item = String>) {
                 || solve(ans, combine(cur, first), second, tail))
     }
 
-    let total: usize = lines
-        .map(parse)
+    let equations = lines.map(parse).collect::<Vec<_>>();
+    let total: usize = equations
+        .into_par_iter()
         .filter_map(|(ans, ops)| solve(ans, ops[0], ops[1], &ops[2..]).then_some(ans))
         .sum();
     println!("{total}");
