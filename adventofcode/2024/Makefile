@@ -38,4 +38,4 @@ clean:
 	rm -f out/* diff/*
 
 .PHONY: default clean
-.PRECIOUS: $(OUT)
+.PRECIOUS: $(OUT) in/%-1 in/%-2
