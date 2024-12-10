@@ -30,20 +30,20 @@ fn part2(lines: impl Iterator<Item = String>) {
         a * 10usize.pow(b.ilog10() + 1) + b
     }
 
-    fn solve(ans: usize, cur: usize, first: usize, tail: &[usize]) -> bool {
-        let Some((&second, tail)) = tail.split_first() else {
-            return ans == cur + first || ans == cur * first || ans == combine(cur, first);
+    fn solve(ans: usize, cur: usize, tail: &[usize]) -> bool {
+        let Some((&head, tail)) = tail.split_first() else {
+            return ans == cur;
         };
         ans >= cur
-            && (solve(ans, cur + first, second, tail)
-                || solve(ans, cur * first, second, tail)
-                || solve(ans, combine(cur, first), second, tail))
+            && (solve(ans, cur + head, tail)
+                || solve(ans, cur * head, tail)
+                || solve(ans, combine(cur, head), tail))
     }
 
     let equations = lines.map(parse).collect::<Vec<_>>();
     let total: usize = equations
         .into_par_iter()
-        .filter_map(|(ans, ops)| solve(ans, ops[0], ops[1], &ops[2..]).then_some(ans))
+        .filter_map(|(ans, ops)| solve(ans, ops[0], &ops[1..]).then_some(ans))
         .sum();
     println!("{total}");
 }
