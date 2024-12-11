@@ -9,6 +9,7 @@ out diff:
 	mkdir -p out diff in
 
 in/%-1:
+	[ -n "${AOC_SESSION}" ]
 	curl -A 'https://github.com/rhysd/misc/tree/master/adventofcode by lin90162@yahoo.co.jp' -L -o in/$*-1 --cookie "session=${AOC_SESSION}" 'https://adventofcode.com/2024/day/$*/input'
 
 out/%-1: %.rs in/%-1
