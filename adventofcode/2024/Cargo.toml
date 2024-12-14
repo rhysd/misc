@@ -56,9 +56,9 @@ path = "12.rs"
 name = "13"
 path = "13.rs"
 
-# [[bin]]
-# name = "14"
-# path = "14.rs"
+[[bin]]
+name = "14"
+path = "14.rs"
 
 # [[bin]]
 # name = "15"
