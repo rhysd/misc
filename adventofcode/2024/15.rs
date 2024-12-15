@@ -2,8 +2,9 @@ use std::env;
 use std::io::{self, BufRead};
 
 type Pos = (usize, usize);
+type Field = Vec<Vec<char>>;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Dir {
     U,
     R,
@@ -22,7 +23,7 @@ impl Dir {
         }
     }
 
-    fn dest(self, (x, y): Pos) -> Pos {
+    fn advance(self, (x, y): Pos) -> Pos {
         match self {
             Dir::U => (x, y - 1),
             Dir::R => (x + 1, y),
@@ -30,18 +31,25 @@ impl Dir {
             Dir::L => (x - 1, y),
         }
     }
-    fn dest_y(self, y: usize) -> usize {
-        match self {
-            Dir::U => y - 1,
-            Dir::D => y + 1,
-            _ => y,
-        }
-    }
+}
+
+fn gps(field: &Field) -> usize {
+    field
+        .iter()
+        .enumerate()
+        .map(|(y, xs)| {
+            xs.iter()
+                .enumerate()
+                .filter(|(_, &c)| c == 'O' || c == '[')
+                .map(|(x, _)| 100 * y + x)
+                .sum::<usize>()
+        })
+        .sum()
 }
 
 fn part1(mut lines: impl Iterator<Item = String>) {
     let mut robot = (0, 0);
-    let mut field: Vec<Vec<char>> = (&mut lines)
+    let mut field: Field = (&mut lines)
         .enumerate()
         .take_while(|(_, l)| !l.is_empty())
         .map(|(y, l)| {
@@ -59,28 +67,24 @@ fn part1(mut lines: impl Iterator<Item = String>) {
         })
         .collect();
 
-    fn move_box(field: &mut [Vec<char>], (px, py): Pos, dir: Dir) -> bool {
-        let (x, y) = dir.dest((px, py));
-        let c = field[y][x];
-        match c {
-            '.' => {
-                field[py][px] = '.';
-                field[y][x] = 'O';
-                true
+    fn move_box(field: &mut Field, (ox, oy): Pos, dir: Dir) -> bool {
+        let (mut x, mut y) = (ox, oy);
+        loop {
+            match field[y][x] {
+                '.' => {
+                    field[oy][ox] = '.';
+                    field[y][x] = 'O';
+                    return true;
+                }
+                '#' => return false,
+                _ => (x, y) = dir.advance((x, y)),
             }
-            'O' if move_box(field, (x, y), dir) => {
-                field[py][px] = '.';
-                field[y][x] = 'O';
-                true
-            }
-            _ => false,
         }
     }
 
     for l in lines {
-        for c in l.chars() {
-            let dir = Dir::new(c);
-            let (x, y) = dir.dest(robot);
+        for dir in l.chars().map(Dir::new) {
+            let (x, y) = dir.advance(robot);
             let c = field[y][x];
             match c {
                 '.' => robot = (x, y),
@@ -90,23 +94,12 @@ fn part1(mut lines: impl Iterator<Item = String>) {
         }
     }
 
-    let gps: usize = field
-        .iter()
-        .enumerate()
-        .map(|(y, xs)| {
-            xs.iter()
-                .enumerate()
-                .filter(|(_, &c)| c == 'O')
-                .map(|(x, _)| 100 * y + x)
-                .sum::<usize>()
-        })
-        .sum();
-    println!("{gps}");
+    println!("{}", gps(&field));
 }
 
 fn part2(mut lines: impl Iterator<Item = String>) {
     let mut robot = (0, 0);
-    let mut field: Vec<Vec<char>> = (&mut lines)
+    let mut field: Field = (&mut lines)
         .enumerate()
         .take_while(|(_, l)| !l.is_empty())
         .map(|(y, l)| {
@@ -124,106 +117,82 @@ fn part2(mut lines: impl Iterator<Item = String>) {
         })
         .collect();
 
-    fn can_move_box(field: &[Vec<char>], (x, y): Pos, dir: Dir) -> bool {
-        match field[y][x] {
-            ']' => {
-                can_move_box(field, dir.dest((x - 1, y)), dir)
-                    && can_move_box(field, dir.dest((x, y)), dir)
+    fn move_box_left(field: &mut Field, (x, y): Pos) -> bool {
+        let line = &mut field[y][..=x];
+        for (i, &c) in line.iter().enumerate().rev() {
+            match c {
+                '#' => break,
+                '.' => {
+                    line[i..].rotate_left(1);
+                    return true;
+                }
+                _ => {}
             }
-            '[' => {
-                can_move_box(field, dir.dest((x, y)), dir)
-                    && can_move_box(field, dir.dest((x + 1, y)), dir)
-            }
-            '.' => true,
-            _ => false,
         }
+        false
     }
 
-    fn move_box(field: &mut [Vec<char>], (x, y): Pos, dir: Dir) {
-        let c = field[y][x];
-        match c {
-            ']' => {
-                move_box(field, dir.dest((x - 1, y)), dir);
-                move_box(field, dir.dest((x, y)), dir);
-                let dy = dir.dest_y(y);
-                field[dy][x - 1] = '[';
-                field[dy][x] = ']';
-                field[y][x - 1] = '.';
-                field[y][x] = '.';
+    fn move_box_right(field: &mut Field, (x, y): Pos) -> bool {
+        let line = &mut field[y][x..];
+        for (i, &c) in line.iter().enumerate() {
+            match c {
+                '#' => break,
+                '.' => {
+                    line[..=i].rotate_right(1);
+                    return true;
+                }
+                _ => {}
             }
-            '[' => {
-                move_box(field, dir.dest((x, y)), dir);
-                move_box(field, dir.dest((x + 1, y)), dir);
-                let dy = dir.dest_y(y);
-                field[dy][x] = '[';
-                field[dy][x + 1] = ']';
-                field[y][x] = '.';
-                field[y][x + 1] = '.';
-            }
-            _ => {}
         }
+        false
+    }
+
+    fn can_move_box_virtical(field: &Field, (x, y): Pos, up: bool) -> bool {
+        let (lx, rx) = match field[y][x] {
+            ']' => (x - 1, x),
+            '[' => (x, x + 1),
+            '.' => return true,
+            _ => return false,
+        };
+        let y = if up { y - 1 } else { y + 1 };
+        can_move_box_virtical(field, (lx, y), up) && can_move_box_virtical(field, (rx, y), up)
+    }
+
+    fn move_box_virtical(field: &mut Field, (x, y): Pos, up: bool) {
+        let (lx, rx) = match field[y][x] {
+            ']' => (x - 1, x),
+            '[' => (x, x + 1),
+            '.' => return,
+            _ => unreachable!(),
+        };
+        let dy = if up { y - 1 } else { y + 1 };
+        move_box_virtical(field, (lx, dy), up);
+        move_box_virtical(field, (rx, dy), up);
+        (field[dy][lx], field[dy][rx]) = ('[', ']');
+        (field[y][lx], field[y][rx]) = ('.', '.');
     }
 
     for l in lines {
         for dir in l.chars().map(Dir::new) {
-            let (x, y) = dir.dest(robot);
+            let (x, y) = dir.advance(robot);
             let c = field[y][x];
             match c {
                 '.' => robot = (x, y),
                 '[' | ']' => match dir {
-                    Dir::L => {
-                        let line = &mut field[y][..=x];
-                        for (i, &c) in line.iter().enumerate().rev() {
-                            match c {
-                                '#' => break,
-                                '.' => {
-                                    line[i..].rotate_left(1);
-                                    robot = (x, y);
-                                    break;
-                                }
-                                _ => {}
-                            }
-                        }
+                    Dir::L if move_box_left(&mut field, (x, y)) => robot = (x, y),
+                    Dir::R if move_box_right(&mut field, (x, y)) => robot = (x, y),
+                    Dir::U | Dir::D if can_move_box_virtical(&field, (x, y), dir == Dir::U) => {
+                        move_box_virtical(&mut field, (x, y), dir == Dir::U);
+                        robot = (x, y);
                     }
-                    Dir::R => {
-                        let line = &mut field[y][x..];
-                        for (i, &c) in line.iter().enumerate() {
-                            match c {
-                                '#' => break,
-                                '.' => {
-                                    line[..=i].rotate_right(1);
-                                    robot = (x, y);
-                                    break;
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                    Dir::U | Dir::D => {
-                        if can_move_box(&field, (x, y), dir) {
-                            move_box(&mut field, (x, y), dir);
-                            robot = (x, y);
-                        }
-                    }
+                    _ => {}
                 },
                 _ => {}
             }
         }
     }
 
-    let gps: usize = field
-        .iter()
-        .enumerate()
-        .map(|(y, xs)| {
-            xs.iter()
-                .enumerate()
-                .filter(|(_, &c)| c == '[')
-                .map(|(x, _)| 100 * y + x)
-                .sum::<usize>()
-        })
-        .sum();
-
-    println!("{gps}");
+    println!("{}", gps(&field));
 }
 
 fn main() {
