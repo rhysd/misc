@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::env;
 use std::io::{self, BufRead};
+use std::rc::Rc;
 
 type Pos = (usize, usize);
 
@@ -72,12 +73,19 @@ fn parse_maze(lines: impl Iterator<Item = String>) -> (Pos, Pos, Vec<Vec<bool>>)
 fn part1(lines: impl Iterator<Item = String>) {
     let (start, end, maze) = parse_maze(lines);
 
-    #[derive(PartialEq, Eq)]
     struct State {
         score: u32,
         pos: Pos,
         dir: Dir,
     }
+
+    impl PartialEq for State {
+        fn eq(&self, other: &Self) -> bool {
+            self.score == other.score
+        }
+    }
+
+    impl Eq for State {}
 
     impl Ord for State {
         fn cmp(&self, other: &Self) -> Ordering {
@@ -123,13 +131,22 @@ fn part1(lines: impl Iterator<Item = String>) {
 fn part2(lines: impl Iterator<Item = String>) {
     let (start, end, maze) = parse_maze(lines);
 
-    #[derive(PartialEq, Eq)]
+    struct PathNode(Pos, Option<Rc<PathNode>>);
+
     struct State {
         score: u32,
         pos: Pos,
         dir: Dir,
-        path: Vec<Pos>,
+        path: Rc<PathNode>,
     }
+
+    impl PartialEq for State {
+        fn eq(&self, other: &Self) -> bool {
+            self.score == other.score
+        }
+    }
+
+    impl Eq for State {}
 
     impl Ord for State {
         fn cmp(&self, other: &Self) -> Ordering {
@@ -144,9 +161,14 @@ fn part2(lines: impl Iterator<Item = String>) {
     }
 
     let mut dist = HashMap::new();
-    let mut queue = BinaryHeap::from([State { score: 0, pos: start, dir: Dir::R, path: vec![] }]);
+    let mut queue = BinaryHeap::from([State {
+        score: 0,
+        pos: start,
+        dir: Dir::R,
+        path: Rc::new(PathNode(start, None)),
+    }]);
     let mut best_score = u32::MAX;
-    let mut paths = HashSet::from([start]);
+    let mut all_paths = HashSet::new();
 
     while let Some(State { score, pos, dir, path }) = queue.pop() {
         if pos == end {
@@ -154,7 +176,16 @@ fn part2(lines: impl Iterator<Item = String>) {
                 break;
             }
             best_score = score;
-            paths.extend(path.into_iter());
+            let mut cur = &path;
+            loop {
+                let PathNode(pos, next) = &**cur;
+                all_paths.insert(*pos);
+                if let Some(next) = next {
+                    cur = next;
+                } else {
+                    break;
+                }
+            }
             continue;
         }
 
@@ -170,14 +201,16 @@ fn part2(lines: impl Iterator<Item = String>) {
         ] {
             if maze[y][x] && dist.get(&(x, y, dir)).map(|&s| s >= score).unwrap_or(true) {
                 let mut path = path.clone();
-                path.push((x, y));
+                if (x, y) != path.0 {
+                    path = Rc::new(PathNode((x, y), Some(path)));
+                }
                 queue.push(State { score, pos: (x, y), dir, path });
                 dist.insert((x, y, dir), score);
             }
         }
     }
 
-    println!("{}", paths.len());
+    println!("{}", all_paths.len());
 }
 
 fn main() {
