@@ -71,21 +71,11 @@ fn parse_maze(lines: impl Iterator<Item = String>) -> (Pos, Pos, Vec<Vec<bool>>)
 }
 
 fn part1(lines: impl Iterator<Item = String>) {
-    let (start, end, maze) = parse_maze(lines);
-
     struct State {
         score: u32,
         pos: Pos,
         dir: Dir,
     }
-
-    impl PartialEq for State {
-        fn eq(&self, other: &Self) -> bool {
-            self.score == other.score
-        }
-    }
-
-    impl Eq for State {}
 
     impl Ord for State {
         fn cmp(&self, other: &Self) -> Ordering {
@@ -98,6 +88,16 @@ fn part1(lines: impl Iterator<Item = String>) {
             Some(self.cmp(other))
         }
     }
+
+    impl PartialEq for State {
+        fn eq(&self, other: &Self) -> bool {
+            self.cmp(other) == Ordering::Equal
+        }
+    }
+
+    impl Eq for State {}
+
+    let (start, end, maze) = parse_maze(lines);
 
     let mut dist = HashMap::new();
     let mut queue = BinaryHeap::from([State { score: 0, pos: start, dir: Dir::R }]);
@@ -125,12 +125,10 @@ fn part1(lines: impl Iterator<Item = String>) {
         }
     }
 
-    unreachable!();
+    unreachable!("no solution");
 }
 
 fn part2(lines: impl Iterator<Item = String>) {
-    let (start, end, maze) = parse_maze(lines);
-
     struct PathNode(Pos, Option<Rc<PathNode>>);
 
     struct State {
@@ -139,14 +137,6 @@ fn part2(lines: impl Iterator<Item = String>) {
         dir: Dir,
         path: Rc<PathNode>,
     }
-
-    impl PartialEq for State {
-        fn eq(&self, other: &Self) -> bool {
-            self.score == other.score
-        }
-    }
-
-    impl Eq for State {}
 
     impl Ord for State {
         fn cmp(&self, other: &Self) -> Ordering {
@@ -159,6 +149,16 @@ fn part2(lines: impl Iterator<Item = String>) {
             Some(self.cmp(other))
         }
     }
+
+    impl PartialEq for State {
+        fn eq(&self, other: &Self) -> bool {
+            self.cmp(other) == Ordering::Equal
+        }
+    }
+
+    impl Eq for State {}
+
+    let (start, end, maze) = parse_maze(lines);
 
     let mut dist = HashMap::new();
     let mut queue = BinaryHeap::from([State {
@@ -199,6 +199,7 @@ fn part2(lines: impl Iterator<Item = String>) {
             (dir.left(), (x, y), score + 1000),
             (dir.right(), (x, y), score + 1000),
         ] {
+            // Use `s >= score` instead of `s > score` so that we can find all the shortest paths.
             if maze[y][x] && dist.get(&(x, y, dir)).map(|&s| s >= score).unwrap_or(true) {
                 let mut path = path.clone();
                 if (x, y) != path.0 {
@@ -210,6 +211,7 @@ fn part2(lines: impl Iterator<Item = String>) {
         }
     }
 
+    assert_ne!(best_score, u32::MAX);
     println!("{}", all_paths.len());
 }
 

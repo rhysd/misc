@@ -68,9 +68,9 @@ path = "15.rs"
 name = "16"
 path = "16.rs"
 
-# [[bin]]
-# name = "17"
-# path = "17.rs"
+[[bin]]
+name = "17"
+path = "17.rs"
 
 # [[bin]]
 # name = "18"
@@ -107,3 +107,4 @@ path = "16.rs"
 [dependencies]
 rayon = "1.10.0"
 regex = "1.11.1"
+z3 = "0.12.1"
