@@ -78,18 +78,17 @@ impl Insn {
 
 type Regs = (u64, u64, u64);
 
-struct Program<'a> {
+struct Vm<'a> {
     insns: &'a [Insn],
     a: u64,
     b: u64,
     c: u64,
     ip: usize,
-    output: Vec<u64>,
 }
 
-impl<'a> Program<'a> {
+impl<'a> Vm<'a> {
     fn new(insns: &'a [Insn], (a, b, c): Regs) -> Self {
-        Self { insns, a, b, c, ip: 0, output: vec![] }
+        Self { insns, a, b, c, ip: 0 }
     }
 
     fn operand(&self, op: Operand) -> u64 {
@@ -125,13 +124,14 @@ impl<'a> Program<'a> {
         None
     }
 
-    fn eval(&mut self) -> &'_ [u64] {
+    fn eval(&mut self) -> Vec<u64> {
+        let mut output = vec![];
         while let Some(insn) = self.insns.get(self.ip).copied() {
             if let Some(out) = self.execute(insn) {
-                self.output.push(out);
+                output.push(out);
             }
         }
-        &self.output
+        output
     }
 
     fn eval_until_out(&mut self) -> Option<u64> {
@@ -141,15 +141,6 @@ impl<'a> Program<'a> {
             }
         }
         None
-    }
-
-    fn print(&self) -> String {
-        let mut s = self.output.iter().fold(String::new(), |mut acc, i| {
-            let _ = write!(acc, "{i},");
-            acc
-        });
-        s.pop(); // Remove redundant comma at last
-        s
     }
 }
 
@@ -173,9 +164,13 @@ fn parse(mut lines: impl Iterator<Item = String>) -> (Vec<u8>, Vec<Insn>, Regs) 
 
 fn part1(lines: impl Iterator<Item = String>) {
     let (_, insns, regs) = parse(lines);
-    let mut prog = Program::new(&insns, regs);
-    prog.eval();
-    println!("{}", prog.print());
+    let mut vm = Vm::new(&insns, regs);
+    let mut printed = String::new();
+    for i in vm.eval() {
+        write!(printed, "{},", i).unwrap();
+    }
+    printed.pop();
+    println!("{printed}");
 }
 
 fn part2(lines: impl Iterator<Item = String>) {
@@ -201,8 +196,8 @@ fn part2(lines: impl Iterator<Item = String>) {
         (0..8)
             .map(|octal| (a << 3) + octal)
             .filter(|&a| {
-                let mut prog = Program::new(insns, (a, b, c));
-                let digit = prog.eval_until_out().unwrap();
+                let mut vm = Vm::new(insns, (a, b, c));
+                let digit = vm.eval_until_out().unwrap();
                 last == digit
             })
             .find_map(|a| solve(insns, (a, b, c), init))
