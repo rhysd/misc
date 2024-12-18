@@ -2,8 +2,6 @@ use std::env;
 use std::fmt::Write;
 use std::io::{self, BufRead};
 
-use z3::ast::Ast;
-
 #[derive(Clone, Copy, Debug)]
 enum Operand {
     Lit(u64),
@@ -78,6 +76,8 @@ impl Insn {
     }
 }
 
+type Regs = (u64, u64, u64);
+
 struct Program<'a> {
     insns: &'a [Insn],
     a: u64,
@@ -88,7 +88,7 @@ struct Program<'a> {
 }
 
 impl<'a> Program<'a> {
-    fn new(insns: &'a [Insn], (a, b, c): (u64, u64, u64)) -> Self {
+    fn new(insns: &'a [Insn], (a, b, c): Regs) -> Self {
         Self { insns, a, b, c, ip: 0, output: vec![] }
     }
 
@@ -102,7 +102,7 @@ impl<'a> Program<'a> {
         }
     }
 
-    fn execute(&mut self, insn: Insn) {
+    fn execute(&mut self, insn: Insn) -> Option<u64> {
         use Opcode::*;
         match insn.code {
             Adv => self.a /= 1 << self.operand(insn.op),
@@ -110,22 +110,37 @@ impl<'a> Program<'a> {
             Bst => self.b = self.operand(insn.op) % 8,
             Jnz if self.a != 0 => {
                 self.ip = self.operand(insn.op) as usize;
-                return;
+                return None;
             }
             Jnz => {}
             Bxc => self.b ^= self.c,
-            Out => self.output.push(self.operand(insn.op) % 8),
+            Out => {
+                self.ip += 1;
+                return Some(self.operand(insn.op) % 8);
+            }
             Bdv => self.b = self.a / (1 << self.operand(insn.op)),
             Cdv => self.c = self.a / (1 << self.operand(insn.op)),
         }
         self.ip += 1;
+        None
     }
 
-    fn run(&mut self) -> &'_ [u64] {
+    fn eval(&mut self) -> &'_ [u64] {
         while let Some(insn) = self.insns.get(self.ip).copied() {
-            self.execute(insn);
+            if let Some(out) = self.execute(insn) {
+                self.output.push(out);
+            }
         }
         &self.output
+    }
+
+    fn eval_until_out(&mut self) -> Option<u64> {
+        while let Some(insn) = self.insns.get(self.ip).copied() {
+            if let Some(out) = self.execute(insn) {
+                return Some(out);
+            }
+        }
+        None
     }
 
     fn print(&self) -> String {
@@ -138,7 +153,7 @@ impl<'a> Program<'a> {
     }
 }
 
-fn parse(mut lines: impl Iterator<Item = String>) -> (Vec<u8>, Vec<Insn>, (u64, u64, u64)) {
+fn parse(mut lines: impl Iterator<Item = String>) -> (Vec<u8>, Vec<Insn>, Regs) {
     let a = lines.next().unwrap().strip_prefix("Register A: ").unwrap().parse().unwrap();
     let b = lines.next().unwrap().strip_prefix("Register B: ").unwrap().parse().unwrap();
     let c = lines.next().unwrap().strip_prefix("Register C: ").unwrap().parse().unwrap();
@@ -159,51 +174,42 @@ fn parse(mut lines: impl Iterator<Item = String>) -> (Vec<u8>, Vec<Insn>, (u64, 
 fn part1(lines: impl Iterator<Item = String>) {
     let (_, insns, regs) = parse(lines);
     let mut prog = Program::new(&insns, regs);
-    prog.run();
+    prog.eval();
     println!("{}", prog.print());
 }
 
-// fn program(mut a: u64, mut b: u64, mut c: u64) {
-//     loop {
-//         b = a % 8;
-//         b = b ^ 5;
-//         c = a / (1 << b);
-//         a = a / (1 << 3);
-//         b = b ^ 6;
-//         b = b ^ c;
-//         print(b % 8);
-//         if a == 0 {
-//             break;
-//         }
-//     }
-// }
+fn part2(lines: impl Iterator<Item = String>) {
+    // This solution is dedicated to the puzzle input and not a generic solution.
+    // The input consists of a single loop. Each iteration outputs a single value and divides A register by 8.
+    // The lowest octal digit of A register value affects each output value. B and C registers are initialized
+    // on each iteration. So we can search the A register value assuming that the each octal digits produce
+    // each expected output values in order.
+    //
+    // To solve this problem generically, we can convert the program into Z3 solver's equations and solve the
+    // equations by Z3 solver.
 
-fn part2(_: impl Iterator<Item = String>) {
-    use z3::ast::BV;
-    use z3::{Config, Context, Optimize, SatResult};
+    let (raw, mut insns, (_, b, c)) = parse(lines);
 
-    let cfg = Config::new();
-    let ctx = Context::new(&cfg);
-    let solver = Optimize::new(&ctx);
-    let answer = BV::new_const(&ctx, "A", 64);
+    // Remove unnecessary instructions from the program to evaluate only one iteration of the loop.
+    insns.remove(insns.iter().position(|i| i.code == Opcode::Adv).unwrap());
+    insns.remove(insns.iter().position(|i| i.code == Opcode::Jnz).unwrap());
 
-    let mut a = answer.clone();
-    for i in [2, 4, 1, 5, 7, 5, 0, 3, 1, 6, 4, 3, 5, 5, 3, 0] {
-        let mut b = a.bvsmod(&BV::from_u64(&ctx, 8, 64));
-        b = &b ^ BV::from_u64(&ctx, 5, 64);
-        let c = a.bvsdiv(&(BV::from_u64(&ctx, 1, 64) << &b));
-        a = a.bvsdiv(&BV::from_u64(&ctx, 1 << 3, 64));
-        b = &b ^ BV::from_u64(&ctx, 6, 64);
-        b = &b ^ &c;
-        solver.assert(&b.bvsmod(&BV::from_u64(&ctx, 8, 64))._eq(&BV::from_u64(&ctx, i, 64)));
+    fn solve(insns: &[Insn], (a, b, c): Regs, want: &[u64]) -> Option<u64> {
+        let Some((&last, init)) = want.split_last() else {
+            return Some(a);
+        };
+        (0..8)
+            .map(|octal| (a << 3) + octal)
+            .filter(|&a| {
+                let mut prog = Program::new(insns, (a, b, c));
+                let digit = prog.eval_until_out().unwrap();
+                last == digit
+            })
+            .find_map(|a| solve(insns, (a, b, c), init))
     }
-    solver.assert(&a._eq(&BV::from_u64(&ctx, 0, 64)));
-    solver.minimize(&answer); // We need the smallest number
 
-    assert_eq!(solver.check(&[]), SatResult::Sat);
-    let model = solver.get_model().unwrap();
-    let result = model.eval(&answer, true).unwrap();
-    println!("{}", result.as_u64().unwrap());
+    let want: Vec<u64> = raw.into_iter().map(|i| i as _).collect();
+    println!("{}", solve(&insns, (0, b, c), &want).unwrap());
 }
 
 fn main() {
