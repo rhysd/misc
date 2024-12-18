@@ -3,12 +3,14 @@ use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::env;
 use std::io::{self, BufRead};
 
+type Pos = (usize, usize);
+
 const W: usize = 71;
 const H: usize = 71;
 
-fn steps(bytes: &HashSet<(usize, usize)>) -> Option<u32> {
+fn steps(bytes: &HashSet<Pos>) -> Option<u32> {
     struct State {
-        pos: (usize, usize),
+        pos: Pos,
         steps: u32,
     }
 
@@ -66,7 +68,7 @@ fn steps(bytes: &HashSet<(usize, usize)>) -> Option<u32> {
 }
 
 fn part1(lines: impl Iterator<Item = String>) {
-    let bytes: HashSet<(usize, usize)> = lines
+    let bytes: HashSet<Pos> = lines
         .take(1024)
         .map(|l| {
             let mut s = l.split(',');
@@ -77,23 +79,28 @@ fn part1(lines: impl Iterator<Item = String>) {
 }
 
 fn part2(lines: impl Iterator<Item = String>) {
-    let all_bytes: Vec<(usize, usize)> = lines
+    let all_bytes: Vec<Pos> = lines
         .map(|l| {
             let mut s = l.split(',');
             (s.next().unwrap().parse().unwrap(), s.next().unwrap().parse().unwrap())
         })
         .collect();
 
-    let mut bytes = HashSet::new();
-
-    for byte in all_bytes.into_iter() {
-        bytes.insert(byte);
-        if steps(&bytes).is_none() {
-            let (x, y) = byte;
-            println!("{x},{y}");
-            return;
+    fn bin_search(all: &[Pos], lo: usize, hi: usize) -> usize {
+        if hi - lo <= 1 {
+            return lo;
+        }
+        let mid = (lo + hi) / 2;
+        let bytes: HashSet<_> = all.iter().take(mid).copied().collect();
+        if steps(&bytes).is_some() {
+            bin_search(all, mid, hi)
+        } else {
+            bin_search(all, lo, mid)
         }
     }
+
+    let (x, y) = all_bytes[bin_search(&all_bytes, 0, all_bytes.len())];
+    println!("{x},{y}");
 }
 
 fn main() {
