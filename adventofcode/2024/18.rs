@@ -8,6 +8,15 @@ type Pos = (usize, usize);
 const W: usize = 71;
 const H: usize = 71;
 
+fn parse<T: FromIterator<Pos>>(lines: impl Iterator<Item = String>) -> T {
+    lines
+        .map(|l| {
+            let mut s = l.split(',');
+            (s.next().unwrap().parse().unwrap(), s.next().unwrap().parse().unwrap())
+        })
+        .collect()
+}
+
 fn steps(bytes: &HashSet<Pos>) -> Option<u32> {
     struct State {
         pos: Pos,
@@ -68,27 +77,16 @@ fn steps(bytes: &HashSet<Pos>) -> Option<u32> {
 }
 
 fn part1(lines: impl Iterator<Item = String>) {
-    let bytes: HashSet<Pos> = lines
-        .take(1024)
-        .map(|l| {
-            let mut s = l.split(',');
-            (s.next().unwrap().parse().unwrap(), s.next().unwrap().parse().unwrap())
-        })
-        .collect();
+    let bytes: HashSet<Pos> = parse(lines.take(1024));
     println!("{}", steps(&bytes).unwrap());
 }
 
 fn part2(lines: impl Iterator<Item = String>) {
-    let all_bytes: Vec<Pos> = lines
-        .map(|l| {
-            let mut s = l.split(',');
-            (s.next().unwrap().parse().unwrap(), s.next().unwrap().parse().unwrap())
-        })
-        .collect();
+    let all_bytes: Vec<Pos> = parse(lines);
 
-    fn bin_search(all: &[Pos], lo: usize, hi: usize) -> usize {
+    fn bin_search(all: &[Pos], lo: usize, hi: usize) -> Option<Pos> {
         if hi - lo <= 1 {
-            return lo;
+            return all.get(lo).copied();
         }
         let mid = (lo + hi) / 2;
         let bytes: HashSet<_> = all.iter().take(mid).copied().collect();
@@ -99,7 +97,7 @@ fn part2(lines: impl Iterator<Item = String>) {
         }
     }
 
-    let (x, y) = all_bytes[bin_search(&all_bytes, 0, all_bytes.len())];
+    let (x, y) = bin_search(&all_bytes, 0, all_bytes.len()).unwrap();
     println!("{x},{y}");
 }
 
