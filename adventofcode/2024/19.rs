@@ -6,8 +6,13 @@ fn part1(mut lines: impl Iterator<Item = String>) {
     let line = lines.next().unwrap();
     let towels: Vec<_> = line.split(", ").collect();
     assert!(lines.next().unwrap().is_empty());
+    let designs: Vec<_> = lines.collect();
 
-    fn is_possible(design: &str, towels: &[&str], memo: &mut HashMap<String, bool>) -> bool {
+    fn is_possible<'a>(
+        design: &'a str,
+        towels: &[&str],
+        memo: &mut HashMap<&'a str, bool>,
+    ) -> bool {
         if design.is_empty() {
             return true;
         }
@@ -18,20 +23,21 @@ fn part1(mut lines: impl Iterator<Item = String>) {
             .iter()
             .flat_map(|t| design.strip_prefix(t))
             .any(|d| is_possible(d, towels, memo));
-        memo.insert(design.to_string(), ret);
+        memo.insert(design, ret);
         ret
     }
 
     let mut memo = HashMap::new();
-    println!("{}", lines.filter(|d| is_possible(d, &towels, &mut memo)).count());
+    println!("{}", designs.iter().filter(|d| is_possible(d, &towels, &mut memo)).count());
 }
 
 fn part2(mut lines: impl Iterator<Item = String>) {
     let line = lines.next().unwrap();
     let towels: Vec<_> = line.split(", ").collect();
     assert!(lines.next().unwrap().is_empty());
+    let designs: Vec<_> = lines.collect();
 
-    fn combinations(design: &str, towels: &[&str], memo: &mut HashMap<String, u64>) -> u64 {
+    fn combinations<'a>(design: &'a str, towels: &[&str], memo: &mut HashMap<&'a str, u64>) -> u64 {
         if design.is_empty() {
             return 1;
         }
@@ -43,12 +49,12 @@ fn part2(mut lines: impl Iterator<Item = String>) {
             .flat_map(|t| design.strip_prefix(t))
             .map(|d| combinations(d, towels, memo))
             .sum();
-        memo.insert(design.to_string(), ret);
+        memo.insert(design, ret);
         ret
     }
 
     let mut memo = HashMap::new();
-    println!("{}", lines.map(|d| combinations(&d, &towels, &mut memo)).sum::<u64>());
+    println!("{}", designs.iter().map(|d| combinations(d, &towels, &mut memo)).sum::<u64>());
 }
 
 fn main() {
