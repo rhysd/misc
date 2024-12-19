@@ -1,0 +1,7 @@
+on: push
+
+jobs:
+  test:
+    runs-on: macos-12
+    steps:
+      - run: echo hello
