@@ -97,7 +97,8 @@ fn part2(lines: impl Iterator<Item = String>) {
         }
     }
 
-    let (x, y) = bin_search(&all_bytes, 0, all_bytes.len()).unwrap();
+    // From part1, we know that the goal is reachable with first 1024 bytes
+    let (x, y) = bin_search(&all_bytes, 1024, all_bytes.len()).unwrap();
     println!("{x},{y}");
 }
 
