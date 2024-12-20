@@ -159,8 +159,9 @@ impl Maze {
         let mut count = 0;
         for (before, (sx, sy)) in path.into_iter().enumerate() {
             for x in sx.saturating_sub(max)..(sx + max + 1).min(self.width) {
-                for y in sy.saturating_sub(max)..(sy + max + 1).min(self.height) {
-                    let cheat = x.abs_diff(sx) + y.abs_diff(sy);
+                let dx = x.abs_diff(sx);
+                for y in sy.saturating_sub(max - dx)..(sy + max - dx + 1).min(self.height) {
+                    let cheat = dx + y.abs_diff(sy);
                     if 2 <= cheat && cheat <= max && self.cells[y][x] == Cell::Track {
                         if let Some((after, _)) = self.path((x, y)) {
                             let steps = before + cheat + after;
