@@ -1,58 +1,23 @@
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::{HashMap, VecDeque};
 use std::env;
 use std::io::{self, BufRead};
 use std::mem;
 use std::rc::Rc;
 
+const DIR_BUTTONS: [u8; 5] = [b'^', b'>', b'v', b'<', b'A'];
+
 type Buttons = HashMap<u8, [Option<u8>; 4]>;
 
+// +---+---+---+
+// | 7 | 8 | 9 |
+// +---+---+---+
+// | 4 | 5 | 6 |
+// +---+---+---+
+// | 1 | 2 | 3 |
+// +---+---+---+
+//     | 0 | A |
 //     +---+---+
-//     | ^ | A |
-// +---+---+---+
-// | < | v | > |
-// +---+---+---+
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(u8)]
-enum Dir {
-    U = b'^',
-    R = b'>',
-    D = b'v',
-    L = b'<',
-}
-
-impl Dir {
-    fn new(idx: usize) -> Self {
-        match idx {
-            0 => Self::U,
-            1 => Self::R,
-            2 => Self::D,
-            3 => Self::L,
-            _ => unreachable!(),
-        }
-    }
-
-    fn distance_a(self) -> u64 {
-        match self {
-            Self::U => 1,
-            Self::R => 1,
-            Self::D => 2,
-            Self::L => 3,
-        }
-    }
-
-    fn distance(self, to: Self) -> u64 {
-        use Dir::*;
-        let move_cost = match (self, to) {
-            (U, R) | (R, U) | (U, L) | (L, U) | (R, L) | (L, R) => 2,
-            (U, D) | (D, U) | (R, D) | (D, R) | (D, L) | (L, D) => 1,
-            (U, U) | (R, R) | (D, D) | (L, L) => 0,
-        };
-        move_cost + to.distance_a()
-    }
-}
-
 #[rustfmt::skip]
 fn numeric_pad() -> Buttons {
     HashMap::from([
@@ -71,6 +36,11 @@ fn numeric_pad() -> Buttons {
     ])
 }
 
+//     +---+---+
+//     | ^ | A |
+// +---+---+---+
+// | < | v | > |
+// +---+---+---+
 #[rustfmt::skip]
 fn directional_pad() -> Buttons {
     HashMap::from([
@@ -83,7 +53,6 @@ fn directional_pad() -> Buttons {
     ])
 }
 
-#[derive(Default)]
 struct PathNode(u8, Option<Rc<PathNode>>);
 
 #[derive(Default, Clone)]
@@ -95,27 +64,21 @@ impl Path {
         self.0 = Some(Rc::new(PathNode(b, head)));
     }
 
-    fn extend(&self, dest: &mut Vec<u8>) {
-        let start = dest.len();
+    fn to_vec(&self) -> Vec<u8> {
+        let mut ret = vec![];
         let mut cur = &self.0;
         while let Some(PathNode(pos, next)) = cur.as_deref() {
-            dest.push(*pos);
+            ret.push(*pos);
             cur = next;
         }
-        dest[start..].reverse();
+        ret.reverse();
+        ret
     }
 }
 
-fn shortest_path(pad: &Buttons, start: u8, goal: u8) -> Path {
-    if start == goal {
-        let mut path = Path::default();
-        path.prepend(b'A');
-        return path;
-    }
-
+fn shortest_paths(pad: &Buttons, start: u8, goal: u8) -> Vec<Vec<u8>> {
     struct State {
         pos: u8,
-        dir: Dir,
         path: Path,
         cost: u64,
     }
@@ -140,18 +103,15 @@ fn shortest_path(pad: &Buttons, start: u8, goal: u8) -> Path {
 
     impl Eq for State {}
 
-    let mut queue = BinaryHeap::new();
-    for (i, b) in pad[&start].iter().enumerate() {
-        if b.is_some() {
-            let dir = Dir::new(i);
-            queue.push(State { pos: start, cost: 0, path: Path::default(), dir });
-        }
-    }
-
+    let mut queue = VecDeque::from([State { pos: start, cost: 0, path: Path::default() }]);
     let mut dist = HashMap::new();
-    while let Some(State { pos, path, dir, cost }) = queue.pop() {
+    let mut ret = vec![];
+    while let Some(State { pos, path, cost }) = queue.pop_front() {
         if pos == goal {
-            return path;
+            let mut path = path.to_vec();
+            path.push(b'A');
+            ret.push(path);
+            continue;
         }
 
         if let Some(&c) = dist.get(&pos) {
@@ -160,74 +120,35 @@ fn shortest_path(pad: &Buttons, start: u8, goal: u8) -> Path {
             }
         }
 
-        for (i, b) in pad[&pos].iter().enumerate() {
-            let Some(b) = *b else {
+        let cost = cost + 1;
+        for (i, pos) in pad[&pos].iter().enumerate() {
+            let Some(pos) = *pos else {
                 continue;
             };
 
-            let next_dir = Dir::new(i);
-            let mut cost = cost + dir.distance(next_dir);
-            if b == goal {
-                cost += next_dir.distance_a();
-            }
-            if let Some(&c) = dist.get(&b) {
-                if c < cost {
+            if let Some(&c) = dist.get(&pos) {
+                if cost > c {
                     continue;
                 }
             }
 
             let mut path = path.clone();
-            path.prepend(next_dir as u8);
-            if b == goal {
-                path.prepend(b'A');
-            }
+            path.prepend(DIR_BUTTONS[i]);
 
-            dist.insert(b, cost);
-            queue.push(State { pos: b, dir: next_dir, cost, path });
+            dist.insert(pos, cost);
+            queue.push_back(State { pos, cost, path });
         }
     }
 
-    unreachable!("could not reach")
+    ret
 }
 
-fn shortest_seq(pad: &Buttons, input: &[u8]) -> Vec<u8> {
-    let mut seq = vec![];
-    let mut from = b'A';
-    for &to in input {
-        shortest_path(pad, from, to).extend(&mut seq);
-        from = to;
-    }
-    seq
-}
-
-fn part1(lines: impl Iterator<Item = String>) {
-    let numeric = numeric_pad();
-    let directional = directional_pad();
-    let total: u64 = lines
-        .map(|l| {
-            let input = l.as_bytes();
-            let num = l.strip_suffix('A').unwrap_or(&l).parse::<u64>().unwrap();
-
-            let mut seq = shortest_seq(&numeric, input);
-            for _ in 0..2 {
-                seq = shortest_seq(&directional, &seq);
-            }
-
-            seq.len() as u64 * num
-        })
-        .sum();
-    println!("{total}");
-}
-
-fn dir_seqs() -> HashMap<(u8, u8), Vec<u8>> {
-    const BUTTONS: [u8; 5] = [Dir::U as u8, Dir::R as u8, Dir::D as u8, Dir::L as u8, b'A'];
+fn precompute_dir_seqs() -> HashMap<(u8, u8), Vec<Vec<u8>>> {
     let mut ret = HashMap::new();
     let pad = directional_pad();
-    for from in BUTTONS {
-        for to in BUTTONS {
-            let mut seq = vec![];
-            shortest_path(&pad, from, to).extend(&mut seq);
-            ret.insert((from, to), seq);
+    for from in DIR_BUTTONS {
+        for to in DIR_BUTTONS {
+            ret.insert((from, to), shortest_paths(&pad, from, to));
         }
     }
     ret
@@ -236,7 +157,7 @@ fn dir_seqs() -> HashMap<(u8, u8), Vec<u8>> {
 fn solve_directional<'a>(
     input: &'a [u8],
     remaining: u8,
-    dir_seqs: &'a HashMap<(u8, u8), Vec<u8>>,
+    all_dir_seqs: &'a HashMap<(u8, u8), Vec<Vec<u8>>>,
     cache: &mut HashMap<(&'a [u8], u8), u64>,
 ) -> u64 {
     if remaining == 0 {
@@ -248,33 +169,60 @@ fn solve_directional<'a>(
     let mut ret = 0;
     let mut from = b'A';
     for &to in input {
-        ret += solve_directional(&dir_seqs[&(from, to)], remaining - 1, dir_seqs, cache);
+        ret += all_dir_seqs[&(from, to)]
+            .iter()
+            .map(|seq| solve_directional(seq, remaining - 1, all_dir_seqs, cache))
+            .min()
+            .unwrap();
         from = to;
     }
     cache.insert((input, remaining), ret);
     ret
 }
 
-fn part2(lines: impl Iterator<Item = String>) {
-    // Precompute all initial sequences to reuse cache accross all computations making the borrow checker happy.
+fn solve(num_dir_robots: u8, lines: impl Iterator<Item = String>) -> u64 {
+    // Precompute all initial sequences to reuse cache accross all codes with making the borrow checker happy.
     let numeric = numeric_pad();
     let inits: Vec<_> = lines
         .map(|l| {
-            let num = l.strip_suffix('A').unwrap_or(&l).parse::<u64>().unwrap();
-            (num, shortest_seq(&numeric, l.as_bytes()))
+            let mut from = b'A';
+            let mut init = vec![];
+            for &to in l.as_bytes() {
+                init.push(shortest_paths(&numeric, from, to));
+                from = to;
+            }
+            let num: u64 = l.strip_suffix('A').unwrap_or(&l).parse().unwrap();
+            (num, init)
         })
         .collect();
 
-    let dir_seqs = dir_seqs();
+    let all_dir_seqs = precompute_dir_seqs();
     let mut cache = HashMap::new();
-    let total: u64 = inits
+    inits
         .iter()
         .map(|(num, init)| {
-            let len = solve_directional(init, 25, &dir_seqs, &mut cache);
-            len * *num
+            let min_len: u64 = init
+                .iter()
+                .map(|seqs| {
+                    seqs.iter()
+                        .map(|seq| {
+                            solve_directional(seq, num_dir_robots, &all_dir_seqs, &mut cache)
+                        })
+                        .min()
+                        .unwrap()
+                })
+                .sum();
+            *num * min_len
         })
-        .sum();
-    println!("{total}");
+        .sum()
+}
+
+fn part1(lines: impl Iterator<Item = String>) {
+    println!("{}", solve(2, lines));
+}
+
+fn part2(lines: impl Iterator<Item = String>) {
+    println!("{}", solve(25, lines));
 }
 
 fn main() {
