@@ -1,5 +1,4 @@
 /target
 /template.rs
-/test/*.stdout
-/test/*.diff
+/test
 /*.txt
