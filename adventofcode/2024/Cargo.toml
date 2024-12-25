@@ -100,9 +100,9 @@ path = "23.rs"
 name = "24"
 path = "24.rs"
 
-# [[bin]]
-# name = "25"
-# path = "25.rs"
+[[bin]]
+name = "25"
+path = "25.rs"
 
 [dependencies]
 rayon = "1.10.0"
