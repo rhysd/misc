@@ -119,7 +119,9 @@ fn part2(lines: impl Iterator<Item = String>) {
         }
     }
 
-    let gates: HashMap<_, _> = lines
+    type Gates<'a> = HashMap<&'a str, Gate<'a>>;
+
+    let gates: Gates<'_> = lines
         .map(|l| {
             let g = Gate::parse(l);
             (g.out, g)
@@ -159,54 +161,64 @@ fn part2(lines: impl Iterator<Item = String>) {
             }
         }
 
-        fn validate_full_adder_or(&mut self, g: &Gate<'a>, gates: &HashMap<&'a str, Gate<'a>>) {
-            let &Gate { l, r, out, .. } = g;
-            if out.starts_with("z") && out != "z45" {
-                // z45 is the most significant bit
-                self.invalid.push(out);
-            }
-            // Validate children `c1(n)` and `c2(n)`
-            let lc = gates.get(l).unwrap();
-            let rc = gates.get(r).unwrap();
-            if lc.op != Op::And {
-                self.invalid.push(l);
-            }
-            if rc.op != Op::And {
-                self.invalid.push(r);
-            }
-            // Validate `c2(n)`
-            let cc = if self.validate_x_y(lc) {
-                if lc.op != Op::And {
-                    self.invalid.push(lc.out);
-                }
-                rc
-            } else if self.validate_x_y(rc) {
-                if rc.op != Op::And {
-                    self.invalid.push(rc.out);
-                }
-                lc
-            } else {
+        // Validate `c1(n) = x(n) AND y(n)`
+        fn validate_full_adder_c1(&mut self, g: &Gate<'a>) {
+            if !self.validate_x_y(g) || g.op != Op::And {
                 self.invalid.push(g.out);
-                return;
-            };
-            let lcc = gates.get(cc.l).unwrap();
-            let rcc = gates.get(cc.r).unwrap();
-            // Validate `z1(n)`
-            let zc = if self.validate_x_y(lcc) {
-                lcc
-            } else if self.validate_x_y(rcc) {
-                rcc
-            } else {
-                self.invalid.push(cc.out);
-                return;
-            };
-            // Validate `z1(n) = x(n) XOR y(n)`
-            if zc.op != Op::Xor {
-                self.invalid.push(zc.out);
             }
         }
 
-        fn validate_full_adder(&mut self, g: &Gate<'a>, gates: &HashMap<&'a str, Gate<'a>>) {
+        // Validate `z1(n) = x(n) XOR y(n)`
+        fn validate_full_adder_z1(&mut self, g: &Gate<'a>) {
+            if !self.validate_x_y(g) {
+                self.invalid.push(g.out);
+                return;
+            }
+            // Note: Half-adder is validated by `validate_half_adder()`
+            if g.l != "x00" && g.op != Op::Xor {
+                self.invalid.push(g.out);
+            }
+        }
+
+        // Validate `c2(n) = z1(n) AND c(n-1)`
+        fn validate_full_adder_c2(&mut self, g: &Gate<'a>, gates: &Gates<'a>) {
+            if g.op != Op::And || self.validate_x_y(g) {
+                self.invalid.push(g.out);
+            }
+            let l = gates.get(g.l).unwrap();
+            let r = gates.get(g.r).unwrap();
+            if l.l.starts_with('x') {
+                self.validate_full_adder_z1(l);
+            } else if r.l.starts_with('x') {
+                self.validate_full_adder_z1(r);
+            };
+        }
+
+        // Validate `c(n) = c1(n) OR c2(n)`
+        fn validate_full_adder_c(&mut self, g: &Gate<'a>, gates: &Gates<'a>) {
+            let &Gate { l, r, out, .. } = g;
+
+            // c(45) is z(45) because z45 is the most significant bit
+            if out.starts_with("z") && out != "z45" {
+                self.invalid.push(out);
+                return;
+            }
+
+            // Validate children `c1(n)` and `c2(n)`
+            let l = gates.get(l).unwrap();
+            let r = gates.get(r).unwrap();
+            let (c1, c2) = if l.l.starts_with('x') {
+                (l, r)
+            } else if r.l.starts_with('x') {
+                (r, l)
+            } else {
+                return;
+            };
+            self.validate_full_adder_c1(c1);
+            self.validate_full_adder_c2(c2, gates);
+        }
+
+        fn validate_full_adder(&mut self, g: &Gate<'a>, gates: &Gates<'a>) {
             let &Gate { op, out, .. } = g;
             let is_x_y = self.validate_x_y(g);
             if is_x_y {
@@ -230,11 +242,11 @@ fn part2(lines: impl Iterator<Item = String>) {
                         self.invalid.push(out);
                     }
                 }
-                Op::Or => self.validate_full_adder_or(g, gates),
+                Op::Or => self.validate_full_adder_c(g, gates),
             }
         }
 
-        fn validate(&mut self, gates: &HashMap<&'a str, Gate<'a>>) {
+        fn validate(&mut self, gates: &Gates<'a>) {
             for gate in gates.values() {
                 if gate.l == "x00" {
                     self.validate_half_adder(gate);
