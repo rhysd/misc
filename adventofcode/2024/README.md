@@ -1,5 +1,15 @@
 Answers for https://adventofcode.com/2024
 
+## Difficulty
+
+- E: Easy
+- N: Normal
+- H: Hard
+
+| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 |
+|---|---|---|---|---|---|---|---|---|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
+| E | E | E | E | E | N | E | E | N | E  | N  | H  | E  | N  | N  | N  | H  | E  | N  | N  | H  | E  | N  | H  | E  |
+
 ## Usage
 
 Run solve all puzzles and check diffs:
