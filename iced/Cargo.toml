@@ -4,10 +4,13 @@ version = "0.0.0"
 edition = "2021"
 publish = false
 
-
 [[bin]]
 name = "counter"
 path = "src/counter.rs"
 
+[[bin]]
+name = "pomodoro"
+path = "src/pomodoro.rs"
+
 [dependencies]
-iced = "0.13.1"
+iced = { version = "0.13.1", features = ["tokio"] }
