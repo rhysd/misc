@@ -16,23 +16,34 @@ enum Message {
     Reset,
 }
 
+#[derive(Clone, Copy)]
+enum Pending {
+    Working(u16),
+    Breaking(u16),
+}
+
 #[derive(Default, Clone, Copy)]
 enum Pomodoro {
     #[default]
     Ready,
-    Running(u16),
-    Pending(u16),
+    Working(u16),
+    Breaking(u16),
+    Pending(Pending),
     Done,
 }
 
 impl Pomodoro {
     fn update(&mut self, message: Message) {
         *self = match (message, *self) {
-            (Message::Start, _) => Self::Running(1800),
-            (Message::Tick, Self::Running(c)) if c > 1 => Self::Running(c - 1),
-            (Message::Tick, Self::Running(_)) => Self::Done,
-            (Message::Pause, Self::Running(c)) => Self::Pending(c),
-            (Message::Resume, Self::Pending(c)) => Self::Running(c),
+            (Message::Start, _) => Self::Working(1500),
+            (Message::Tick, Self::Working(c)) if c > 1 => Self::Working(c - 1),
+            (Message::Tick, Self::Working(_)) => Self::Breaking(300),
+            (Message::Tick, Self::Breaking(c)) if c > 1 => Self::Breaking(c - 1),
+            (Message::Tick, Self::Breaking(_)) => Self::Done,
+            (Message::Pause, Self::Working(c)) => Self::Pending(Pending::Working(c)),
+            (Message::Pause, Self::Breaking(c)) => Self::Pending(Pending::Breaking(c)),
+            (Message::Resume, Self::Pending(Pending::Working(c))) => Self::Working(c),
+            (Message::Resume, Self::Pending(Pending::Breaking(c))) => Self::Breaking(c),
             (Message::Reset, _) => Self::Ready,
             (_, cur) => cur,
         };
@@ -41,15 +52,18 @@ impl Pomodoro {
     fn timer_color(&self) -> Option<Color> {
         match self {
             Self::Ready | Self::Pending(_) => Some([0.7, 0.7, 0.7, 1.0].into()),
-            Self::Running(_) => None,
+            Self::Working(_) => None,
+            Self::Breaking(_) => Some(Color::from_rgb8(0, 169, 138)),
             Self::Done => Some([1.0, 0.0, 0.0, 1.0].into()),
         }
     }
 
     fn count(&self) -> u16 {
         match *self {
-            Self::Ready => 1800,
-            Self::Running(c) | Self::Pending(c) => c,
+            Self::Ready => 1500,
+            Self::Working(c)
+            | Self::Breaking(c)
+            | Self::Pending(Pending::Working(c) | Pending::Breaking(c)) => c,
             Self::Done => 0,
         }
     }
@@ -76,7 +90,7 @@ impl Pomodoro {
 
         let left = match self {
             Self::Ready => btn("Start", Message::Start),
-            Self::Running(_) => btn("Pause", Message::Pause),
+            Self::Working(_) | Self::Breaking(_) => btn("Pause", Message::Pause),
             Self::Pending(_) => btn("Resume", Message::Resume),
             Self::Done => btn("Start", Message::Start),
         };
@@ -96,7 +110,9 @@ impl Pomodoro {
 
     fn subscription(&self) -> Subscription<Message> {
         match self {
-            Self::Running(_) => time::every(Duration::from_secs(1)).map(|_| Message::Tick),
+            Self::Working(_) | Self::Breaking(_) => {
+                time::every(Duration::from_secs(1)).map(|_| Message::Tick)
+            }
             _ => Subscription::none(),
         }
     }
