@@ -12,5 +12,9 @@ path = "src/counter.rs"
 name = "pomodoro"
 path = "src/pomodoro.rs"
 
+[[bin]]
+name = "image-viewer"
+path = "src/image_viewer.rs"
+
 [dependencies]
-iced = { version = "0.13.1", features = ["tokio"] }
+iced = { version = "0.13.1", features = ["tokio", "image", "advanced"] }
