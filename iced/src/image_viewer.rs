@@ -3,9 +3,10 @@ use iced::keyboard::{key, Event as KeyEvent, Key};
 use iced::widget::container::Style;
 use iced::widget::image::{Handle, Image, Viewer};
 use iced::widget::{column, container, text, Column, Container, Row};
-use iced::window::settings::{PlatformSpecific, Settings};
 use iced::{application, event, Border, Event, Length::Fill, Subscription, Theme};
 use std::env;
+use std::fs;
+use std::path::PathBuf;
 
 const BORDER_WIDTH: f32 = 2.0;
 
@@ -34,9 +35,25 @@ struct App {
 
 impl Default for App {
     fn default() -> Self {
+        let mut handles = vec![];
+        for path in env::args_os().skip(1) {
+            let path = PathBuf::from(path);
+            if path.is_file() {
+                handles.push(Handle::from_path(path));
+            } else if path.is_dir() {
+                handles.extend(
+                    fs::read_dir(&path)
+                        .unwrap()
+                        .flatten()
+                        .map(|e| e.path())
+                        .filter(|p| p.is_file())
+                        .map(Handle::from_path),
+                );
+            }
+        }
         Self {
             current: 0,
-            handles: env::args_os().skip(1).map(Handle::from_path).collect(),
+            handles,
         }
     }
 }
@@ -106,13 +123,6 @@ fn main() -> iced::Result {
     application("Image Viewer", App::update, App::view)
         .subscription(App::subscription)
         .theme(App::theme)
-        .window(Settings {
-            platform_specific: PlatformSpecific {
-                titlebar_transparent: true,
-                ..Default::default()
-            },
-            size: (800.0, 600.0).into(),
-            ..Default::default()
-        })
+        .window_size((800.0, 600.0))
         .run()
 }
