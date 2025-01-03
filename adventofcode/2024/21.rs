@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
 use std::env;
 use std::io::{self, BufRead};
@@ -77,36 +76,10 @@ impl Path {
 }
 
 fn shortest_paths(pad: &Buttons, start: u8, goal: u8) -> Vec<Vec<u8>> {
-    struct State {
-        pos: u8,
-        path: Path,
-        cost: u64,
-    }
-
-    impl Ord for State {
-        fn cmp(&self, other: &Self) -> Ordering {
-            other.cost.cmp(&self.cost)
-        }
-    }
-
-    impl PartialOrd for State {
-        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-            Some(self.cmp(other))
-        }
-    }
-
-    impl PartialEq for State {
-        fn eq(&self, other: &Self) -> bool {
-            self.cmp(other) == Ordering::Equal
-        }
-    }
-
-    impl Eq for State {}
-
-    let mut queue = VecDeque::from([State { pos: start, cost: 0, path: Path::default() }]);
+    let mut queue = VecDeque::from([(start, 0, Path::default())]);
     let mut dist = HashMap::new();
     let mut ret = vec![];
-    while let Some(State { pos, path, cost }) = queue.pop_front() {
+    while let Some((pos, cost, path)) = queue.pop_front() {
         if pos == goal {
             let mut path = path.to_vec();
             path.push(b'A');
@@ -136,7 +109,7 @@ fn shortest_paths(pad: &Buttons, start: u8, goal: u8) -> Vec<Vec<u8>> {
             path.prepend(DIR_BUTTONS[i]);
 
             dist.insert(pos, cost);
-            queue.push_back(State { pos, cost, path });
+            queue.push_back((pos, cost, path));
         }
     }
 
