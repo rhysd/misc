@@ -1,31 +1,19 @@
 use iced::alignment::{Horizontal, Vertical};
 use iced::keyboard::{key, Event as KeyEvent, Key};
-use iced::widget::container::Style;
 use iced::widget::image::{Handle, Image, Viewer};
-use iced::widget::{column, container, text, Column, Container, Row};
-use iced::{application, event, Border, Event, Length::Fill, Subscription, Theme};
+use iced::widget::{button, column, container, text, Column, Container, Row};
+use iced::{application, event, Event, Length::Fill, Subscription, Theme};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 
 const BORDER_WIDTH: f32 = 2.0;
 
-fn bordered(theme: &Theme) -> Style {
-    let p = theme.palette();
-    Style {
-        border: Border {
-            color: p.primary,
-            width: BORDER_WIDTH,
-            ..Default::default()
-        },
-        ..Default::default()
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 enum Message {
     NextImage,
     PrevImage,
+    SetCurrent(usize),
 }
 
 struct App {
@@ -63,6 +51,7 @@ impl App {
         match message {
             Message::NextImage if self.current < self.handles.len() - 1 => self.current += 1,
             Message::PrevImage if self.current > 0 => self.current -= 1,
+            Message::SetCurrent(idx) if idx < self.handles.len() => self.current = idx,
             _ => {}
         }
     }
@@ -70,6 +59,8 @@ impl App {
     fn thumbnail(&self) -> Row<Message> {
         const HEIGHT: f32 = 100.0;
         const MARGIN: f32 = 10.0;
+        const IMAGE_HEIGHT: f32 = HEIGHT - MARGIN * 2.0 - BORDER_WIDTH * 2.0;
+
         let start = self.current.saturating_sub(2);
         let end = self.handles.len().min(start + 5);
         let mut row = Row::new()
@@ -77,14 +68,17 @@ impl App {
             .padding(MARGIN)
             .height(HEIGHT)
             .align_y(Vertical::Center);
+
         for idx in start..end {
             let image = Image::new(&self.handles[idx]);
+            let image = button(image).on_press(Message::SetCurrent(idx));
             row = if idx == self.current {
-                row.push(container(image).style(bordered).padding(BORDER_WIDTH))
+                row.push(image.padding(BORDER_WIDTH))
             } else {
-                row.push(image.height(HEIGHT - MARGIN * 2.0 - BORDER_WIDTH * 2.0))
+                row.push(image.padding(0.0).height(IMAGE_HEIGHT))
             };
         }
+
         row
     }
 
@@ -97,7 +91,11 @@ impl App {
     }
 
     fn view(&self) -> Column<Message> {
-        column![self.viewer(), self.thumbnail()].align_x(Horizontal::Center)
+        let mut col = column![self.viewer()].align_x(Horizontal::Center);
+        if self.handles.len() > 1 {
+            col = col.push(self.thumbnail());
+        }
+        col
     }
 
     fn subscription(&self) -> Subscription<Message> {
