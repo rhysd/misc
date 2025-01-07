@@ -1,7 +1,7 @@
 use iced::alignment::{Horizontal, Vertical};
 use iced::keyboard::{key, Event as KeyEvent, Key};
 use iced::widget::image::{Handle, Image, Viewer};
-use iced::widget::{button, column, container, text, Column, Container, Row};
+use iced::widget::{button, container, row, text, Column, Container, Row};
 use iced::{application, event, Event, Length::Fill, Subscription, Theme};
 use std::env;
 use std::fs;
@@ -56,30 +56,30 @@ impl App {
         }
     }
 
-    fn thumbnail(&self) -> Row<Message> {
-        const HEIGHT: f32 = 100.0;
+    fn thumbnail(&self) -> Column<Message> {
+        const WIDTH: f32 = 150.0;
         const MARGIN: f32 = 10.0;
-        const IMAGE_HEIGHT: f32 = HEIGHT - MARGIN * 2.0 - BORDER_WIDTH * 2.0;
+        const IMAGE_WIDTH: f32 = WIDTH - MARGIN * 2.0 - BORDER_WIDTH * 2.0;
 
         let start = self.current.saturating_sub(2);
         let end = self.handles.len().min(start + 5);
-        let mut row = Row::new()
+        let mut col = Column::new()
             .spacing(MARGIN)
             .padding(MARGIN)
-            .height(HEIGHT)
-            .align_y(Vertical::Center);
+            .width(WIDTH)
+            .align_x(Horizontal::Center);
 
         for idx in start..end {
             let image = Image::new(&self.handles[idx]);
             let image = button(image).on_press(Message::SetCurrent(idx));
-            row = if idx == self.current {
-                row.push(image.padding(BORDER_WIDTH))
+            col = if idx == self.current {
+                col.push(image.padding(BORDER_WIDTH))
             } else {
-                row.push(image.padding(0.0).height(IMAGE_HEIGHT))
+                col.push(image.padding(0.0).width(IMAGE_WIDTH))
             };
         }
 
-        row
+        col
     }
 
     fn viewer(&self) -> Container<Message> {
@@ -90,22 +90,22 @@ impl App {
         }
     }
 
-    fn view(&self) -> Column<Message> {
-        let mut col = column![self.viewer()].align_x(Horizontal::Center);
+    fn view(&self) -> Row<Message> {
+        let mut row = Row::new().align_y(Vertical::Center);
         if self.handles.len() > 1 {
-            col = col.push(self.thumbnail());
+            row = row.push(self.thumbnail());
         }
-        col
+        row.push(self.viewer())
     }
 
     fn subscription(&self) -> Subscription<Message> {
         event::listen_with(|event, _status, _id| match event {
             Event::Keyboard(KeyEvent::KeyPressed {
-                key: Key::Named(key::Named::ArrowLeft),
+                key: Key::Named(key::Named::ArrowLeft | key::Named::ArrowUp),
                 ..
             }) => Some(Message::PrevImage),
             Event::Keyboard(KeyEvent::KeyPressed {
-                key: Key::Named(key::Named::ArrowRight),
+                key: Key::Named(key::Named::ArrowRight | key::Named::ArrowDown),
                 ..
             }) => Some(Message::NextImage),
             _ => None,
