@@ -2,7 +2,8 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::keyboard::{key, Event as KeyEvent, Key};
 use iced::widget::image::{Handle, Image, Viewer};
 use iced::widget::{button, container, text, Column, Container, Row};
-use iced::{application, event, Event, Length::Fill, Subscription, Theme};
+use iced::window::{self, Event as WindowEvent, Id as WindowId};
+use iced::{application, event, Event, Length::Fill, Subscription, Task, Theme};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
@@ -14,6 +15,7 @@ enum Message {
     NextImage,
     PrevImage,
     SetCurrent(usize),
+    Init(WindowId),
 }
 
 struct File {
@@ -36,6 +38,7 @@ impl File {
 struct App {
     current: usize,
     files: Vec<File>,
+    init: bool,
 }
 
 impl Default for App {
@@ -60,7 +63,11 @@ impl Default for App {
             }
         }
 
-        Self { current: 0, files }
+        Self {
+            current: 0,
+            files,
+            init: false,
+        }
     }
 }
 
@@ -73,13 +80,18 @@ impl App {
         }
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::NextImage if self.current < self.files.len() - 1 => self.current += 1,
             Message::PrevImage if self.current > 0 => self.current -= 1,
             Message::SetCurrent(idx) if idx < self.files.len() => self.current = idx,
+            Message::Init(id) if !self.init => {
+                self.init = true;
+                return window::maximize(id, true);
+            }
             _ => {}
         }
+        Task::none()
     }
 
     fn thumbnail(&self) -> Column<Message> {
@@ -125,7 +137,8 @@ impl App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        event::listen_with(|event, _status, _id| match event {
+        event::listen_with(|event, _status, id| match event {
+            Event::Window(WindowEvent::Opened { .. }) => Some(Message::Init(id)),
             Event::Keyboard(KeyEvent::KeyPressed {
                 key: Key::Named(key::Named::ArrowLeft | key::Named::ArrowUp),
                 ..
