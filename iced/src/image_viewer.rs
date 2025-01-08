@@ -1,9 +1,8 @@
 use iced::alignment::{Horizontal, Vertical};
 use iced::keyboard::{key, Event as KeyEvent, Key};
 use iced::widget::image::{Handle, Image, Viewer};
-use iced::widget::{button, container, text, Column, Container, Row};
-use iced::window::settings::{PlatformSpecific, Settings};
-use iced::{application, event, Event, Length::Fill, Padding, Subscription, Theme};
+use iced::widget::{button, container, row, text, Column, Container, Row};
+use iced::{application, event, Event, Length::Fill, Subscription, Theme};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -64,15 +63,9 @@ impl App {
 
         let start = self.current.saturating_sub(2);
         let end = self.handles.len().min(start + 5);
-        let padding = Padding {
-            top: MARGIN + 20.0,
-            left: MARGIN,
-            right: MARGIN,
-            bottom: MARGIN,
-        };
         let mut col = Column::new()
             .spacing(MARGIN)
-            .padding(padding)
+            .padding(MARGIN)
             .width(WIDTH)
             .align_x(Horizontal::Center);
 
@@ -98,7 +91,7 @@ impl App {
     }
 
     fn view(&self) -> Row<Message> {
-        let mut row = Row::new().align_y(Vertical::Center).padding(8.0);
+        let mut row = Row::new().align_y(Vertical::Center);
         if self.handles.len() > 1 {
             row = row.push(self.thumbnail());
         }
@@ -129,13 +122,5 @@ fn main() -> iced::Result {
         .subscription(App::subscription)
         .theme(App::theme)
         .window_size((800.0, 600.0))
-        .window(Settings {
-            platform_specific: PlatformSpecific {
-                title_hidden: true,
-                titlebar_transparent: true,
-                fullsize_content_view: true,
-            },
-            ..Default::default()
-        })
         .run()
 }
