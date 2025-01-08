@@ -17,4 +17,5 @@ name = "image-viewer"
 path = "src/image_viewer.rs"
 
 [dependencies]
+dirs = "5.0.1"
 iced = { version = "0.13.1", features = ["tokio", "image", "advanced"] }

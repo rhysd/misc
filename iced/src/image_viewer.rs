@@ -1,11 +1,11 @@
 use iced::alignment::{Horizontal, Vertical};
 use iced::keyboard::{key, Event as KeyEvent, Key};
 use iced::widget::image::{Handle, Image, Viewer};
-use iced::widget::{button, container, row, text, Column, Container, Row};
+use iced::widget::{button, container, text, Column, Container, Row};
 use iced::{application, event, Event, Length::Fill, Subscription, Theme};
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
 const BORDER_WIDTH: f32 = 2.0;
 
@@ -16,42 +16,68 @@ enum Message {
     SetCurrent(usize),
 }
 
+struct File {
+    handle: Handle,
+    path: String,
+}
+
+impl File {
+    fn new(path: PathBuf, home: Option<&Path>) -> Self {
+        let canon = path.canonicalize().unwrap_or_else(|_| path.clone());
+        let handle = Handle::from_path(path);
+        let path = home
+            .and_then(|p| canon.strip_prefix(p).ok())
+            .map(|p| format!("~{}{}", MAIN_SEPARATOR, p.display()))
+            .unwrap_or_else(|| canon.into_os_string().to_string_lossy().into_owned());
+        File { handle, path }
+    }
+}
+
 struct App {
     current: usize,
-    handles: Vec<Handle>,
+    files: Vec<File>,
 }
 
 impl Default for App {
     fn default() -> Self {
-        let mut handles = vec![];
+        let home = dirs::home_dir();
+        let home = home.as_deref();
+
+        let mut files = vec![];
         for path in env::args_os().skip(1) {
             let path = PathBuf::from(path);
             if path.is_file() {
-                handles.push(Handle::from_path(path));
+                files.push(File::new(path, home));
             } else if path.is_dir() {
-                handles.extend(
+                files.extend(
                     fs::read_dir(&path)
                         .unwrap()
                         .flatten()
                         .map(|e| e.path())
                         .filter(|p| p.is_file())
-                        .map(Handle::from_path),
+                        .map(|p| File::new(p, home)),
                 );
             }
         }
-        Self {
-            current: 0,
-            handles,
-        }
+
+        Self { current: 0, files }
     }
 }
 
 impl App {
+    fn title(&self) -> String {
+        if let Some(file) = self.files.get(self.current) {
+            file.path.clone()
+        } else {
+            "Image Viewer".to_string()
+        }
+    }
+
     fn update(&mut self, message: Message) {
         match message {
-            Message::NextImage if self.current < self.handles.len() - 1 => self.current += 1,
+            Message::NextImage if self.current < self.files.len() - 1 => self.current += 1,
             Message::PrevImage if self.current > 0 => self.current -= 1,
-            Message::SetCurrent(idx) if idx < self.handles.len() => self.current = idx,
+            Message::SetCurrent(idx) if idx < self.files.len() => self.current = idx,
             _ => {}
         }
     }
@@ -62,7 +88,7 @@ impl App {
         const IMAGE_WIDTH: f32 = WIDTH - MARGIN * 2.0 - BORDER_WIDTH * 2.0;
 
         let start = self.current.saturating_sub(2);
-        let end = self.handles.len().min(start + 5);
+        let end = self.files.len().min(start + 5);
         let mut col = Column::new()
             .spacing(MARGIN)
             .padding(MARGIN)
@@ -70,7 +96,7 @@ impl App {
             .align_x(Horizontal::Center);
 
         for idx in start..end {
-            let image = Image::new(&self.handles[idx]);
+            let image = Image::new(&self.files[idx].handle);
             let image = button(image).on_press(Message::SetCurrent(idx));
             col = if idx == self.current {
                 col.push(image.padding(BORDER_WIDTH))
@@ -83,8 +109,8 @@ impl App {
     }
 
     fn viewer(&self) -> Container<Message> {
-        if let Some(handle) = self.handles.get(self.current) {
-            container(Viewer::new(handle).width(Fill).height(Fill)).center(Fill)
+        if let Some(file) = self.files.get(self.current) {
+            container(Viewer::new(&file.handle).width(Fill).height(Fill)).center(Fill)
         } else {
             container(text("No image")).center(Fill)
         }
@@ -92,7 +118,7 @@ impl App {
 
     fn view(&self) -> Row<Message> {
         let mut row = Row::new().align_y(Vertical::Center);
-        if self.handles.len() > 1 {
+        if self.files.len() > 1 {
             row = row.push(self.thumbnail());
         }
         row.push(self.viewer())
@@ -118,7 +144,7 @@ impl App {
 }
 
 fn main() -> iced::Result {
-    application("Image Viewer", App::update, App::view)
+    application(App::title, App::update, App::view)
         .subscription(App::subscription)
         .theme(App::theme)
         .window_size((800.0, 600.0))
