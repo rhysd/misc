@@ -22,14 +22,27 @@ struct File {
 }
 
 impl File {
-    fn new(path: PathBuf, home: Option<&Path>) -> Self {
+    fn new(path: PathBuf, home: Option<&Path>) -> Option<Self> {
+        const IMAGE_EXTS: &[&str] = &[
+            "apng", "avif", "bmp", "gif", "jpg", "jpeg", "png", "svg", "webp", "tiff", "ico",
+        ];
+
+        if path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| !IMAGE_EXTS.contains(&e))
+            .unwrap_or(true)
+        {
+            return None;
+        };
+
         let canon = path.canonicalize().unwrap_or_else(|_| path.clone());
         let handle = Handle::from_path(path);
         let path = home
             .and_then(|p| canon.strip_prefix(p).ok())
             .map(|p| format!("~{}{}", MAIN_SEPARATOR, p.display()))
             .unwrap_or_else(|| canon.into_os_string().to_string_lossy().into_owned());
-        File { handle, path }
+        Some(File { handle, path })
     }
 }
 
@@ -47,7 +60,9 @@ impl Default for App {
         for path in env::args_os().skip(1) {
             let path = PathBuf::from(path);
             if path.is_file() {
-                files.push(File::new(path, home));
+                if let Some(file) = File::new(path, home) {
+                    files.push(file);
+                }
             } else if path.is_dir() {
                 files.extend(
                     fs::read_dir(&path)
@@ -55,7 +70,7 @@ impl Default for App {
                         .flatten()
                         .map(|e| e.path())
                         .filter(|p| p.is_file())
-                        .map(|p| File::new(p, home)),
+                        .flat_map(|p| File::new(p, home)),
                 );
             }
         }
