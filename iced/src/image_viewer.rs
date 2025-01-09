@@ -67,7 +67,7 @@ impl Default for App {
 impl App {
     fn title(&self) -> String {
         if let Some(file) = self.files.get(self.current) {
-            file.path.clone()
+            format!("{} ({}/{})", file.path, self.current + 1, self.files.len())
         } else {
             "Image Viewer".to_string()
         }
