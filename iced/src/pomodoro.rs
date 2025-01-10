@@ -1,6 +1,7 @@
 use iced::alignment::Horizontal;
 use iced::time::{self, Duration};
 use iced::widget::{button, column, container, row, text, Button, Container, Row};
+use iced::window::settings::PlatformSpecific;
 use iced::window::{Level, Settings};
 use iced::{application, Color, Length, Subscription, Theme};
 
@@ -131,6 +132,11 @@ fn main() -> iced::Result {
             size,
             max_size: Some(size),
             level: Level::AlwaysOnTop,
+            platform_specific: PlatformSpecific {
+                title_hidden: true,
+                titlebar_transparent: true,
+                fullsize_content_view: true,
+            },
             ..Default::default()
         })
         .run()
