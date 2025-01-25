@@ -7,19 +7,19 @@ cargo bench
 Result:
 
 ```
-pulldown-cmark          time:   [5.5270 ms 5.7169 ms 5.9147 ms]
-Found 6 outliers among 100 measurements (6.00%)
-  6 (6.00%) high mild
+pulldown-cmark          time:   [7.0763 ms 7.3601 ms 7.6302 ms]
 
-comrak                  time:   [19.020 ms 19.162 ms 19.317 ms]
-Found 6 outliers among 100 measurements (6.00%)
-  4 (4.00%) high mild
-  2 (2.00%) high severe
-
-cmark-gfm               time:   [12.953 ms 13.049 ms 13.159 ms]
+comrak                  time:   [19.790 ms 20.091 ms 20.459 ms]
 Found 9 outliers among 100 measurements (9.00%)
-  3 (3.00%) high mild
-  6 (6.00%) high severe
+  5 (5.00%) high mild
+  4 (4.00%) high severe
 
-markdown-rs             time:   [407.42 ms 411.27 ms 415.19 ms]
+cmark-gfm               time:   [12.905 ms 12.961 ms 13.022 ms]
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+
+markdown-rs             time:   [423.35 ms 426.78 ms 430.35 ms]
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
 ```
