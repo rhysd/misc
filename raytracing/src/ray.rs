@@ -3,13 +3,13 @@ use crate::vec3::{Point3, Vec3};
 
 fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> Option<f64> {
     let oc = *center - *r.origin(); // C - Q
-    let a = r.direction().dot(r.direction());
-    let b = -2.0 * r.direction().dot(&oc);
-    let c = oc.dot(&oc) - radius * radius;
-    let discriminant = b * b - 4.0 * a * c;
+    let a = r.direction().length_squared();
+    let h = r.direction().dot(&oc);
+    let c = oc.length_squared() - radius * radius;
+    let discriminant = h * h - a * c;
     (discriminant >= 0.0).then(|| {
         // Return `t` when the ray hits the sphere for the first time
-        (-b - discriminant.sqrt()) / (2.0 * a)
+        (h - discriminant.sqrt()) / a
     })
 }
 
