@@ -1,13 +1,16 @@
 use crate::color::Color;
 use crate::vec3::{Point3, Vec3};
 
-fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> bool {
+fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> Option<f64> {
     let oc = *center - *r.origin(); // C - Q
     let a = r.direction().dot(r.direction());
     let b = -2.0 * r.direction().dot(&oc);
     let c = oc.dot(&oc) - radius * radius;
     let discriminant = b * b - 4.0 * a * c;
-    discriminant >= 0.0
+    (discriminant >= 0.0).then(|| {
+        // Return `t` when the ray hits the sphere for the first time
+        (-b - discriminant.sqrt()) / (2.0 * a)
+    })
 }
 
 #[derive(Default)]
@@ -34,8 +37,10 @@ impl Ray {
     }
 
     pub fn color(&self) -> Color {
-        if hit_sphere(&Point3::new(0.0, 0.0, -1.0), 0.5, self) {
-            return Color::new(1.0, 0.0, 0.0);
+        if let Some(t) = hit_sphere(&Point3::new(0.0, 0.0, -1.0), 0.5, self) {
+            let n = (self.at(t) - Vec3::new(0.0, 0.0, -1.0)).unit();
+            let v = 0.5 * (n + 1.0);
+            return Color::new(v.x(), v.y(), v.z());
         }
 
         let u = self.direction().unit();

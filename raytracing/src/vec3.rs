@@ -77,6 +77,16 @@ impl Add for Vec3 {
     }
 }
 
+impl Add<f64> for Vec3 {
+    type Output = Self;
+    fn add(self, rhs: f64) -> Self::Output {
+        let x = self.x() + rhs;
+        let y = self.y() + rhs;
+        let z = self.z() + rhs;
+        Self::new(x, y, z)
+    }
+}
+
 impl Sub for Vec3 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
