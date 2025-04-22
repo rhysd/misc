@@ -1,8 +1,11 @@
 mod color;
+mod hittable;
+mod interval;
 mod ray;
 mod vec3;
 
-use ray::{Hittables, Ray, Sphere};
+use hittable::{Hittables, Sphere};
+use ray::Ray;
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
 use vec3::{Point3, Vec3};
