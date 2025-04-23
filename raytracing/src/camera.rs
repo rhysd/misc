@@ -38,8 +38,7 @@ impl Camera {
         // Camera
         const FOCAL_LENGTH: f64 = 1.0;
         const VIEWPORT_HEIGHT: f64 = 2.0;
-        let viewport_width: f64 =
-            VIEWPORT_HEIGHT * (self.image_width as f64 / self.image_height as f64); // We don't use `aspect_ratio` since it's an ideal value
+        let viewport_width: f64 = VIEWPORT_HEIGHT * (self.image_width as f64 / self.image_height as f64); // We don't use `aspect_ratio` since it's an ideal value
         self.center = Point3::new(0.0, 0.0, 0.0);
 
         // Vectors across the horizontal and down the vertical viewport edges
@@ -49,8 +48,7 @@ impl Camera {
         // Delta vectors from pixel to pixel
         self.pixel_delta_u = viewport_u / self.image_width as f64;
         self.pixel_delta_v = VIEWPORT_V / self.image_height as f64;
-        let viewport_upper_left =
-            self.center - Vec3::new(0.0, 0.0, FOCAL_LENGTH) - viewport_u / 2.0 - VIEWPORT_V / 2.0;
+        let viewport_upper_left = self.center - Vec3::new(0.0, 0.0, FOCAL_LENGTH) - viewport_u / 2.0 - VIEWPORT_V / 2.0;
 
         // Center of the pixel at the top-left corner
         self.pixel00_loc = viewport_upper_left + 0.5 * (self.pixel_delta_u + self.pixel_delta_v);
@@ -65,9 +63,7 @@ impl Camera {
 
         for h in 0..self.image_height {
             for w in 0..self.image_width {
-                let pixel_center = self.pixel00_loc
-                    + w as f64 * self.pixel_delta_u
-                    + h as f64 * self.pixel_delta_v;
+                let pixel_center = self.pixel00_loc + w as f64 * self.pixel_delta_u + h as f64 * self.pixel_delta_v;
                 let ray_direction = pixel_center - self.center;
                 Ray::new(self.center, ray_direction)
                     .color(world)

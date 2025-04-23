@@ -1,6 +1,4 @@
-use std::ops::{
-    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
-};
+use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(Default, Clone, Copy, PartialEq)]
 pub struct Vec3([f64; 3]);
