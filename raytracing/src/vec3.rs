@@ -45,6 +45,8 @@ impl Vec3 {
     pub fn unit(&self) -> Self {
         *self / self.length()
     }
+
+    pub const ZERO: Self = Self::new(0.0, 0.0, 0.0);
 }
 
 impl Neg for Vec3 {
