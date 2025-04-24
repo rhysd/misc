@@ -18,6 +18,17 @@ impl Interval {
         self.min < x && x < self.max
     }
 
+    pub fn clamp(&self, x: f64) -> f64 {
+        // Note: `f64::clamp` is not available becaues it panics when `min` > `max` in debug build.
+        if x < self.min {
+            self.min
+        } else if self.max < x {
+            self.max
+        } else {
+            x
+        }
+    }
+
     pub const EMPTY: Self = Self::new(f64::INFINITY, f64::NEG_INFINITY);
     pub const UNIVERSE: Self = Self::new(f64::NEG_INFINITY, f64::INFINITY);
 }

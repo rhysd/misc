@@ -1,19 +1,23 @@
+use crate::color::Color;
 use crate::hittable::Hittable;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
+use rand::random_range;
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 pub struct Camera {
-    pub aspect_ratio: f64,
-    pub image_width: u32,
+    pub aspect_ratio: f64,      // Ratio of image width over height
+    pub image_width: u32,       // Rendered image width in pixel count
+    pub samples_per_pixel: u32, // Count of random samples for each pixel
     out: BufWriter<File>,
-    image_height: u32,   // Rendered image height
-    center: Point3,      // Camera center
-    pixel00_loc: Point3, // Location of pixel (0, 0)
-    pixel_delta_u: Vec3, // Offset to pixel to the right
-    pixel_delta_v: Vec3, // Offset to pixel below
+    image_height: u32,        // Rendered image height
+    pixel_samples_scale: f64, // Color scale factor for a sum of pixel samples
+    center: Point3,           // Camera center
+    pixel00_loc: Point3,      // Location of pixel (0, 0)
+    pixel_delta_u: Vec3,      // Offset to pixel to the right
+    pixel_delta_v: Vec3,      // Offset to pixel below
 }
 
 impl Camera {
@@ -21,9 +25,11 @@ impl Camera {
         Ok(Self {
             aspect_ratio: 1.0,
             image_width: 100,
+            samples_per_pixel: 10,
             out: BufWriter::new(File::create(path.as_ref())?),
             // These will be calculated by `initialize()`
             image_height: 0,
+            pixel_samples_scale: 0.0,
             center: Point3::ZERO,
             pixel00_loc: Point3::ZERO,
             pixel_delta_u: Vec3::ZERO,
@@ -39,6 +45,7 @@ impl Camera {
         const FOCAL_LENGTH: f64 = 1.0;
         const VIEWPORT_HEIGHT: f64 = 2.0;
         let viewport_width: f64 = VIEWPORT_HEIGHT * (self.image_width as f64 / self.image_height as f64); // We don't use `aspect_ratio` since it's an ideal value
+        self.pixel_samples_scale = 1.0 / self.samples_per_pixel as f64;
         self.center = Point3::new(0.0, 0.0, 0.0);
 
         // Vectors across the horizontal and down the vertical viewport edges
@@ -63,14 +70,35 @@ impl Camera {
 
         for h in 0..self.image_height {
             for w in 0..self.image_width {
-                let pixel_center = self.pixel00_loc + w as f64 * self.pixel_delta_u + h as f64 * self.pixel_delta_v;
-                let ray_direction = pixel_center - self.center;
-                Ray::new(self.center, ray_direction)
-                    .color(world)
-                    .write_to(&mut self.out)?;
+                let mut color = Color::default();
+                for _ in 0..self.samples_per_pixel {
+                    let c = self.get_ray(w, h).color(world);
+                    color.r += c.r;
+                    color.g += c.g;
+                    color.b += c.b;
+                }
+                color.r *= self.pixel_samples_scale;
+                color.g *= self.pixel_samples_scale;
+                color.b *= self.pixel_samples_scale;
+                color.write_to(&mut self.out)?;
             }
         }
 
         Ok(())
+    }
+
+    fn get_ray(&self, i: u32, j: u32) -> Ray {
+        // Construct a camera ray originating from the origin and directed at randomly sampled
+        // point around the pixel location (i, j).
+
+        // Random pixel location (x, y) in the [-.5,-.5]-[+.5,+.5] unit square around the center of target pixel
+        let pixel_x = i as f64 + random_range(-0.5..0.5);
+        let pixel_y = j as f64 + random_range(-0.5..0.5);
+
+        let pixel_sample = self.pixel00_loc + pixel_x * self.pixel_delta_u + pixel_y * self.pixel_delta_v;
+        let origin = self.center;
+        let direction = pixel_sample - origin;
+
+        Ray::new(origin, direction)
     }
 }
