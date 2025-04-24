@@ -1,7 +1,6 @@
-use crate::color::Color;
 use crate::hittable::{Face, Hit, Hittable};
 use crate::interval::Interval;
-use crate::vec3::{Point3, Vec3};
+use crate::vec3::{Color, Point3, Vec3};
 
 #[derive(Default)]
 pub struct Ray {
@@ -28,14 +27,13 @@ impl Ray {
 
     pub fn color<H: Hittable>(&self, world: &H) -> Color {
         if let Some(Hit { normal, .. }) = world.hit(self, Interval::new(0.0, f64::INFINITY)) {
-            let v = 0.5 * (normal + 1.0);
-            return Color::new(v.x(), v.y(), v.z());
+            return 0.5 * (normal + 1.0);
         }
 
+        // Background color is linear gradient
         let u = self.direction().unit();
         let a = u.y() / 2.0 + 1.0;
-        let v = (1.0 - a) * Vec3::new(1.0, 1.0, 1.0) + a * Vec3::new(0.5, 0.7, 1.0);
-        Color::new(v.x(), v.y(), v.z())
+        (1.0 - a) * Vec3::new(1.0, 1.0, 1.0) + a * Vec3::new(0.5, 0.7, 1.0)
     }
 
     pub fn face(&self, outward_normal: &Vec3) -> Face {

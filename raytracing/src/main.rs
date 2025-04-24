@@ -1,5 +1,4 @@
 mod camera;
-mod color;
 mod hittable;
 mod interval;
 mod ray;

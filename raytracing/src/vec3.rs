@@ -112,7 +112,7 @@ impl Mul<f64> for Vec3 {
     fn mul(self, rhs: f64) -> Self::Output {
         let x = self.x() * rhs;
         let y = self.y() * rhs;
-        let z = self.x() * rhs;
+        let z = self.z() * rhs;
         Self::new(x, y, z)
     }
 }
@@ -172,3 +172,4 @@ impl DivAssign for Vec3 {
 }
 
 pub type Point3 = Vec3;
+pub type Color = Vec3;

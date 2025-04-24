@@ -1,10 +1,12 @@
-use crate::color::Color;
 use crate::hittable::Hittable;
+use crate::interval::Interval;
 use crate::ray::Ray;
-use crate::vec3::{Point3, Vec3};
+use crate::vec3::{Color, Point3, Vec3};
 use rand::random_range;
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
+use std::iter::repeat_with;
+use std::ops::Add;
 use std::path::Path;
 
 pub struct Camera {
@@ -70,28 +72,22 @@ impl Camera {
 
         for h in 0..self.image_height {
             for w in 0..self.image_width {
-                let mut color = Color::default();
-                for _ in 0..self.samples_per_pixel {
-                    let c = self.get_ray(w, h).color(world);
-                    color.r += c.r;
-                    color.g += c.g;
-                    color.b += c.b;
-                }
-                color.r *= self.pixel_samples_scale;
-                color.g *= self.pixel_samples_scale;
-                color.b *= self.pixel_samples_scale;
-                color.write_to(&mut self.out)?;
+                let sum = repeat_with(|| self.ray_to(w, h).color(world))
+                    .take(self.samples_per_pixel as _)
+                    .reduce(Add::add)
+                    .unwrap_or_default();
+                self.write_color(sum * self.pixel_samples_scale)?;
             }
         }
 
         Ok(())
     }
 
-    fn get_ray(&self, i: u32, j: u32) -> Ray {
+    fn ray_to(&self, i: u32, j: u32) -> Ray {
         // Construct a camera ray originating from the origin and directed at randomly sampled
         // point around the pixel location (i, j).
 
-        // Random pixel location (x, y) in the [-.5,-.5]-[+.5,+.5] unit square around the center of target pixel
+        // Random pixel location (x, y) in the [-0.5,-0.5]..[+0.5,+0.5] unit square around the center of target pixel
         let pixel_x = i as f64 + random_range(-0.5..0.5);
         let pixel_y = j as f64 + random_range(-0.5..0.5);
 
@@ -100,5 +96,17 @@ impl Camera {
         let direction = pixel_sample - origin;
 
         Ray::new(origin, direction)
+    }
+
+    fn write_color(&mut self, c: Color) -> io::Result<()> {
+        let (r, g, b) = (c.x(), c.y(), c.z());
+
+        // Ensure `r`, `g`, and `b` are in range of [0..255]
+        const INTENSITY: Interval = Interval::new(0.0, 0.999);
+        let r = (256.0 * INTENSITY.clamp(r)) as u8;
+        let g = (256.0 * INTENSITY.clamp(g)) as u8;
+        let b = (256.0 * INTENSITY.clamp(b)) as u8;
+
+        writeln!(self.out, "{r} {g} {b}")
     }
 }
