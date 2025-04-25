@@ -46,7 +46,7 @@ impl Hittable for Sphere {
         }
 
         let d = discriminant.sqrt();
-        let time = [h - d, h + d].into_iter().find(|&t| time.surrounds(t))?;
+        let time = [(h - d) / a, (h + d) / a].into_iter().find(|&t| time.surrounds(t))?;
         let pos = ray.at(time);
         let outward_normal = (pos - self.center) / self.radius;
         let face = ray.face(&outward_normal);
