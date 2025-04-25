@@ -26,8 +26,13 @@ impl Ray {
     }
 
     pub fn color<H: Hittable>(&self, world: &H) -> Color {
-        if let Some(Hit { normal, .. }) = world.hit(self, Interval::new(0.0, f64::INFINITY)) {
-            return 0.5 * (normal + 1.0);
+        if let Some(Hit { normal, pos, .. }) = world.hit(self, Interval::new(0.0, f64::INFINITY)) {
+            let unit = Vec3::random_unit();
+            // When dot-product is negative, that means the unit vector is inside the hemisphere
+            // and it is incorrect as a reflection of ray.
+            let direction = if unit.dot(&normal) > 0.0 { unit } else { -unit };
+            // The ray diffuses on the surface with reducing the brightness by 0.5
+            return 0.5 * Ray::new(pos, direction).color(world);
         }
 
         // Background color is linear gradient

@@ -1,4 +1,5 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign};
+use rand::random_range;
+use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Range, Sub, SubAssign};
 
 #[derive(Default, Clone, Copy, PartialEq)]
 pub struct Vec3([f64; 3]);
@@ -6,6 +7,25 @@ pub struct Vec3([f64; 3]);
 impl Vec3 {
     pub const fn new(x: f64, y: f64, z: f64) -> Self {
         Self([x, y, z])
+    }
+
+    pub fn random(range: Range<f64>) -> Self {
+        let x = random_range(range.clone());
+        let y = random_range(range.clone());
+        let z = random_range(range);
+        Self::new(x, y, z)
+    }
+
+    pub fn random_unit() -> Self {
+        loop {
+            let p = Self::random(-1.0..1.0);
+            let l = p.length_squared();
+            // Note: When the random vector is inside the unit sphere
+            // Note: Ensure `l.sqrt()` doesn't overflow to 0.0 by checking machine epsilon
+            if f64::EPSILON * f64::EPSILON < l && l <= 1.0 {
+                break p / l.sqrt();
+            }
+        }
     }
 
     pub fn x(&self) -> f64 {
