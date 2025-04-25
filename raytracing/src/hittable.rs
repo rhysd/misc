@@ -48,8 +48,12 @@ impl Hittable for Sphere {
         let d = discriminant.sqrt();
         let time = [h - d, h + d].into_iter().find(|&t| time.surrounds(t))?;
         let pos = ray.at(time);
-        let normal = (pos - self.center) / self.radius;
-        let face = ray.face(&normal);
+        let outward_normal = (pos - self.center) / self.radius;
+        let face = ray.face(&outward_normal);
+        let normal = match face {
+            Face::Front => outward_normal,
+            Face::Back => -outward_normal,
+        };
 
         Some(Hit {
             time,
