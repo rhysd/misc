@@ -37,7 +37,7 @@ impl Ray {
 
         // Background color is linear gradient
         let u = self.direction().unit();
-        let a = u.y() / 2.0 + 1.0;
+        let a = 0.5 * (u.y() + 1.0);
         (1.0 - a) * Vec3::new(1.0, 1.0, 1.0) + a * Vec3::new(0.5, 0.7, 1.0)
     }
 
