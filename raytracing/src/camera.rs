@@ -13,6 +13,7 @@ pub struct Camera {
     pub aspect_ratio: f64,      // Ratio of image width over height
     pub image_width: u32,       // Rendered image width in pixel count
     pub samples_per_pixel: u32, // Count of random samples for each pixel
+    pub max_depth: u8,          // Maximum number of ray bounces into scene
     out: BufWriter<File>,
     image_height: u32,        // Rendered image height
     pixel_samples_scale: f64, // Color scale factor for a sum of pixel samples
@@ -28,6 +29,7 @@ impl Camera {
             aspect_ratio: 1.0,
             image_width: 100,
             samples_per_pixel: 10,
+            max_depth: 10,
             out: BufWriter::new(File::create(path.as_ref())?),
             // These will be calculated by `initialize()`
             image_height: 0,
@@ -72,7 +74,7 @@ impl Camera {
 
         for h in 0..self.image_height {
             for w in 0..self.image_width {
-                let sum = repeat_with(|| self.ray_to(w, h).color(world))
+                let sum = repeat_with(|| self.ray_to(w, h).color(self.max_depth, world))
                     .take(self.samples_per_pixel as _)
                     .reduce(Add::add)
                     .unwrap_or_default();
@@ -83,13 +85,13 @@ impl Camera {
         Ok(())
     }
 
-    fn ray_to(&self, i: u32, j: u32) -> Ray {
+    fn ray_to(&self, w: u32, h: u32) -> Ray {
         // Construct a camera ray originating from the origin and directed at randomly sampled
-        // point around the pixel location (i, j).
+        // point around the pixel location (w, h).
 
         // Random pixel location (x, y) in the [-0.5,-0.5]..[+0.5,+0.5] unit square around the center of target pixel
-        let pixel_x = i as f64 + random_range(-0.5..0.5);
-        let pixel_y = j as f64 + random_range(-0.5..0.5);
+        let pixel_x = w as f64 + random_range(-0.5..0.5);
+        let pixel_y = h as f64 + random_range(-0.5..0.5);
 
         let pixel_sample = self.pixel00_loc + pixel_x * self.pixel_delta_u + pixel_y * self.pixel_delta_v;
         let origin = self.center;
