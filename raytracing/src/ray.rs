@@ -32,7 +32,8 @@ impl Ray {
 
         // Note: Use 0.001 to avoid the ray reflects just after the diffusion due to floating point round error.
         if let Some(Hit { normal, pos, .. }) = world.hit(self, Interval::new(0.001, f64::INFINITY)) {
-            let unit = Vec3::random_unit();
+            // Diffuse the ray around the normal (the Lambertian reflection)
+            let unit = normal + Vec3::random_unit();
             // When dot-product is negative, that means the unit vector is inside the hemisphere
             // and it is incorrect as a reflection of ray.
             let direction = if unit.dot(&normal) > 0.0 { unit } else { -unit };

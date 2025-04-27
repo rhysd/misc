@@ -101,7 +101,18 @@ impl Camera {
     }
 
     fn write_color(&mut self, c: Color) -> io::Result<()> {
-        let (r, g, b) = (c.x(), c.y(), c.z());
+        // Gamma correction. Convert linear space to gamma space (γ=2.0)
+        fn linear_to_gamma(linear_component: f64) -> f64 {
+            if linear_component > 0.0 {
+                linear_component.sqrt()
+            } else {
+                0.0
+            }
+        }
+
+        let r = linear_to_gamma(c.x());
+        let g = linear_to_gamma(c.y());
+        let b = linear_to_gamma(c.z());
 
         // Ensure `r`, `g`, and `b` are in range of [0..255]
         const INTENSITY: Interval = Interval::new(0.0, 0.999);
