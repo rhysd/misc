@@ -3,7 +3,6 @@ use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Face {
@@ -11,36 +10,36 @@ pub enum Face {
     Back,
 }
 
-pub struct Hit {
+pub struct Hit<'a> {
     pub pos: Point3,
     pub normal: Vec3,
     pub time: f64,
     pub face: Face,
-    pub mat: Rc<dyn Material>,
+    pub mat: &'a dyn Material,
 }
 
 pub trait Hittable {
-    fn hit(&self, ray: &Ray, time: Interval) -> Option<Hit>;
+    fn hit(&self, ray: &Ray, time: Interval) -> Option<Hit<'_>>;
 }
 
-pub struct Sphere {
+pub struct Sphere<M> {
     center: Point3,
     radius: f64,
-    mat: Rc<dyn Material>,
+    mat: M,
 }
 
-impl Sphere {
-    pub fn new<M: Material + 'static>(center: Point3, radius: f64, mat: M) -> Self {
+impl<M> Sphere<M> {
+    pub fn new(center: Point3, radius: f64, mat: M) -> Self {
         Self {
             center,
             radius: radius.max(0.0),
-            mat: Rc::new(mat),
+            mat,
         }
     }
 }
 
-impl Hittable for Sphere {
-    fn hit(&self, ray: &Ray, time: Interval) -> Option<Hit> {
+impl<M: Material> Hittable for Sphere<M> {
+    fn hit(&self, ray: &Ray, time: Interval) -> Option<Hit<'_>> {
         let oc = self.center - *ray.origin(); // C - Q
         let a = ray.direction().length_squared();
         let h = ray.direction().dot(&oc);
@@ -65,7 +64,7 @@ impl Hittable for Sphere {
             pos,
             normal,
             face,
-            mat: self.mat.clone(),
+            mat: &self.mat,
         })
     }
 }
@@ -94,7 +93,7 @@ impl DerefMut for Hittables {
 }
 
 impl Hittable for Hittables {
-    fn hit(&self, ray: &Ray, span: Interval) -> Option<Hit> {
+    fn hit(&self, ray: &Ray, span: Interval) -> Option<Hit<'_>> {
         self.0
             .iter()
             .flat_map(|h| h.hit(ray, span))

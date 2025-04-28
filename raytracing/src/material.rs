@@ -3,7 +3,7 @@ use crate::ray::Ray;
 use crate::vec3::{Color, Vec3};
 
 pub trait Material {
-    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<(Ray, Color)>;
+    fn scatter(&self, ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)>;
 }
 
 // Lambertian (diffuse) reflectance
@@ -18,7 +18,7 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _ray: &Ray, hit: &Hit) -> Option<(Ray, Color)> {
+    fn scatter(&self, _ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)> {
         // Diffuse the ray around the normal (the Lambertian reflection)
         let mut scatter_direction = hit.normal + Vec3::random_unit();
 
@@ -46,7 +46,7 @@ impl Metal {
 }
 
 impl Material for Metal {
-    fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<(Ray, Color)> {
+    fn scatter(&self, ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)> {
         let reflected = ray.direction().reflect(&hit.normal);
         let scattered = Ray::new(hit.pos, reflected);
         let attenuation = self.albedo;
