@@ -65,7 +65,7 @@ impl Camera {
         self.pixel00_loc = viewport_upper_left + 0.5 * (self.pixel_delta_u + self.pixel_delta_v);
     }
 
-    pub fn render<H: Hittable>(&mut self, world: &H) -> io::Result<()> {
+    pub fn render<H: Hittable>(mut self, world: &H) -> io::Result<()> {
         self.initialize();
 
         writeln!(self.out, "P3")?;

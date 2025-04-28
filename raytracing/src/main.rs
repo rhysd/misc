@@ -1,18 +1,28 @@
 mod camera;
 mod hittable;
 mod interval;
+mod material;
 mod ray;
 mod vec3;
 
 use camera::Camera;
 use hittable::{Hittables, Sphere};
+use material::{Lambertian, Metal};
 use std::io;
-use vec3::Point3;
+use vec3::{Color, Point3};
 
 fn main() -> io::Result<()> {
     let mut world = Hittables::default();
-    world.add(Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5));
-    world.add(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0));
+
+    let ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
+    let center = Lambertian::new(Color::new(0.1, 0.2, 0.5));
+    let left = Metal::new(Color::new(0.8, 0.8, 0.8));
+    let right = Metal::new(Color::new(0.8, 0.6, 0.2));
+
+    world.add(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0, ground));
+    world.add(Sphere::new(Point3::new(0.0, 0.0, -1.2), 0.5, center));
+    world.add(Sphere::new(Point3::new(-1.0, 0.0, -1.0), 0.5, left));
+    world.add(Sphere::new(Point3::new(1.0, 0.0, -1.0), 0.5, right));
 
     let mut cam = Camera::new("out.ppm")?;
     cam.aspect_ratio = 16.0 / 9.0;

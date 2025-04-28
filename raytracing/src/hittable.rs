@@ -1,7 +1,9 @@
 use crate::interval::Interval;
+use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Face {
@@ -14,6 +16,7 @@ pub struct Hit {
     pub normal: Vec3,
     pub time: f64,
     pub face: Face,
+    pub mat: Rc<dyn Material>,
 }
 
 pub trait Hittable {
@@ -23,13 +26,15 @@ pub trait Hittable {
 pub struct Sphere {
     center: Point3,
     radius: f64,
+    mat: Rc<dyn Material>,
 }
 
 impl Sphere {
-    pub fn new(center: Point3, radius: f64) -> Self {
+    pub fn new<M: Material + 'static>(center: Point3, radius: f64, mat: M) -> Self {
         Self {
             center,
             radius: radius.max(0.0),
+            mat: Rc::new(mat),
         }
     }
 }
@@ -60,6 +65,7 @@ impl Hittable for Sphere {
             pos,
             normal,
             face,
+            mat: self.mat.clone(),
         })
     }
 }

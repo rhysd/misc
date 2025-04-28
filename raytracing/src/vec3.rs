@@ -64,6 +64,15 @@ impl Vec3 {
         *self / self.length()
     }
 
+    pub fn is_near_zero(&self) -> bool {
+        self.0.iter().all(|f| f.abs() < f64::EPSILON)
+    }
+
+    // Mirrored vector reflection. See 10.4
+    pub fn reflect(&self, normal: &Vec3) -> Vec3 {
+        *self - 2.0 * self.dot(normal) * *normal
+    }
+
     pub const ZERO: Self = Self::new(0.0, 0.0, 0.0);
 }
 

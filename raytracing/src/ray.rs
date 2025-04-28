@@ -1,4 +1,4 @@
-use crate::hittable::{Face, Hit, Hittable};
+use crate::hittable::{Face, Hittable};
 use crate::interval::Interval;
 use crate::vec3::{Color, Point3, Vec3};
 
@@ -31,14 +31,11 @@ impl Ray {
         }
 
         // Note: Use 0.001 to avoid the ray reflects just after the diffusion due to floating point round error.
-        if let Some(Hit { normal, pos, .. }) = world.hit(self, Interval::new(0.001, f64::INFINITY)) {
-            // Diffuse the ray around the normal (the Lambertian reflection)
-            let unit = normal + Vec3::random_unit();
-            // When dot-product is negative, that means the unit vector is inside the hemisphere
-            // and it is incorrect as a reflection of ray.
-            let direction = if unit.dot(&normal) > 0.0 { unit } else { -unit };
-            // The ray diffuses on the surface with reducing the brightness by 0.5
-            return 0.5 * Ray::new(pos, direction).color(depth - 1, world);
+        if let Some(hit) = world.hit(self, Interval::new(0.001, f64::INFINITY)) {
+            if let Some((scattered, attenuation)) = hit.mat.scatter(self, &hit) {
+                return attenuation * scattered.color(depth - 1, world);
+            }
+            return Color::ZERO;
         }
 
         // Background color is linear gradient
