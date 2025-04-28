@@ -16,8 +16,8 @@ fn main() -> io::Result<()> {
 
     let ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
     let center = Lambertian::new(Color::new(0.1, 0.2, 0.5));
-    let left = Metal::new(Color::new(0.8, 0.8, 0.8));
-    let right = Metal::new(Color::new(0.8, 0.6, 0.2));
+    let left = Metal::new(Color::new(0.8, 0.8, 0.8), 0.3);
+    let right = Metal::new(Color::new(0.8, 0.6, 0.2), 1.0);
 
     world.add(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0, ground));
     world.add(Sphere::new(Point3::new(0.0, 0.0, -1.2), 0.5, center));

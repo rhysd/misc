@@ -37,18 +37,28 @@ impl Material for Lambertian {
 
 pub struct Metal {
     albedo: Color,
+    fuzz: f64,
 }
 
 impl Metal {
-    pub fn new(albedo: Color) -> Self {
-        Self { albedo }
+    pub fn new(albedo: Color, fuzz: f64) -> Self {
+        let fuzz = fuzz.clamp(0.0, 1.0);
+        Self { albedo, fuzz }
     }
 }
 
 impl Material for Metal {
     fn scatter(&self, ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)> {
-        let reflected = ray.direction().reflect(&hit.normal);
+        let fuzz = self.fuzz * Vec3::random_unit();
+        let reflected = ray.direction().reflect(&hit.normal) + fuzz;
         let scattered = Ray::new(hit.pos, reflected);
+
+        // When dot-product is negative, that means the unit vector is inside the hemisphere
+        // and it is incorrect as a reflection of ray.
+        if scattered.direction().dot(&hit.normal) <= 0.0 {
+            return None;
+        }
+
         let attenuation = self.albedo;
         Some((scattered, attenuation))
     }
