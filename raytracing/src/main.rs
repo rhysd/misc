@@ -7,7 +7,7 @@ mod vec3;
 
 use camera::Camera;
 use hittable::{Hittables, Sphere};
-use material::{Lambertian, Metal};
+use material::{Dielectric, Lambertian, Metal};
 use std::io;
 use vec3::{Color, Point3};
 
@@ -16,7 +16,7 @@ fn main() -> io::Result<()> {
 
     let ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
     let center = Lambertian::new(Color::new(0.1, 0.2, 0.5));
-    let left = Metal::new(Color::new(0.8, 0.8, 0.8), 0.3);
+    let left = Dielectric::new(1.50);
     let right = Metal::new(Color::new(0.8, 0.6, 0.2), 1.0);
 
     world.add(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0, ground));

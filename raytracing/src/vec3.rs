@@ -73,6 +73,14 @@ impl Vec3 {
         *self - 2.0 * self.dot(normal) * *normal
     }
 
+    // Snell's Law. See 11.2
+    pub fn refract(&self, normal: &Vec3, refractive_index_rate: f64) -> Vec3 {
+        let cos_theta = self.neg().dot(normal).min(1.0);
+        let r_out_perpendicular = refractive_index_rate * (*self + cos_theta * *normal);
+        let r_out_parallel = -(1.0 - r_out_perpendicular.length_squared()).abs().sqrt() * (*normal);
+        r_out_perpendicular + r_out_parallel
+    }
+
     pub const ZERO: Self = Self::new(0.0, 0.0, 0.0);
 }
 

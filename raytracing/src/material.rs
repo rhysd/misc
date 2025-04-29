@@ -1,4 +1,4 @@
-use crate::hittable::Hit;
+use crate::hittable::{Face, Hit};
 use crate::ray::Ray;
 use crate::vec3::{Color, Vec3};
 
@@ -60,6 +60,32 @@ impl Material for Metal {
         }
 
         let attenuation = self.albedo;
+        Some((scattered, attenuation))
+    }
+}
+
+pub struct Dielectric {
+    refraction_index: f64,
+}
+
+impl Dielectric {
+    pub fn new(refraction_index: f64) -> Self {
+        Self { refraction_index }
+    }
+}
+
+impl Material for Dielectric {
+    fn scatter(&self, ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)> {
+        // Note: Outside objects is vacuum
+        let ri = if hit.face == Face::Front {
+            1.0 / self.refraction_index
+        } else {
+            self.refraction_index
+        };
+        let unit_direction = ray.direction().unit();
+        let refracted = unit_direction.refract(&hit.normal, ri);
+        let scattered = Ray::new(hit.pos, refracted);
+        let attenuation = Color::new(1.0, 1.0, 1.0);
         Some((scattered, attenuation))
     }
 }
