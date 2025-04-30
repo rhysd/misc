@@ -77,14 +77,23 @@ impl Dielectric {
 impl Material for Dielectric {
     fn scatter(&self, ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)> {
         // Note: Outside objects is vacuum
-        let ri = if hit.face == Face::Front {
+        let refraction_index = if hit.face == Face::Front {
             1.0 / self.refraction_index
         } else {
             self.refraction_index
         };
         let unit_direction = ray.direction().unit();
-        let refracted = unit_direction.refract(&hit.normal, ri);
-        let scattered = Ray::new(hit.pos, refracted);
+        let cos_theta = (-unit_direction).dot(&hit.normal).min(1.0);
+        let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
+
+        let direction = if refraction_index * sin_theta > 1.0 {
+            // Cannot refract. Yield total internal reflection (11.3)
+            unit_direction.reflect(&hit.normal)
+        } else {
+            unit_direction.refract(&hit.normal, refraction_index)
+        };
+
+        let scattered = Ray::new(hit.pos, direction);
         let attenuation = Color::new(1.0, 1.0, 1.0);
         Some((scattered, attenuation))
     }
