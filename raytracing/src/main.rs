@@ -9,7 +9,7 @@ use camera::Camera;
 use hittable::{Hittables, Sphere};
 use material::{Dielectric, Lambertian, Metal};
 use std::io;
-use vec3::{Color, Point3};
+use vec3::{Color, Point3, Vec3};
 
 fn main() -> io::Result<()> {
     let mut world = Hittables::default();
@@ -31,5 +31,11 @@ fn main() -> io::Result<()> {
     cam.image_width = 400;
     cam.samples_per_pixel = 100;
     cam.max_depth = 50;
+
+    cam.vfov = 20.0;
+    cam.lookfrom = Point3::new(-2.0, 2.0, 1.0);
+    cam.lookat = Point3::new(0.0, 0.0, -1.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+
     cam.render(&world)
 }
