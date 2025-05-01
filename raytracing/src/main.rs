@@ -16,12 +16,14 @@ fn main() -> io::Result<()> {
 
     let ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
     let center = Lambertian::new(Color::new(0.1, 0.2, 0.5));
-    let left = Dielectric::new(1.0 / 1.33); // 1.0 for water, 1.33 for air
+    let left = Dielectric::new(1.5);
+    let bubble = Dielectric::new(1.0 / 1.5);
     let right = Metal::new(Color::new(0.8, 0.6, 0.2), 1.0);
 
     world.add(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0, ground));
     world.add(Sphere::new(Point3::new(0.0, 0.0, -1.2), 0.5, center));
     world.add(Sphere::new(Point3::new(-1.0, 0.0, -1.0), 0.5, left));
+    world.add(Sphere::new(Point3::new(-1.0, 0.0, -1.0), 0.4, bubble));
     world.add(Sphere::new(Point3::new(1.0, 0.0, -1.0), 0.5, right));
 
     let mut cam = Camera::new("out.ppm")?;
