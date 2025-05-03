@@ -23,6 +23,8 @@ pub struct Camera {
     pub lookfrom: Point3,       // Point camera is looking from
     pub lookat: Point3,         // Point camera is looking at
     pub vup: Vec3,              // Camera-relative "up" direction
+    pub defocus_angle: f64,     // Variation angle of rays through each pixel
+    pub focus_distance: f64,    // Distance from camera lookfrom point to plane of perfect focus.
     out: BufWriter<File>,
     image_height: u32,        // Rendered image height
     pixel_samples_scale: f64, // Color scale factor for a sum of pixel samples
@@ -33,6 +35,8 @@ pub struct Camera {
     cam_u: Vec3,
     cam_v: Vec3,
     cam_w: Vec3,
+    defocus_disk_u: Vec3, // Defocus disk (lens) horizontal radius
+    defocus_disk_v: Vec3, // Defocus disk (lens) vertical radius
 }
 
 impl Camera {
@@ -46,6 +50,8 @@ impl Camera {
             lookfrom: Point3::new(0.0, 0.0, 0.0),
             lookat: Point3::new(0.0, 0.0, -1.0),
             vup: Vec3::new(0.0, 1.0, 0.0),
+            defocus_angle: 0.0, // No blur by default
+            focus_distance: 10.0,
             out: BufWriter::new(File::create(path.as_ref())?),
             // These will be calculated by `initialize()`
             image_height: 0,
@@ -57,6 +63,8 @@ impl Camera {
             cam_u: Vec3::ZERO,
             cam_v: Vec3::ZERO,
             cam_w: Vec3::ZERO,
+            defocus_disk_u: Vec3::ZERO,
+            defocus_disk_v: Vec3::ZERO,
         })
     }
 
@@ -66,9 +74,9 @@ impl Camera {
 
         // Camera
         self.center = self.lookfrom;
-        let focal_length = (self.lookfrom - self.lookat).length();
         let theta = degrees_to_radians(self.vfov);
-        let viewport_height = (theta / 2.0).tan() * 2.0 * focal_length;
+        // Note: Focal length is different from focus distance in general. However in our model they are same. (13.2)
+        let viewport_height = 2.0 * (theta / 2.0).tan() * self.focus_distance;
         let viewport_width = viewport_height * (self.image_width as f64 / self.image_height as f64); // We don't use `aspect_ratio` since it's an ideal value
         self.pixel_samples_scale = 1.0 / self.samples_per_pixel as f64;
 
@@ -84,10 +92,15 @@ impl Camera {
         // Delta vectors from pixel to pixel
         self.pixel_delta_u = viewport_u / self.image_width as f64;
         self.pixel_delta_v = viewport_v / self.image_height as f64;
-        let viewport_upper_left = self.center - (focal_length * self.cam_w) - viewport_u / 2.0 - viewport_v / 2.0;
+        let viewport_upper_left = self.center - self.focus_distance * self.cam_w - viewport_u / 2.0 - viewport_v / 2.0;
 
         // Center of the pixel at the top-left corner
         self.pixel00_loc = viewport_upper_left + 0.5 * (self.pixel_delta_u + self.pixel_delta_v);
+
+        // Calculate the camera defocus disk basis vectors
+        let defocus_radius = self.focus_distance * degrees_to_radians(self.defocus_angle / 2.0).tan();
+        self.defocus_disk_u = self.cam_u * defocus_radius;
+        self.defocus_disk_v = self.cam_v * defocus_radius;
     }
 
     pub fn render<H: Hittable>(mut self, world: &H) -> io::Result<()> {
@@ -111,15 +124,20 @@ impl Camera {
     }
 
     fn ray_to(&self, w: u32, h: u32) -> Ray {
-        // Construct a camera ray originating from the origin and directed at randomly sampled
-        // point around the pixel location (w, h).
+        // Construct a camera ray originating from the defocus disk (13.2) and directed at a randomly
+        // sampled point around the pixel location w, h.
 
         // Random pixel location (x, y) in the [-0.5,-0.5]..[+0.5,+0.5] unit square around the center of target pixel
         let pixel_x = w as f64 + random_range(-0.5..0.5);
         let pixel_y = h as f64 + random_range(-0.5..0.5);
 
         let pixel_sample = self.pixel00_loc + pixel_x * self.pixel_delta_u + pixel_y * self.pixel_delta_v;
-        let origin = self.center;
+        let origin = if self.defocus_angle <= 0.0 {
+            self.center
+        } else {
+            let p = Vec3::random_in_unit_circle();
+            self.center + p.x() * self.defocus_disk_u + p.y() * self.defocus_disk_v
+        };
         let direction = pixel_sample - origin;
 
         Ray::new(origin, direction)

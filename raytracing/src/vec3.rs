@@ -28,6 +28,17 @@ impl Vec3 {
         }
     }
 
+    pub fn random_in_unit_circle() -> Self {
+        loop {
+            let x = random_range(-1.0..1.0);
+            let y = random_range(-1.0..1.0);
+            let p = Self::new(x, y, 0.0);
+            if p.length_squared() < 1.0 {
+                return p;
+            }
+        }
+    }
+
     pub fn x(&self) -> f64 {
         self.0[0]
     }
