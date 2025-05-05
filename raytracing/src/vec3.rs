@@ -1,3 +1,4 @@
+use rand::random_range;
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Range, Sub, SubAssign};
 
 #[derive(Default, Clone, Copy, PartialEq)]
@@ -9,9 +10,9 @@ impl Vec3 {
     }
 
     pub fn random(range: Range<f64>) -> Self {
-        let x = crate::random(range.clone());
-        let y = crate::random(range.clone());
-        let z = crate::random(range);
+        let x = random_range(range.clone());
+        let y = random_range(range.clone());
+        let z = random_range(range);
         Self::new(x, y, z)
     }
 
@@ -29,8 +30,8 @@ impl Vec3 {
 
     pub fn random_in_unit_circle() -> Self {
         loop {
-            let x = crate::random(-1.0..1.0);
-            let y = crate::random(-1.0..1.0);
+            let x = random_range(-1.0..1.0);
+            let y = random_range(-1.0..1.0);
             let p = Self::new(x, y, 0.0);
             if p.length_squared() < 1.0 {
                 return p;

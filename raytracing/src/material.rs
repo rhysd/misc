@@ -1,6 +1,7 @@
 use crate::hittable::{Face, Hit};
 use crate::ray::Ray;
 use crate::vec3::{Color, Vec3};
+use rand::random_range;
 
 pub trait Material {
     fn scatter(&self, ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)>;
@@ -93,7 +94,7 @@ impl Material for Dielectric {
         let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
 
         let direction = if refraction_index * sin_theta > 1.0
-            || reflectance(cos_theta, refraction_index) > crate::random(0.0..1.0)
+            || reflectance(cos_theta, refraction_index) > random_range(0.0..1.0)
         {
             // Cannot refract. Yield total internal reflection (11.3)
             unit_direction.reflect(&hit.normal)

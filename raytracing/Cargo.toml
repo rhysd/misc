@@ -8,4 +8,4 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-rand = { version = "0.9.1", features = ["small_rng"] }
+rand = "0.9.1"

@@ -8,24 +8,9 @@ mod vec3;
 use camera::Camera;
 use hittable::{Hittables, Sphere};
 use material::{Dielectric, Lambertian, Metal};
-use rand::rngs::SmallRng;
-use rand::{Rng, SeedableRng};
-use std::cell::UnsafeCell;
+use rand::random_range;
 use std::io;
-use std::ops::Range;
 use vec3::{Color, Point3, Vec3};
-
-thread_local! {
-    pub static RNG: UnsafeCell<SmallRng> = UnsafeCell::new(SmallRng::from_os_rng());
-}
-
-pub(crate) fn random(range: Range<f64>) -> f64 {
-    RNG.with(|rng| {
-        // Safety: This program is single-threaded.
-        let rng = unsafe { &mut *rng.get() };
-        rng.random_range(range)
-    })
-}
 
 fn main() -> io::Result<()> {
     let mut world = Hittables::default();
@@ -40,8 +25,8 @@ fn main() -> io::Result<()> {
     for a in -11..11 {
         for b in -11..11 {
             let center = {
-                let x = a as f64 + random(0.0..0.9);
-                let z = b as f64 + random(0.0..0.9);
+                let x = a as f64 + random_range(0.0..0.9);
+                let z = b as f64 + random_range(0.0..0.9);
                 Point3::new(x, 0.2, z)
             };
 
@@ -49,16 +34,16 @@ fn main() -> io::Result<()> {
                 continue;
             }
 
-            let x = random(0.0..1.0);
-            if x < 0.8 {
+            let random = random_range(0.0..1.0);
+            if random < 0.8 {
                 // Diffuse
                 let albedo = Color::random(0.0..1.0) * Color::random(0.0..1.0);
                 let sphere = Sphere::new(center, 0.2, Lambertian::new(albedo));
                 world.add(sphere);
-            } else if x < 0.95 {
+            } else if random < 0.95 {
                 // Metal
                 let albedo = Color::random(0.5..1.0);
-                let fuzz = random(0.0..0.5);
+                let fuzz = random_range(0.0..0.5);
                 let sphere = Sphere::new(center, 0.2, Metal::new(albedo, fuzz));
                 world.add(sphere);
             } else {
