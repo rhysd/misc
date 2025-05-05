@@ -2,7 +2,6 @@ use crate::hittable::Hittable;
 use crate::interval::Interval;
 use crate::ray::Ray;
 use crate::vec3::{Color, Point3, Vec3};
-use rand::random_range;
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
@@ -128,8 +127,8 @@ impl Camera {
         // sampled point around the pixel location w, h.
 
         // Random pixel location (x, y) in the [-0.5,-0.5]..[+0.5,+0.5] unit square around the center of target pixel
-        let pixel_x = w as f64 + random_range(-0.5..0.5);
-        let pixel_y = h as f64 + random_range(-0.5..0.5);
+        let pixel_x = w as f64 + crate::random(-0.5..0.5);
+        let pixel_y = h as f64 + crate::random(-0.5..0.5);
 
         let pixel_sample = self.pixel00_loc + pixel_x * self.pixel_delta_u + pixel_y * self.pixel_delta_v;
         let origin = if self.defocus_angle <= 0.0 {
