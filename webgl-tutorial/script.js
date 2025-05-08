@@ -53,11 +53,29 @@
         }
     }
 
+    function createVertexBuffer(data) {
+        const vbo = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        return vbo;
+    }
+
     function main() {
         const vs = createShader('vs');
         const fs = createShader('fs');
         const prog = createProgram(vs, fs);
-        console.log(prog);
+
+        // prettier-ignore
+        var vertexPos = [
+        //     x,   y,   z,
+             0.0, 1.0, 0.0,
+             1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+        ];
+
+        const vbo = createVertexBuffer(vertexPos);
+        console.log(prog, vbo);
     }
 
     try {
