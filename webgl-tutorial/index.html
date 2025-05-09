@@ -5,10 +5,10 @@
         <script src="minMatrix.js"></script>
         <script id="vs" type="x-shader/x-vertex">
           attribute vec3 position;
-          uniform mat4 mvpMatrix;
+          uniform mat4 mvpMat;
 
           void main(void) {
-            gl_Position = mvpMatrix * vec4(position, 1.0);
+            gl_Position = mvpMat * vec4(position, 1.0);
           }
         </script>
         <script id="fs" type="x-shader/x-fragment">

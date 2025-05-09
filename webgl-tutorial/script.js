@@ -2,12 +2,15 @@
 
 (function () {
     const canvas = document.getElementById('canvas');
-    canvas.width = 500;
+    canvas.width = 300;
     canvas.height = 300;
 
     const gl = canvas.getContext('webgl');
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clearDepth(1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
+
+    const m = new matIV();
 
     function createShader(id) {
         const elem = document.getElementById(id);
@@ -66,6 +69,9 @@
         const fs = createShader('fs');
         const prog = createProgram(vs, fs);
 
+        const attrPosLoc = gl.getAttribLocation(prog, 'position');
+        const attrStride = 3; // 3 elements (x, y, z)
+
         // prettier-ignore
         var vertexPos = [
         //     x,   y,   z,
@@ -74,8 +80,36 @@
             -1.0, 0.0, 0.0,
         ];
 
+        // Bind 'position' attribute
         const vbo = createVertexBuffer(vertexPos);
-        console.log(prog, vbo);
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+        gl.enableVertexAttribArray(attrPosLoc);
+        gl.vertexAttribPointer(attrPosLoc, attrStride, gl.FLOAT, false, 0, 0);
+
+        const mMat = m.identity(m.create());
+        const vMat = m.identity(m.create());
+        const pMat = m.identity(m.create());
+        const mvpMat = m.identity(m.create());
+
+        m.lookAt(/* eye position */ [0, 1, 3], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
+        m.perspective(
+            /* fov */ 90,
+            /* aspect ratio */ canvas.width / canvas.height,
+            /* near clip */ 0.1,
+            /* far clip */ 100,
+            pMat
+        );
+
+        // mvp = p * v * m
+        m.multiply(pMat, vMat, mvpMat);
+        m.multiply(mvpMat, mMat, mvpMat);
+
+        // Define uniform
+        const uniMvpLoc = gl.getUniformLocation(prog, 'mvpMat');
+        gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
+
+        gl.drawArrays(gl.TRIANGLES, /* start from 0th vertex */ 0, /* number of vertice */ 3);
+        gl.flush(); // Actual re-rendering happens here
     }
 
     try {
