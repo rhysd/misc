@@ -6,31 +6,31 @@
     canvas.height = 300;
 
     const gl = canvas.getContext('webgl');
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clearDepth(1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
     const m = new matIV();
 
-    function createShader(id) {
-        const elem = document.getElementById(id);
-        if (!elem) {
-            throw new Error('<canvas> element is not found');
+    function clear() {
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clearDepth(1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    }
+
+    async function loadShader(path) {
+        const res = await fetch(path);
+        if (!res.ok) {
+            throw new Error(`Fetching ${path} failed with status ${response.status}: ${response.statusText}`);
         }
+        const src = await res.text();
 
         let shader;
-        switch (elem.type) {
-            case 'x-shader/x-vertex':
-                shader = gl.createShader(gl.VERTEX_SHADER);
-                break;
-            case 'x-shader/x-fragment':
-                shader = gl.createShader(gl.FRAGMENT_SHADER);
-                break;
-            default:
-                throw new Error(`Unexpected element type: ${elem.type}`);
+        if (path.endsWith('.vert')) {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else if (path.endsWith('.frag')) {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else {
+            throw new Error(`Unknown file extension for shader: ${path}`);
         }
 
-        gl.shaderSource(shader, elem.text);
+        gl.shaderSource(shader, src);
         gl.compileShader(shader);
 
         if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
@@ -64,9 +64,11 @@
         return vbo;
     }
 
-    function main() {
-        const vs = createShader('vs');
-        const fs = createShader('fs');
+    async function main() {
+        const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
+
+        clear();
+
         const prog = createProgram(vs, fs);
 
         {
@@ -88,7 +90,7 @@
 
         {
             const loc = gl.getAttribLocation(prog, 'color');
-            const stride = 4;
+            const stride = 4; // (r, g, b, a)
             // prettier-ignore
             const vertexColors = [
             //    r,   g,   b,   a,
@@ -128,9 +130,5 @@
         gl.flush(); // Actual re-rendering happens here
     }
 
-    try {
-        main();
-    } catch (err) {
-        alert(err);
-    }
+    main().catch(alert);
 })();
