@@ -69,22 +69,38 @@
         const fs = createShader('fs');
         const prog = createProgram(vs, fs);
 
-        const attrPosLoc = gl.getAttribLocation(prog, 'position');
-        const attrStride = 3; // 3 elements (x, y, z)
+        {
+            const loc = gl.getAttribLocation(prog, 'position');
+            const stride = 3; // 3 elements (x, y, z)
+            // prettier-ignore
+            const vertexPos = [
+            //     x,   y,   z,
+                 0.0, 2.0, 0.0,
+                 2.0, 0.0, 0.0,
+                -2.0, 0.0, 0.0,
+            ];
+            // Bind 'position' attribute
+            const vbo = createVertexBuffer(vertexPos);
+            gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+            gl.enableVertexAttribArray(loc);
+            gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
+        }
 
-        // prettier-ignore
-        var vertexPos = [
-        //     x,   y,   z,
-             0.0, 1.0, 0.0,
-             1.0, 0.0, 0.0,
-            -1.0, 0.0, 0.0,
-        ];
-
-        // Bind 'position' attribute
-        const vbo = createVertexBuffer(vertexPos);
-        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-        gl.enableVertexAttribArray(attrPosLoc);
-        gl.vertexAttribPointer(attrPosLoc, attrStride, gl.FLOAT, false, 0, 0);
+        {
+            const loc = gl.getAttribLocation(prog, 'color');
+            const stride = 4;
+            // prettier-ignore
+            const vertexColors = [
+            //    r,   g,   b,   a,
+                1.0, 0.0, 0.0, 1.0,
+                0.0, 1.0, 0.0, 1.0,
+                0.0, 0.0, 1.0, 1.0,
+            ];
+            const vbo = createVertexBuffer(vertexColors);
+            gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+            gl.enableVertexAttribArray(loc);
+            gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
+        }
 
         const mMat = m.identity(m.create());
         const vMat = m.identity(m.create());
