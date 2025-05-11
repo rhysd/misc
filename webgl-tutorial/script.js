@@ -77,9 +77,9 @@
             // prettier-ignore
             const vertexPos = [
             //     x,   y,   z,
-                 0.0, 2.0, 0.0,
-                 2.0, 0.0, 0.0,
-                -2.0, 0.0, 0.0,
+                 0.0, 1.0, 0.0,
+                 1.0, 0.0, 0.0,
+                -1.0, 0.0, 0.0,
             ];
             // Bind 'position' attribute
             const vbo = createVertexBuffer(vertexPos);
@@ -107,9 +107,10 @@
         const mMat = m.identity(m.create());
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
+        const vpMat = m.identity(m.create());
         const mvpMat = m.identity(m.create());
 
-        m.lookAt(/* eye position */ [0, 1, 3], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
+        m.lookAt(/* eye position */ [0, 0, 3], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
         m.perspective(
             /* fov */ 90,
             /* aspect ratio */ canvas.width / canvas.height,
@@ -117,16 +118,24 @@
             /* far clip */ 100,
             pMat
         );
+        m.multiply(pMat, vMat, vpMat);
 
-        // mvp = p * v * m
-        m.multiply(pMat, vMat, mvpMat);
-        m.multiply(mvpMat, mMat, mvpMat);
-
-        // Define uniform
+        // Define uniform variable
         const uniMvpLoc = gl.getUniformLocation(prog, 'mvpMat');
-        gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
 
+        m.translate(mMat, [1.5, 0, 0], mMat);
+        m.multiply(vpMat, mMat, mvpMat);
+
+        gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
         gl.drawArrays(gl.TRIANGLES, /* start from 0th vertex */ 0, /* number of vertice */ 3);
+
+        m.identity(mMat);
+        m.translate(mMat, [-1.5, 0, 0], mMat);
+        m.multiply(vpMat, mMat, mvpMat);
+
+        gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
+        gl.drawArrays(gl.TRIANGLES, /* start from 0th vertex */ 0, /* number of vertice */ 3);
+
         gl.flush(); // Actual re-rendering happens here
     }
 
