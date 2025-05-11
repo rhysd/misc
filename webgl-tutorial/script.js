@@ -64,6 +64,14 @@
         return vbo;
     }
 
+    function setAttribute(name, data, stride, program) {
+        const loc = gl.getAttribLocation(program, name);
+        const vbo = createVertexBuffer(data);
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
+    }
+
     async function main() {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
@@ -71,40 +79,31 @@
 
         const prog = createProgram(vs, fs);
 
-        {
-            const loc = gl.getAttribLocation(prog, 'position');
-            const stride = 3; // 3 elements (x, y, z)
+        setAttribute(
+            'position',
             // prettier-ignore
-            const vertexPos = [
-            //     x,   y,   z,
+            [
+                // x,   y,   z,
                  0.0, 1.0, 0.0,
                  1.0, 0.0, 0.0,
                 -1.0, 0.0, 0.0,
-            ];
-            // Bind 'position' attribute
-            const vbo = createVertexBuffer(vertexPos);
-            gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-            gl.enableVertexAttribArray(loc);
-            gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
-        }
-
-        {
-            const loc = gl.getAttribLocation(prog, 'color');
-            const stride = 4; // (r, g, b, a)
+            ],
+            3, // 3 elements (x, y, z)
+            prog
+        );
+        setAttribute(
+            'color',
             // prettier-ignore
-            const vertexColors = [
-            //    r,   g,   b,   a,
+            [
+              //  r,   g,   b,   a,
                 1.0, 0.0, 0.0, 1.0,
                 0.0, 1.0, 0.0, 1.0,
                 0.0, 0.0, 1.0, 1.0,
-            ];
-            const vbo = createVertexBuffer(vertexColors);
-            gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-            gl.enableVertexAttribArray(loc);
-            gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
-        }
+            ],
+            4, // (r, g, b, a)
+            prog
+        );
 
-        const mMat = m.identity(m.create());
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
@@ -122,19 +121,19 @@
 
         // Define uniform variable
         const uniMvpLoc = gl.getUniformLocation(prog, 'mvpMat');
+        const mMat = m.create();
 
-        m.translate(mMat, [1.5, 0, 0], mMat);
-        m.multiply(vpMat, mMat, mvpMat);
+        for (const pos of [
+            [1.5, 0, 0],
+            [-1.5, 0, 0],
+        ]) {
+            m.identity(mMat);
+            m.translate(mMat, pos, mMat); // mvp = p * v * m
+            m.multiply(vpMat, mMat, mvpMat);
 
-        gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
-        gl.drawArrays(gl.TRIANGLES, /* start from 0th vertex */ 0, /* number of vertice */ 3);
-
-        m.identity(mMat);
-        m.translate(mMat, [-1.5, 0, 0], mMat);
-        m.multiply(vpMat, mMat, mvpMat);
-
-        gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
-        gl.drawArrays(gl.TRIANGLES, /* start from 0th vertex */ 0, /* number of vertice */ 3);
+            gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
+            gl.drawArrays(gl.TRIANGLES, /* start from 0th vertex */ 0, /* number of vertices */ 3);
+        }
 
         gl.flush(); // Actual re-rendering happens here
     }
