@@ -75,10 +75,7 @@
     async function main() {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
-        clear();
-
         const prog = createProgram(vs, fs);
-
         setAttribute(
             'position',
             // prettier-ignore
@@ -119,23 +116,44 @@
         );
         m.multiply(pMat, vMat, vpMat);
 
-        // Define uniform variable
         const uniMvpLoc = gl.getUniformLocation(prog, 'mvpMat');
         const mMat = m.create();
 
-        for (const pos of [
-            [1.5, 0, 0],
-            [-1.5, 0, 0],
-        ]) {
-            m.identity(mMat);
-            m.translate(mMat, pos, mMat); // mvp = p * v * m
-            m.multiply(vpMat, mMat, mvpMat);
+        let count = 0;
+        function update() {
+            function draw() {
+                m.multiply(vpMat, mMat, mvpMat);
+                gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
+                gl.drawArrays(gl.TRIANGLES, /* start from 0th vertex */ 0, /* number of vertices */ 3);
+            }
 
-            gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
-            gl.drawArrays(gl.TRIANGLES, /* start from 0th vertex */ 0, /* number of vertices */ 3);
+            count++;
+
+            clear();
+
+            const rad = ((count % 360) * Math.PI) / 180;
+
+            const x = Math.cos(rad);
+            const y = Math.sin(rad);
+            m.translate(m.identity(mMat), [x, y + 1, 0], mMat);
+            draw();
+
+            m.translate(m.identity(mMat), [1, -1, 0], mMat);
+            m.rotate(mMat, rad, /* axis */ [0, 1, 0], mMat);
+            draw();
+
+            const factor = Math.sin(rad) + 1;
+            m.translate(m.identity(mMat), [-1, -1, 0], mMat);
+            m.scale(mMat, [factor, factor, 0], mMat);
+            draw();
+
+            gl.flush(); // Actual re-rendering happens here
+
+            // window.requestAnimationFrame(update);
+            window.setTimeout(update, 1000 / 30);
         }
 
-        gl.flush(); // Actual re-rendering happens here
+        update();
     }
 
     main().catch(alert);
