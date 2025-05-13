@@ -72,6 +72,14 @@
         gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
     }
 
+    function createIndexBuffer(data) {
+        const ibo = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        return ibo;
+    }
+
     async function main() {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
@@ -80,10 +88,11 @@
             'position',
             // prettier-ignore
             [
-                // x,   y,   z,
-                 0.0, 1.0, 0.0,
-                 1.0, 0.0, 0.0,
-                -1.0, 0.0, 0.0,
+                // x,    y,   z,
+                 0.0,  1.0, 0.0,
+                 1.0,  0.0, 0.0,
+                -1.0,  0.0, 0.0,
+                 0.0, -1.0, 0.0,
             ],
             3, // 3 elements (x, y, z)
             prog
@@ -96,10 +105,19 @@
                 1.0, 0.0, 0.0, 1.0,
                 0.0, 1.0, 0.0, 1.0,
                 0.0, 0.0, 1.0, 1.0,
+                1.0, 1.0, 1.0, 1.0,
             ],
             4, // (r, g, b, a)
             prog
         );
+
+        // prettier-ignore
+        const indices = [
+            0, 1, 2, // First triangle
+            1, 2, 3, // Second triangle
+        ];
+        const ibo = createIndexBuffer(indices);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
@@ -121,36 +139,22 @@
 
         let count = 0;
         function update() {
-            function draw() {
-                m.multiply(vpMat, mMat, mvpMat);
-                gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
-                gl.drawArrays(gl.TRIANGLES, /* start from 0th vertex */ 0, /* number of vertices */ 3);
-            }
-
-            count++;
-
             clear();
 
+            count++;
             const rad = ((count % 360) * Math.PI) / 180;
 
-            const x = Math.cos(rad);
-            const y = Math.sin(rad);
-            m.translate(m.identity(mMat), [x, y + 1, 0], mMat);
-            draw();
+            m.rotate(m.identity(mMat), rad, /* axis */ [0, 1, 0], mMat);
+            m.multiply(vpMat, mMat, mvpMat);
+            gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
 
-            m.translate(m.identity(mMat), [1, -1, 0], mMat);
-            m.rotate(mMat, rad, /* axis */ [0, 1, 0], mMat);
-            draw();
+            // Draw triangles based on the index buffer.
+            gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
 
-            const factor = Math.sin(rad) + 1;
-            m.translate(m.identity(mMat), [-1, -1, 0], mMat);
-            m.scale(mMat, [factor, factor, 0], mMat);
-            draw();
+            // Actual re-rendering happens here
+            gl.flush();
 
-            gl.flush(); // Actual re-rendering happens here
-
-            // window.requestAnimationFrame(update);
-            window.setTimeout(update, 1000 / 30);
+            window.requestAnimationFrame(update);
         }
 
         update();
