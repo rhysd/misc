@@ -95,7 +95,7 @@
                  0.0, -1.0, 0.0,
             ],
             3, // 3 elements (x, y, z)
-            prog
+            prog,
         );
         setAttribute(
             'color',
@@ -108,7 +108,7 @@
                 1.0, 1.0, 1.0, 1.0,
             ],
             4, // (r, g, b, a)
-            prog
+            prog,
         );
 
         // prettier-ignore
@@ -130,7 +130,7 @@
             /* aspect ratio */ canvas.width / canvas.height,
             /* near clip */ 0.1,
             /* far clip */ 100,
-            pMat
+            pMat,
         );
         m.multiply(pMat, vMat, vpMat);
 
