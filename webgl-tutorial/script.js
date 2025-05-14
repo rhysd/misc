@@ -83,16 +83,24 @@
     async function main() {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
+        gl.enable(gl.CULL_FACE);
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LEQUAL);
+
         const prog = createProgram(vs, fs);
         setAttribute(
             'position',
             // prettier-ignore
             [
                 // x,    y,   z,
-                 0.0,  1.0, 0.0,
-                 1.0,  0.0, 0.0,
-                -1.0,  0.0, 0.0,
-                 0.0, -1.0, 0.0,
+                 0.0,  1.0, 1.0,
+                 1.0,  0.0, 1.0,
+                -1.0,  0.0, 1.0,
+                 0.0, -1.0, 1.0,
+                 0.0,  1.0, -1.0,
+                 1.0,  0.0, -1.0,
+                -1.0,  0.0, -1.0,
+                 0.0, -1.0, -1.0,
             ],
             3, // 3 elements (x, y, z)
             prog,
@@ -106,6 +114,10 @@
                 0.0, 1.0, 0.0, 1.0,
                 0.0, 0.0, 1.0, 1.0,
                 1.0, 1.0, 1.0, 1.0,
+                1.0, 1.0, 0.0, 1.0,
+                0.0, 1.0, 1.0, 1.0,
+                1.0, 0.0, 1.0, 1.0,
+                0.0, 0.0, 0.0, 1.0,
             ],
             4, // (r, g, b, a)
             prog,
@@ -113,8 +125,12 @@
 
         // prettier-ignore
         const indices = [
-            0, 1, 2, // First triangle
-            1, 2, 3, // Second triangle
+            0, 2, 1, // First triangle (front)
+            1, 2, 0, // First triangle (back)
+            1, 2, 3, // Second triangle (front)
+            3, 2, 1, // Second triangle (back)
+            4, 6, 5, // Third triangle (front-only)
+            5, 6, 7, // Forth triangle (front-only)
         ];
         const ibo = createIndexBuffer(indices);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
