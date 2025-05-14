@@ -80,6 +80,52 @@
         return ibo;
     }
 
+    function hsva(h, s, v, a) {
+        if (s > 1 || v > 1 || a > 1) {
+            throw new Error(`Invalid HSVA color (${h}, ${s}, ${v}, ${a})`);
+        }
+        const th = h % 360;
+        const i = Math.floor(th / 60);
+        const f = th / 60 - i;
+        const m = v * (1 - s);
+        const n = v * (1 - s * f);
+        const k = v * (1 - s * (1 - f));
+        const r = [v, n, m, m, k, v][i];
+        const g = [k, v, v, n, m, m][i];
+        const b = [m, m, k, v, v, n][i];
+        return [r, g, b, a];
+    }
+
+    function torus(row, col, innerRadius, outerRadius) {
+        const positions = [];
+        const colors = [];
+        const indices = [];
+
+        for (let i = 0; i <= row; i++) {
+            const rad = ((Math.PI * 2) / row) * i;
+            const rx = Math.cos(rad);
+            const ry = Math.sin(rad);
+            for (let j = 0; j <= col; j++) {
+                const rad = ((Math.PI * 2) / col) * j;
+                const x = (rx * innerRadius + outerRadius) * Math.cos(rad);
+                const y = ry * innerRadius;
+                const z = (rx * innerRadius + outerRadius) * Math.sin(rad);
+                positions.push(x, y, z);
+                colors.push(...hsva((360 / col) * j, 1, 1, 1));
+            }
+        }
+
+        for (let i = 0; i < row; i++) {
+            for (let j = 0; j < col; j++) {
+                const r = (col + 1) * i + j;
+                indices.push(r, r + col + 1, r + 1);
+                indices.push(r + col + 1, r + col + 2, r + 1);
+            }
+        }
+
+        return [positions, colors, indices];
+    }
+
     async function main() {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
@@ -87,51 +133,12 @@
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
 
-        const prog = createProgram(vs, fs);
-        setAttribute(
-            'position',
-            // prettier-ignore
-            [
-                // x,    y,   z,
-                 0.0,  1.0, 1.0,
-                 1.0,  0.0, 1.0,
-                -1.0,  0.0, 1.0,
-                 0.0, -1.0, 1.0,
-                 0.0,  1.0, -1.0,
-                 1.0,  0.0, -1.0,
-                -1.0,  0.0, -1.0,
-                 0.0, -1.0, -1.0,
-            ],
-            3, // 3 elements (x, y, z)
-            prog,
-        );
-        setAttribute(
-            'color',
-            // prettier-ignore
-            [
-              //  r,   g,   b,   a,
-                1.0, 0.0, 0.0, 1.0,
-                0.0, 1.0, 0.0, 1.0,
-                0.0, 0.0, 1.0, 1.0,
-                1.0, 1.0, 1.0, 1.0,
-                1.0, 1.0, 0.0, 1.0,
-                0.0, 1.0, 1.0, 1.0,
-                1.0, 0.0, 1.0, 1.0,
-                0.0, 0.0, 0.0, 1.0,
-            ],
-            4, // (r, g, b, a)
-            prog,
-        );
+        const [positions, colors, indices] = torus(32, 32, 1, 2);
 
-        // prettier-ignore
-        const indices = [
-            0, 2, 1, // First triangle (front)
-            1, 2, 0, // First triangle (back)
-            1, 2, 3, // Second triangle (front)
-            3, 2, 1, // Second triangle (back)
-            4, 6, 5, // Third triangle (front-only)
-            5, 6, 7, // Forth triangle (front-only)
-        ];
+        const prog = createProgram(vs, fs);
+        setAttribute('position', positions, 3, prog);
+        setAttribute('color', colors, 4, prog);
+
         const ibo = createIndexBuffer(indices);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 
@@ -140,9 +147,9 @@
         const vpMat = m.identity(m.create());
         const mvpMat = m.identity(m.create());
 
-        m.lookAt(/* eye position */ [0, 0, 3], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
+        m.lookAt(/* eye position */ [0, 0, 20], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
         m.perspective(
-            /* fov */ 90,
+            /* fov */ 45,
             /* aspect ratio */ canvas.width / canvas.height,
             /* near clip */ 0.1,
             /* far clip */ 100,
@@ -160,7 +167,7 @@
             count++;
             const rad = ((count % 360) * Math.PI) / 180;
 
-            m.rotate(m.identity(mMat), rad, /* axis */ [0, 1, 0], mMat);
+            m.rotate(m.identity(mMat), rad, /* axis */ [0, 1, 1], mMat);
             m.multiply(vpMat, mMat, mvpMat);
             gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
 
