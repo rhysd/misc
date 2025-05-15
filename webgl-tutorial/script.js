@@ -108,13 +108,16 @@
             const ry = Math.sin(rad);
             for (let j = 0; j <= col; j++) {
                 const rad = ((Math.PI * 2) / col) * j;
+
                 const x = (rr * innerRadius + outerRadius) * Math.cos(rad);
                 const y = ry * innerRadius;
                 const z = (rr * innerRadius + outerRadius) * Math.sin(rad);
                 positions.push(x, y, z);
+
                 const rx = rr * Math.cos(rad);
                 const rz = rr * Math.sin(rad);
                 normals.push(rx, ry, rz);
+
                 colors.push(...hsva((360 / col) * j, 1, 1, 1));
             }
         }
@@ -150,8 +153,6 @@
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
-        const mvpMat = m.identity(m.create());
-        const invMat = m.identity(m.create());
 
         m.lookAt(/* eye position */ [0, 0, 20], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
         m.perspective(
@@ -163,10 +164,14 @@
         );
         m.multiply(pMat, vMat, vpMat);
 
-        const uniMvpLoc = gl.getUniformLocation(prog, 'mvpMat');
-        const uniInvLoc = gl.getUniformLocation(prog, 'invMat');
-        const uniLightDirLoc = gl.getUniformLocation(prog, 'lightDirection');
+        const uniforms = ['mvpMat', 'invMat', 'lightDirection'].reduce((acc, name) => {
+            acc[name] = gl.getUniformLocation(prog, name);
+            return acc;
+        }, {});
+
         const mMat = m.create();
+        const mvpMat = m.create();
+        const invMat = m.create();
         const lightDirection = [-0.5, 0.5, 0.5];
 
         let count = 0;
@@ -180,9 +185,9 @@
             m.multiply(vpMat, mMat, mvpMat);
             m.inverse(mMat, invMat);
 
-            gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
-            gl.uniformMatrix4fv(uniInvLoc, false, invMat);
-            gl.uniform3fv(uniLightDirLoc, lightDirection);
+            gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+            gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
+            gl.uniform3fv(uniforms.lightDirection, lightDirection);
 
             // Draw triangles based on the index buffer.
             gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
@@ -196,5 +201,5 @@
         update();
     }
 
-    main().catch(alert);
+    main().catch(err => alert(err.stack ?? err.message));
 })();
