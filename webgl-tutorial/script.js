@@ -98,19 +98,23 @@
 
     function torus(row, col, innerRadius, outerRadius) {
         const positions = [];
+        const normals = [];
         const colors = [];
         const indices = [];
 
         for (let i = 0; i <= row; i++) {
             const rad = ((Math.PI * 2) / row) * i;
-            const rx = Math.cos(rad);
+            const rr = Math.cos(rad);
             const ry = Math.sin(rad);
             for (let j = 0; j <= col; j++) {
                 const rad = ((Math.PI * 2) / col) * j;
-                const x = (rx * innerRadius + outerRadius) * Math.cos(rad);
+                const x = (rr * innerRadius + outerRadius) * Math.cos(rad);
                 const y = ry * innerRadius;
-                const z = (rx * innerRadius + outerRadius) * Math.sin(rad);
+                const z = (rr * innerRadius + outerRadius) * Math.sin(rad);
                 positions.push(x, y, z);
+                const rx = rr * Math.cos(rad);
+                const rz = rr * Math.sin(rad);
+                normals.push(rx, ry, rz);
                 colors.push(...hsva((360 / col) * j, 1, 1, 1));
             }
         }
@@ -123,7 +127,7 @@
             }
         }
 
-        return [positions, colors, indices];
+        return [positions, normals, colors, indices];
     }
 
     async function main() {
@@ -133,10 +137,11 @@
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
 
-        const [positions, colors, indices] = torus(32, 32, 1, 2);
+        const [positions, normals, colors, indices] = torus(32, 32, 1, 2);
 
         const prog = createProgram(vs, fs);
         setAttribute('position', positions, 3, prog);
+        setAttribute('normal', normals, 3, prog);
         setAttribute('color', colors, 4, prog);
 
         const ibo = createIndexBuffer(indices);
@@ -146,6 +151,7 @@
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
         const mvpMat = m.identity(m.create());
+        const invMat = m.identity(m.create());
 
         m.lookAt(/* eye position */ [0, 0, 20], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
         m.perspective(
@@ -158,7 +164,10 @@
         m.multiply(pMat, vMat, vpMat);
 
         const uniMvpLoc = gl.getUniformLocation(prog, 'mvpMat');
+        const uniInvLoc = gl.getUniformLocation(prog, 'invMat');
+        const uniLightDirLoc = gl.getUniformLocation(prog, 'lightDirection');
         const mMat = m.create();
+        const lightDirection = [-0.5, 0.5, 0.5];
 
         let count = 0;
         function update() {
@@ -169,7 +178,11 @@
 
             m.rotate(m.identity(mMat), rad, /* axis */ [0, 1, 1], mMat);
             m.multiply(vpMat, mMat, mvpMat);
+            m.inverse(mMat, invMat);
+
             gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
+            gl.uniformMatrix4fv(uniInvLoc, false, invMat);
+            gl.uniform3fv(uniLightDirLoc, lightDirection);
 
             // Draw triangles based on the index buffer.
             gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
