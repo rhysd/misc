@@ -164,7 +164,7 @@
         );
         m.multiply(pMat, vMat, vpMat);
 
-        const uniforms = ['mvpMat', 'invMat', 'lightDirection'].reduce((acc, name) => {
+        const uniforms = ['mvpMat', 'invMat', 'lightDirection', 'ambientColor'].reduce((acc, name) => {
             acc[name] = gl.getUniformLocation(prog, name);
             return acc;
         }, {});
@@ -173,6 +173,7 @@
         const mvpMat = m.create();
         const invMat = m.create();
         const lightDirection = [-0.5, 0.5, 0.5];
+        const ambientColor = [0.1, 0.1, 0.1, 1.0];
 
         let count = 0;
         function update() {
@@ -188,6 +189,7 @@
             gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
             gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
             gl.uniform3fv(uniforms.lightDirection, lightDirection);
+            gl.uniform4fv(uniforms.ambientColor, ambientColor);
 
             // Draw triangles based on the index buffer.
             gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
