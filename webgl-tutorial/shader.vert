@@ -16,7 +16,7 @@ void main(void) {
     vec3 invHalf = normalize(invLight + invEye);
     float specular = pow(clamp(dot(normal, invHalf), 0.0, 1.0), 50.0);
     float diffuse = clamp(dot(normal, invLight), 0.0, 1.0);
-    vec4 light = vec4(vec3(diffuse), 1.0) + vec4(vec3(specular), 1.0);
-    vColor = color * light + ambientColor;
+    vec4 lightColor = color * vec4(vec3(diffuse + specular), 1.0);
+    vColor = lightColor + ambientColor;
     gl_Position = mvpMat * vec4(position, 1.0);
 }
