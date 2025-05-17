@@ -153,8 +153,9 @@
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
+        const eyeDirection = [0, 0, 20];
 
-        m.lookAt(/* eye position */ [0, 0, 20], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
+        m.lookAt(/* eye position */ eyeDirection, /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
         m.perspective(
             /* fov */ 45,
             /* aspect ratio */ canvas.width / canvas.height,
@@ -164,7 +165,7 @@
         );
         m.multiply(pMat, vMat, vpMat);
 
-        const uniforms = ['mvpMat', 'invMat', 'lightDirection', 'ambientColor'].reduce((acc, name) => {
+        const uniforms = ['mvpMat', 'invMat', 'lightDirection', 'eyeDirection', 'ambientColor'].reduce((acc, name) => {
             acc[name] = gl.getUniformLocation(prog, name);
             return acc;
         }, {});
@@ -189,6 +190,7 @@
             gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
             gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
             gl.uniform3fv(uniforms.lightDirection, lightDirection);
+            gl.uniform3fv(uniforms.eyeDirection, eyeDirection);
             gl.uniform4fv(uniforms.ambientColor, ambientColor);
 
             // Draw triangles based on the index buffer.
