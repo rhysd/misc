@@ -64,12 +64,22 @@
         return vbo;
     }
 
-    function setAttribute(name, data, stride, program) {
+    function createAttribute(name, data, stride, program) {
         const loc = gl.getAttribLocation(program, name);
         const vbo = createVertexBuffer(data);
-        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-        gl.enableVertexAttribArray(loc);
-        gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
+        return { loc, vbo, stride };
+    }
+
+    function createObject(prog, positions, normals, colors, indices) {
+        return {
+            attrs: [
+                createAttribute('position', positions, 3, prog),
+                createAttribute('normal', normals, 3, prog),
+                createAttribute('color', colors, 4, prog),
+            ],
+            ibo: createIndexBuffer(indices),
+            lenIndices: indices.length,
+        };
     }
 
     function createIndexBuffer(data) {
@@ -78,6 +88,16 @@
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
         return ibo;
+    }
+
+    function bindBuffers(object) {
+        for (const attr of object.attrs) {
+            const { loc, vbo, stride } = attr;
+            gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+            gl.enableVertexAttribArray(loc);
+            gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
     }
 
     function hsva(h, s, v, a) {
@@ -133,6 +153,43 @@
         return [positions, normals, colors, indices];
     }
 
+    function sphere(row, col, radius, color) {
+        const positions = [];
+        const normals = [];
+        const colors = [];
+        const indices = [];
+
+        for (let i = 0; i <= row; i++) {
+            const rad = (Math.PI / row) * i;
+            const ry = Math.cos(rad);
+            const rr = Math.sin(rad);
+            for (let j = 0; j <= col; j++) {
+                const rad = ((Math.PI * 2) / col) * j;
+
+                const x = rr * radius * Math.cos(rad);
+                const y = ry * radius;
+                const z = rr * radius * Math.sin(rad);
+                positions.push(x, y, z);
+
+                const rx = rr * Math.cos(rad);
+                const rz = rr * Math.sin(rad);
+                normals.push(rx, ry, rz);
+
+                colors.push(...color);
+            }
+        }
+
+        for (let i = 0; i < row; i++) {
+            for (let j = 0; j < col; j++) {
+                const r = (col + 1) * i + j;
+                indices.push(r, r + 1, r + col + 2);
+                indices.push(r, r + col + 2, r + col + 1);
+            }
+        }
+
+        return [positions, normals, colors, indices];
+    }
+
     async function main() {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
@@ -140,15 +197,10 @@
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
 
-        const [positions, normals, colors, indices] = torus(32, 32, 1, 2);
-
         const prog = createProgram(vs, fs);
-        setAttribute('position', positions, 3, prog);
-        setAttribute('normal', normals, 3, prog);
-        setAttribute('color', colors, 4, prog);
 
-        const ibo = createIndexBuffer(indices);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+        const torusObject = createObject(prog, ...torus(64, 64, 0.75, 1.75));
+        const sphereObject = createObject(prog, ...sphere(64, 64, 2, [0.25, 0.25, 0.75, 1]));
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
@@ -165,15 +217,18 @@
         );
         m.multiply(pMat, vMat, vpMat);
 
-        const uniforms = ['mvpMat', 'invMat', 'lightDirection', 'eyeDirection', 'ambientColor'].reduce((acc, name) => {
-            acc[name] = gl.getUniformLocation(prog, name);
-            return acc;
-        }, {});
+        const uniforms = ['mvpMat', 'mMat', 'invMat', 'lightPosition', 'eyeDirection', 'ambientColor'].reduce(
+            (acc, name) => {
+                acc[name] = gl.getUniformLocation(prog, name);
+                return acc;
+            },
+            {},
+        );
 
         const mMat = m.create();
         const mvpMat = m.create();
         const invMat = m.create();
-        const lightDirection = [-0.5, 0.5, 0.5];
+        const lightPosition = [0, 0, 0];
         const ambientColor = [0.1, 0.1, 0.1, 1.0];
 
         let count = 0;
@@ -182,19 +237,58 @@
 
             count++;
             const rad = ((count % 360) * Math.PI) / 180;
+            const x = Math.cos(rad) * 3.5;
+            const y = Math.sin(rad) * 3.5;
+            const z = Math.sin(rad) * 3.5;
 
-            m.rotate(m.identity(mMat), rad, /* axis */ [0, 1, 1], mMat);
-            m.multiply(vpMat, mMat, mvpMat);
-            m.inverse(mMat, invMat);
-
-            gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
-            gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
-            gl.uniform3fv(uniforms.lightDirection, lightDirection);
+            gl.uniform3fv(uniforms.lightPosition, lightPosition);
             gl.uniform3fv(uniforms.eyeDirection, eyeDirection);
             gl.uniform4fv(uniforms.ambientColor, ambientColor);
 
-            // Draw triangles based on the index buffer.
-            gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
+            // Render torus object
+            {
+                bindBuffers(torusObject);
+
+                m.identity(mMat);
+                m.translate(mMat, [x, -y, -z], mMat);
+                m.rotate(mMat, -rad, /* axis */ [0, 1, 1], mMat);
+                m.multiply(vpMat, mMat, mvpMat);
+                m.inverse(mMat, invMat);
+
+                gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+                gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
+                gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
+
+                // Draw triangles based on the index buffer.
+                gl.drawElements(
+                    gl.TRIANGLES,
+                    torusObject.lenIndices,
+                    /* type of index */ gl.UNSIGNED_SHORT,
+                    /* start offset */ 0,
+                );
+            }
+
+            // Render sphere object
+            {
+                bindBuffers(sphereObject);
+
+                m.identity(mMat);
+                m.translate(mMat, [-x, y, z], mMat);
+                m.multiply(vpMat, mMat, mvpMat);
+                m.inverse(mMat, invMat);
+
+                gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+                gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
+                gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
+
+                // Draw triangles based on the index buffer.
+                gl.drawElements(
+                    gl.TRIANGLES,
+                    sphereObject.lenIndices,
+                    /* type of index */ gl.UNSIGNED_SHORT,
+                    /* start offset */ 0,
+                );
+            }
 
             // Actual re-rendering happens here
             gl.flush();
