@@ -77,18 +77,6 @@
         gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
     }
 
-    function createObject(prog, positions, normals, colors, indices) {
-        return {
-            attrs: [
-                createAttribute('position', positions, 3, prog),
-                createAttribute('normal', normals, 3, prog),
-                createAttribute('color', colors, 4, prog),
-            ],
-            ibo: createIndexBuffer(indices),
-            lenIndices: indices.length,
-        };
-    }
-
     function createIndexBuffer(data) {
         const ibo = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
@@ -138,9 +126,9 @@
 
         // prettier-ignore
         const colors = [
-            1.0, 1.0, 1.0, 1.0,
-            1.0, 1.0, 1.0, 1.0,
-            1.0, 1.0, 1.0, 1.0,
+            1.0, 0.7, 0.7, 1.0,
+            0.7, 1.0, 0.7, 1.0,
+            0.7, 0.7, 1.0, 1.0,
             1.0, 1.0, 1.0, 1.0,
         ];
         const colorAttr = createAttribute('color', colors, 4, prog);
@@ -166,8 +154,7 @@
 
         // Load texture data and activate texture unit
         gl.activeTexture(gl.TEXTURE0);
-        const texture = await loadTexture2D('texture0.png');
-        gl.bindTexture(gl.TEXTURE_2D, texture);
+        const texture = await loadTexture2D('ferris.png');
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
@@ -188,8 +175,6 @@
             return acc;
         }, {});
 
-        gl.uniform1i(uniforms.texture, 0); // Use texture unit 0
-
         const mMat = m.create();
         const mvpMat = m.create();
 
@@ -203,8 +188,12 @@
             m.identity(mMat);
             m.rotate(mMat, rad, /* axis */ [1, 1, 1], mMat);
             m.multiply(vpMat, mMat, mvpMat);
-
             gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+
+            // Tell GL to use this texture
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            // Notify texture group 0 to the fragment shader
+            gl.uniform1i(uniforms.texture, 0);
 
             // Draw triangles based on the index buffer.
             gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
