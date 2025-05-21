@@ -85,18 +85,21 @@
         return ibo;
     }
 
-    async function loadTexture2D(src) {
+    function loadImage(src) {
         const img = new Image();
 
-        const loaded = new Promise((resolve, reject) => {
-            img.onload = resolve;
+        return new Promise((resolve, reject) => {
+            img.onload = () => {
+                resolve(img);
+            };
             img.onerror = reject;
             img.src = src;
         });
+    }
 
+    async function loadTexture2D(src) {
+        const img = await loadImage(src);
         const tex = gl.createTexture();
-
-        await loaded;
 
         gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
@@ -111,6 +114,7 @@
 
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
+        gl.enable(gl.BLEND);
 
         const prog = createProgram(vs, fs);
 
@@ -125,14 +129,25 @@
         setAttribute(posAttr);
 
         // prettier-ignore
-        const colors = [
-            1.0, 0.7, 0.7, 1.0,
-            0.7, 1.0, 0.7, 1.0,
-            0.7, 0.7, 1.0, 1.0,
+        const texBackground = [
+            1.0, 1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0, 1.0,
             1.0, 1.0, 1.0, 1.0,
         ];
-        const colorAttr = createAttribute('color', colors, 4, prog);
-        setAttribute(colorAttr);
+        const texBackgroundAttr = createAttribute('color', texBackground, 4, prog);
+
+        // prettier-ignore
+        const coverColors = [
+            1.0, 0.0, 0.0, 0.8,
+            0.0, 1.0, 0.0, 0.8,
+            0.0, 0.0, 1.0, 0.8,
+            1.0, 1.0, 0.0, 0.8,
+        ];
+        const coverColorsAttr = {
+            ...texBackgroundAttr,
+            vbo: createVertexBuffer(coverColors),
+        };
 
         // prettier-ignore
         const textureCoords = [
@@ -160,7 +175,7 @@
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
 
-        m.lookAt(/* eye position */ [0, 0, 5], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
+        m.lookAt(/* eye position */ [0, 0, 10], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
         m.perspective(
             /* fov */ 45,
             /* aspect ratio */ canvas.width / canvas.height,
@@ -170,10 +185,19 @@
         );
         m.multiply(pMat, vMat, vpMat);
 
-        const uniforms = ['mvpMat', 'texture0', 'texture1'].reduce((acc, name) => {
+        const uniforms = ['mvpMat', 'texture0', 'texture1', 'useTexture'].reduce((acc, name) => {
             acc[name] = gl.getUniformLocation(prog, name);
             return acc;
         }, {});
+
+        // Bind textures to the texture units
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texture0);
+        gl.uniform1i(uniforms.texture0, 0);
+
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, texture1);
+        gl.uniform1i(uniforms.texture1, 1);
 
         const mMat = m.create();
         const mvpMat = m.create();
@@ -184,22 +208,35 @@
 
             count++;
             const rad = ((count % 360) * Math.PI) / 180;
+            const x = Math.cos(rad) * 2.5;
 
-            m.identity(mMat);
-            m.rotate(mMat, rad, /* axis */ [1, 1, 1], mMat);
-            m.multiply(vpMat, mMat, mvpMat);
-            gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+            for (const [y, destBlend] of [
+                [1.5, gl.ONE_MINUS_SRC_ALPHA],
+                [-1.5, gl.ONE],
+            ]) {
+                gl.blendFunc(gl.SRC_ALPHA, destBlend);
 
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, texture0);
-            gl.uniform1i(uniforms.texture0, 0);
+                for (const [useTexture, colorAttr] of [
+                    [1, texBackgroundAttr],
+                    [0, coverColorsAttr],
+                ]) {
+                    setAttribute(colorAttr);
 
-            gl.activeTexture(gl.TEXTURE1);
-            gl.bindTexture(gl.TEXTURE_2D, texture1);
-            gl.uniform1i(uniforms.texture1, 1);
+                    m.identity(mMat);
+                    m.translate(mMat, [useTexture ? x : 0, y, 0], mMat);
+                    m.multiply(vpMat, mMat, mvpMat);
+                    gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+                    gl.uniform1i(uniforms.useTexture, useTexture);
 
-            // Draw triangles based on the index buffer.
-            gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
+                    // Draw triangles based on the index buffer.
+                    gl.drawElements(
+                        gl.TRIANGLES,
+                        indices.length,
+                        /* type of index */ gl.UNSIGNED_SHORT,
+                        /* start offset */ 0,
+                    );
+                }
+            }
 
             // Actual re-rendering happens here
             gl.flush();
