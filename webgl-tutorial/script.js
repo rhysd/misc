@@ -129,25 +129,14 @@
         setAttribute(posAttr);
 
         // prettier-ignore
-        const texBackground = [
-            1.0, 1.0, 1.0, 1.0,
-            1.0, 1.0, 1.0, 1.0,
-            1.0, 1.0, 1.0, 1.0,
-            1.0, 1.0, 1.0, 1.0,
-        ];
-        const texBackgroundAttr = createAttribute('color', texBackground, 4, prog);
-
-        // prettier-ignore
-        const coverColors = [
+        const colors = [
             1.0, 0.0, 0.0, 0.8,
             0.0, 1.0, 0.0, 0.8,
             0.0, 0.0, 1.0, 0.8,
             1.0, 1.0, 0.0, 0.8,
         ];
-        const coverColorsAttr = {
-            ...texBackgroundAttr,
-            vbo: createVertexBuffer(coverColors),
-        };
+        const colorAttr = createAttribute('color', colors, 4, prog);
+        setAttribute(colorAttr);
 
         // prettier-ignore
         const textureCoords = [
@@ -216,17 +205,28 @@
             ]) {
                 gl.blendFunc(gl.SRC_ALPHA, destBlend);
 
-                for (const [useTexture, colorAttr] of [
-                    [1, texBackgroundAttr],
-                    [0, coverColorsAttr],
-                ]) {
-                    setAttribute(colorAttr);
-
-                    m.identity(mMat);
-                    m.translate(mMat, [useTexture ? x : 0, y, 0], mMat);
+                // Render textures
+                {
+                    m.translate(m.identity(mMat), [x, y, 0], mMat);
                     m.multiply(vpMat, mMat, mvpMat);
                     gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
-                    gl.uniform1i(uniforms.useTexture, useTexture);
+                    gl.uniform1i(uniforms.useTexture, 1);
+
+                    // Draw triangles based on the index buffer.
+                    gl.drawElements(
+                        gl.TRIANGLES,
+                        indices.length,
+                        /* type of index */ gl.UNSIGNED_SHORT,
+                        /* start offset */ 0,
+                    );
+                }
+
+                // Render translucent cover
+                {
+                    m.translate(m.identity(mMat), [0, y, 0], mMat);
+                    m.multiply(vpMat, mMat, mvpMat);
+                    gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+                    gl.uniform1i(uniforms.useTexture, 0);
 
                     // Draw triangles based on the index buffer.
                     gl.drawElements(

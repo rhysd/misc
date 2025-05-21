@@ -27,5 +27,5 @@ void main(void) {
         return;
     }
 
-    gl_FragColor = vColor;
+    gl_FragColor = vec4(1.0); // Use white background for textures
 }
