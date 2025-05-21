@@ -152,9 +152,9 @@
         const ibo = createIndexBuffer(indices);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 
-        // Load texture data and activate texture unit
-        gl.activeTexture(gl.TEXTURE0);
-        const texture = await loadTexture2D('ferris.png');
+        // Load texture data and activate textures
+        const texture0 = await loadTexture2D('ferris.png');
+        const texture1 = await loadTexture2D('rust-logo.png');
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
@@ -170,7 +170,7 @@
         );
         m.multiply(pMat, vMat, vpMat);
 
-        const uniforms = ['mvpMat', 'texture'].reduce((acc, name) => {
+        const uniforms = ['mvpMat', 'texture0', 'texture1'].reduce((acc, name) => {
             acc[name] = gl.getUniformLocation(prog, name);
             return acc;
         }, {});
@@ -190,10 +190,13 @@
             m.multiply(vpMat, mMat, mvpMat);
             gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
 
-            // Tell GL to use this texture
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            // Notify texture group 0 to the fragment shader
-            gl.uniform1i(uniforms.texture, 0);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, texture0);
+            gl.uniform1i(uniforms.texture0, 0);
+
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, texture1);
+            gl.uniform1i(uniforms.texture1, 1);
 
             // Draw triangles based on the index buffer.
             gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
