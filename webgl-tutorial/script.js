@@ -102,7 +102,14 @@
         const tex = gl.createTexture();
 
         gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        gl.texImage2D(
+            /* target */ gl.TEXTURE_2D,
+            /* level of mipmap */ 0,
+            /* color components in texture */ gl.RGBA,
+            /* format of the texel data*/ gl.RGBA,
+            /* 1 byte per element of RGBA */ gl.UNSIGNED_BYTE,
+            img,
+        );
         gl.generateMipmap(gl.TEXTURE_2D);
         gl.bindTexture(gl.TEXTURE_2D, null);
 
@@ -197,20 +204,22 @@
 
             count++;
             const rad = ((count % 360) * Math.PI) / 180;
-            const x = Math.cos(rad) * 2.5;
+            const x = Math.cos(rad) * 1.25;
 
-            for (const [y, destBlend] of [
-                [1.5, gl.ONE_MINUS_SRC_ALPHA],
-                [-1.5, gl.ONE],
+            for (const [y, destBlend, equation] of [
+                [2.5, gl.ONE_MINUS_SRC_ALPHA, gl.FUNC_ADD],
+                [0.0, gl.ONE, gl.FUNC_ADD],
+                [-2.5, gl.ONE_MINUS_SRC_ALPHA, gl.FUNC_SUBTRACT],
             ]) {
-                gl.blendFunc(gl.SRC_ALPHA, destBlend);
+                gl.blendFuncSeparate(gl.SRC_ALPHA, destBlend, gl.ONE, gl.ONE);
+                gl.blendEquationSeparate(equation, gl.FUNC_ADD);
 
                 // Render textures
                 {
                     m.translate(m.identity(mMat), [x, y, 0], mMat);
                     m.multiply(vpMat, mMat, mvpMat);
                     gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
-                    gl.uniform1i(uniforms.useTexture, 1);
+                    gl.uniform1i(uniforms.useTexture, true);
 
                     // Draw triangles based on the index buffer.
                     gl.drawElements(
@@ -223,10 +232,10 @@
 
                 // Render translucent cover
                 {
-                    m.translate(m.identity(mMat), [0, y, 0], mMat);
+                    m.translate(m.identity(mMat), [1.25, y, 0], mMat);
                     m.multiply(vpMat, mMat, mvpMat);
                     gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
-                    gl.uniform1i(uniforms.useTexture, 0);
+                    gl.uniform1i(uniforms.useTexture, false);
 
                     // Draw triangles based on the index buffer.
                     gl.drawElements(
