@@ -1,31 +1,19 @@
 precision mediump float;
 
-uniform sampler2D texture0;
-uniform sampler2D texture1;
-uniform int useTexture;
+uniform mat4 invMat;
+uniform vec3 lightDirection;
+uniform vec3 eyeDirection;
+uniform vec4 ambientColor;
 
 varying vec4 vColor;
-varying vec2 vTextureCoord;
+varying vec3 vNormal;
 
 void main(void) {
-    if (!bool(useTexture)) {
-        gl_FragColor = vColor;
-        return;
-    }
-
-    // The texture0 is over the texture1.
-
-    vec4 tex0 = texture2D(texture0, vTextureCoord);
-    if (tex0.w != 0.0) {
-        gl_FragColor = tex0;
-        return;
-    }
-
-    vec4 tex1 = texture2D(texture1, vTextureCoord);
-    if (tex1.w != 0.0) {
-        gl_FragColor = tex1;
-        return;
-    }
-
-    gl_FragColor = vec4(1.0); // Use white background for textures
+    vec3 invLight = normalize(invMat * vec4(lightDirection, 1.0)).xyz;
+    vec3 invEye = normalize(invMat * vec4(eyeDirection, 1.0)).xyz;
+    vec3 invHalf = normalize(invLight + invEye);
+    float specular = pow(clamp(dot(vNormal, invHalf), 0.0, 1.0), 50.0);
+    float diffuse = clamp(dot(vNormal, invLight), 0.0, 1.0);
+    vec4 lightColor = vColor * vec4(vec3(diffuse + specular), 1.0);
+    gl_FragColor = lightColor + ambientColor;
 }

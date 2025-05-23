@@ -7,6 +7,7 @@
 
     const gl = canvas.getContext('webgl');
     const m = new matIV();
+    const q = new qtnIV();
 
     function clear() {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -64,14 +65,9 @@
         return vbo;
     }
 
-    function createAttribute(name, data, stride, program) {
+    function setAttribute(name, data, stride, program) {
         const loc = gl.getAttribLocation(program, name);
         const vbo = createVertexBuffer(data);
-        return { loc, vbo, stride };
-    }
-
-    function setAttribute(attr) {
-        const { loc, vbo, stride } = attr;
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.enableVertexAttribArray(loc);
         gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
@@ -85,167 +81,136 @@
         return ibo;
     }
 
-    function loadImage(src) {
-        const img = new Image();
-
-        return new Promise((resolve, reject) => {
-            img.onload = () => {
-                resolve(img);
-            };
-            img.onerror = reject;
-            img.src = src;
-        });
+    function hsva(h, s, v, a) {
+        if (s > 1 || v > 1 || a > 1) {
+            throw new Error(`Invalid HSVA color (${h}, ${s}, ${v}, ${a})`);
+        }
+        const th = h % 360;
+        const i = Math.floor(th / 60);
+        const f = th / 60 - i;
+        const m = v * (1 - s);
+        const n = v * (1 - s * f);
+        const k = v * (1 - s * (1 - f));
+        const r = [v, n, m, m, k, v][i];
+        const g = [k, v, v, n, m, m][i];
+        const b = [m, m, k, v, v, n][i];
+        return [r, g, b, a];
     }
 
-    async function loadTexture2D(src) {
-        const img = await loadImage(src);
-        const tex = gl.createTexture();
+    function torus(row, col, innerRadius, outerRadius) {
+        const positions = [];
+        const normals = [];
+        const colors = [];
+        const indices = [];
 
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texImage2D(
-            /* target */ gl.TEXTURE_2D,
-            /* level of mipmap */ 0,
-            /* color components in texture */ gl.RGBA,
-            /* format of the texel data*/ gl.RGBA,
-            /* 1 byte per element of RGBA */ gl.UNSIGNED_BYTE,
-            img,
-        );
-        gl.generateMipmap(gl.TEXTURE_2D);
-        gl.bindTexture(gl.TEXTURE_2D, null);
+        for (let i = 0; i <= row; i++) {
+            const rad = ((Math.PI * 2) / row) * i;
+            const rr = Math.cos(rad);
+            const ry = Math.sin(rad);
+            for (let j = 0; j <= col; j++) {
+                const rad = ((Math.PI * 2) / col) * j;
 
-        return tex;
+                const x = (rr * innerRadius + outerRadius) * Math.cos(rad);
+                const y = ry * innerRadius;
+                const z = (rr * innerRadius + outerRadius) * Math.sin(rad);
+                positions.push(x, y, z);
+
+                const rx = rr * Math.cos(rad);
+                const rz = rr * Math.sin(rad);
+                normals.push(rx, ry, rz);
+
+                colors.push(...hsva((360 / col) * j, 1, 1, 1));
+            }
+        }
+
+        for (let i = 0; i < row; i++) {
+            for (let j = 0; j < col; j++) {
+                const r = (col + 1) * i + j;
+                indices.push(r, r + col + 1, r + 1);
+                indices.push(r + col + 1, r + col + 2, r + 1);
+            }
+        }
+
+        return [positions, normals, colors, indices];
     }
 
     async function main() {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
+        gl.enable(gl.CULL_FACE);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
-        gl.enable(gl.BLEND);
+
+        const [positions, normals, colors, indices] = torus(64, 64, 1, 2);
 
         const prog = createProgram(vs, fs);
+        setAttribute('position', positions, 3, prog);
+        setAttribute('normal', normals, 3, prog);
+        setAttribute('color', colors, 4, prog);
 
-        // prettier-ignore
-        const positions = [
-            -1.0,  1.0, 0.0,
-             1.0,  1.0, 0.0,
-            -1.0, -1.0, 0.0,
-             1.0, -1.0, 0.0,
-        ];
-        const posAttr = createAttribute('position', positions, 3, prog);
-        setAttribute(posAttr);
-
-        // prettier-ignore
-        const colors = [
-            1.0, 0.0, 0.0, 0.8,
-            0.0, 1.0, 0.0, 0.8,
-            0.0, 0.0, 1.0, 0.8,
-            1.0, 1.0, 0.0, 0.8,
-        ];
-        const colorAttr = createAttribute('color', colors, 4, prog);
-        setAttribute(colorAttr);
-
-        // prettier-ignore
-        const textureCoords = [
-            0.0, 0.0,
-            1.0, 0.0,
-            0.0, 1.0,
-            1.0, 1.0
-        ];
-        const textureCoordAttr = createAttribute('textureCoord', textureCoords, 2, prog);
-        setAttribute(textureCoordAttr);
-
-        // prettier-ignore
-        const indices = [
-            0, 1, 2,
-            3, 2, 1,
-        ];
         const ibo = createIndexBuffer(indices);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 
-        // Load texture data and activate textures
-        const texture0 = await loadTexture2D('ferris.png');
-        const texture1 = await loadTexture2D('rust-logo.png');
-
-        const vMat = m.identity(m.create());
-        const pMat = m.identity(m.create());
-        const vpMat = m.identity(m.create());
-
-        m.lookAt(/* eye position */ [0, 0, 10], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
-        m.perspective(
-            /* fov */ 45,
-            /* aspect ratio */ canvas.width / canvas.height,
-            /* near clip */ 0.1,
-            /* far clip */ 100,
-            pMat,
-        );
-        m.multiply(pMat, vMat, vpMat);
-
-        const uniforms = ['mvpMat', 'texture0', 'texture1', 'useTexture'].reduce((acc, name) => {
+        const uniforms = ['mvpMat', 'invMat', 'lightDirection', 'eyeDirection', 'ambientColor'].reduce((acc, name) => {
             acc[name] = gl.getUniformLocation(prog, name);
             return acc;
         }, {});
 
-        // Bind textures to the texture units
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, texture0);
-        gl.uniform1i(uniforms.texture0, 0);
-
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, texture1);
-        gl.uniform1i(uniforms.texture1, 1);
-
-        const mMat = m.create();
         const mvpMat = m.create();
+        const mMat = m.create();
+        const vMat = m.create();
+        const pMat = m.create();
+        const invMat = m.create();
+        const lightDirection = [-0.5, 0.5, 0.5];
+        const ambientColor = [0.1, 0.1, 0.1, 1.0];
+        const qCamera = q.identity(q.create());
+        const cameraPosInit = [0, 0, 10];
+        const cameraUpDirInit = [0, 1, 0];
+        const cameraPosition = [...cameraPosInit];
+        const cameraUpDirection = [...cameraUpDirInit];
 
         let count = 0;
         function update() {
             clear();
 
             count++;
-            const rad = ((count % 360) * Math.PI) / 180;
-            const x = Math.cos(rad) * 1.25;
+            const rad = ((count % 720) * Math.PI) / 360;
 
-            for (const [y, destBlend, equation] of [
-                [2.5, gl.ONE_MINUS_SRC_ALPHA, gl.FUNC_ADD],
-                [0.0, gl.ONE, gl.FUNC_ADD],
-                [-2.5, gl.ONE_MINUS_SRC_ALPHA, gl.FUNC_SUBTRACT],
-            ]) {
-                gl.blendFuncSeparate(gl.SRC_ALPHA, destBlend, gl.ONE, gl.ONE);
-                gl.blendEquationSeparate(equation, gl.FUNC_ADD);
+            m.identity(mMat);
+            m.identity(vMat);
+            m.identity(pMat);
 
-                // Render textures
-                {
-                    m.translate(m.identity(mMat), [x, y, 0], mMat);
-                    m.multiply(vpMat, mMat, mvpMat);
-                    gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
-                    gl.uniform1i(uniforms.useTexture, true);
+            // Rotate camera position and up direction using quaternion
+            q.rotate(rad, [0, 1, 0], qCamera);
+            q.toVecIII(cameraPosInit, qCamera, cameraPosition);
+            q.toVecIII(cameraUpDirInit, qCamera, cameraUpDirection);
 
-                    // Draw triangles based on the index buffer.
-                    gl.drawElements(
-                        gl.TRIANGLES,
-                        indices.length,
-                        /* type of index */ gl.UNSIGNED_SHORT,
-                        /* start offset */ 0,
-                    );
-                }
+            m.lookAt(
+                /* eye position */ cameraPosition,
+                /* camera center */ [0, 0, 0],
+                /* axis */ cameraUpDirection,
+                vMat,
+            );
+            m.perspective(
+                /* fov */ 45,
+                /* aspect ratio */ canvas.width / canvas.height,
+                /* near clip */ 0.1,
+                /* far clip */ 100,
+                pMat,
+            );
+            m.multiply(pMat, vMat, mvpMat);
+            m.rotate(mMat, Math.PI / 3, /* axis */ [1, 1, 1], mMat);
+            m.multiply(mvpMat, mMat, mvpMat);
+            m.inverse(mMat, invMat);
 
-                // Render translucent cover
-                {
-                    m.translate(m.identity(mMat), [1.25, y, 0], mMat);
-                    m.multiply(vpMat, mMat, mvpMat);
-                    gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
-                    gl.uniform1i(uniforms.useTexture, false);
+            gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+            gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
+            gl.uniform3fv(uniforms.lightDirection, lightDirection);
+            gl.uniform3fv(uniforms.eyeDirection, cameraPosition);
+            gl.uniform4fv(uniforms.ambientColor, ambientColor);
 
-                    // Draw triangles based on the index buffer.
-                    gl.drawElements(
-                        gl.TRIANGLES,
-                        indices.length,
-                        /* type of index */ gl.UNSIGNED_SHORT,
-                        /* start offset */ 0,
-                    );
-                }
-            }
+            // Draw triangles based on the index buffer.
+            gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
 
             // Actual re-rendering happens here
             gl.flush();
