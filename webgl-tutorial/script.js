@@ -160,47 +160,63 @@
         const mMat = m.create();
         const vMat = m.create();
         const pMat = m.create();
+        const vpMat = m.create();
         const invMat = m.create();
         const lightDirection = [-0.5, 0.5, 0.5];
         const ambientColor = [0.1, 0.1, 0.1, 1.0];
         const qCamera = q.identity(q.create());
-        const cameraPosInit = [0, 0, 10];
-        const cameraUpDirInit = [0, 1, 0];
-        const cameraPosition = [...cameraPosInit];
-        const cameraUpDirection = [...cameraUpDirInit];
+        const cameraPosition = [0, 0, 10];
+
+        canvas.addEventListener(
+            'mousemove',
+            event => {
+                const w = canvas.width;
+                const h = canvas.height;
+                const x = event.clientX - canvas.offsetLeft - w / 2;
+                const y = event.clientY - canvas.offsetTop - h / 2;
+                const len = Math.sqrt(x * x + y * y);
+
+                // Normalize position
+                const normX = x / len;
+                const normY = y / len;
+
+                // Use distance from the center of canvas to calculate the angle
+                const diag = Math.sqrt(w * w + h * h);
+                const rad = 2 * Math.PI * (len / diag);
+
+                // Calculate quaternion to rotate the model
+                q.rotate(rad, [normY, normX, 0], qCamera);
+            },
+            { passive: true },
+        );
+
+        m.lookAt(/* eye position */ cameraPosition, /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
+        m.perspective(
+            /* fov */ 45,
+            /* aspect ratio */ canvas.width / canvas.height,
+            /* near clip */ 0.1,
+            /* far clip */ 100,
+            pMat,
+        );
+        m.multiply(pMat, vMat, vpMat);
 
         let count = 0;
         function update() {
             clear();
 
             count++;
-            const rad = ((count % 720) * Math.PI) / 360;
+            const rad = ((count % 360) * Math.PI) / 180;
 
             m.identity(mMat);
             m.identity(vMat);
             m.identity(pMat);
 
-            // Rotate camera position and up direction using quaternion
-            q.rotate(rad, [0, 1, 0], qCamera);
-            q.toVecIII(cameraPosInit, qCamera, cameraPosition);
-            q.toVecIII(cameraUpDirInit, qCamera, cameraUpDirection);
+            const qMat = m.create();
+            q.toMatIV(qCamera, qMat);
 
-            m.lookAt(
-                /* eye position */ cameraPosition,
-                /* camera center */ [0, 0, 0],
-                /* axis */ cameraUpDirection,
-                vMat,
-            );
-            m.perspective(
-                /* fov */ 45,
-                /* aspect ratio */ canvas.width / canvas.height,
-                /* near clip */ 0.1,
-                /* far clip */ 100,
-                pMat,
-            );
-            m.multiply(pMat, vMat, mvpMat);
-            m.rotate(mMat, Math.PI / 3, /* axis */ [1, 1, 1], mMat);
-            m.multiply(mvpMat, mMat, mvpMat);
+            m.multiply(mMat, qMat, mMat);
+            m.rotate(mMat, rad, [0, 1, 0], mMat);
+            m.multiply(vpMat, mMat, mvpMat);
             m.inverse(mMat, invMat);
 
             gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
