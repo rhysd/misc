@@ -5,6 +5,8 @@
     canvas.width = 300;
     canvas.height = 300;
 
+    const range = document.getElementById('range');
+
     const gl = canvas.getContext('webgl');
     const m = new matIV();
     const q = new qtnIV();
@@ -81,23 +83,7 @@
         return ibo;
     }
 
-    function hsva(h, s, v, a) {
-        if (s > 1 || v > 1 || a > 1) {
-            throw new Error(`Invalid HSVA color (${h}, ${s}, ${v}, ${a})`);
-        }
-        const th = h % 360;
-        const i = Math.floor(th / 60);
-        const f = th / 60 - i;
-        const m = v * (1 - s);
-        const n = v * (1 - s * f);
-        const k = v * (1 - s * (1 - f));
-        const r = [v, n, m, m, k, v][i];
-        const g = [k, v, v, n, m, m][i];
-        const b = [m, m, k, v, v, n][i];
-        return [r, g, b, a];
-    }
-
-    function torus(row, col, innerRadius, outerRadius) {
+    function torus(row, col, innerRadius, outerRadius, color) {
         const positions = [];
         const normals = [];
         const colors = [];
@@ -119,7 +105,7 @@
                 const rz = rr * Math.sin(rad);
                 normals.push(rx, ry, rz);
 
-                colors.push(...hsva((360 / col) * j, 1, 1, 1));
+                colors.push(...color);
             }
         }
 
@@ -141,7 +127,7 @@
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
 
-        const [positions, normals, colors, indices] = torus(64, 64, 1, 2);
+        const [positions, normals, colors, indices] = torus(32, 32, 0.5, 1.5, [0.5, 0.5, 0.5, 1]);
 
         const prog = createProgram(vs, fs);
         setAttribute('position', positions, 3, prog);
@@ -163,9 +149,12 @@
         const vpMat = m.create();
         const invMat = m.create();
         const lightDirection = [-0.5, 0.5, 0.5];
-        const ambientColor = [0.1, 0.1, 0.1, 1.0];
-        const qCamera = q.identity(q.create());
-        const cameraPosition = [0, 0, 10];
+        const qMouse = q.identity(q.create());
+        const cameraPosition = [0, 0, 20];
+        const qRotateX = q.create();
+        const qRotateY = q.create();
+        const qRotateInterp = q.create();
+        let time = parseFloat(range.value);
 
         canvas.addEventListener(
             'mousemove',
@@ -185,7 +174,15 @@
                 const rad = 2 * Math.PI * (len / diag);
 
                 // Calculate quaternion to rotate the model
-                q.rotate(rad, [normY, normX, 0], qCamera);
+                q.rotate(rad, [normY, normX, 0], qMouse);
+            },
+            { passive: true },
+        );
+
+        range.addEventListener(
+            'input',
+            event => {
+                time = parseFloat(event.target.value);
             },
             { passive: true },
         );
@@ -207,26 +204,43 @@
             count++;
             const rad = ((count % 360) * Math.PI) / 180;
 
-            m.identity(mMat);
-            m.identity(vMat);
-            m.identity(pMat);
+            const rotateMat = m.create();
+            const mouseMat = m.create();
+            q.toMatIV(qMouse, mouseMat);
 
-            const qMat = m.create();
-            q.toMatIV(qCamera, qMat);
+            q.rotate(rad, [1, 0, 0], qRotateX);
+            q.rotate(rad, [0, 1, 0], qRotateY);
+            q.slerp(qRotateX, qRotateY, time, qRotateInterp);
 
-            m.multiply(mMat, qMat, mMat);
-            m.rotate(mMat, rad, [0, 1, 0], mMat);
-            m.multiply(vpMat, mMat, mvpMat);
-            m.inverse(mMat, invMat);
+            for (const [ambientColor, qRotate] of [
+                [[0.0, 0.0, 0.5, 1.0], qRotateX],
+                [[0.5, 0.0, 0.0, 1.0], qRotateY],
+                [[0.0, 0.5, 0.0, 1.0], qRotateInterp],
+            ]) {
+                m.multiply(m.identity(mMat), mouseMat, mMat);
 
-            gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
-            gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
-            gl.uniform3fv(uniforms.lightDirection, lightDirection);
-            gl.uniform3fv(uniforms.eyeDirection, cameraPosition);
-            gl.uniform4fv(uniforms.ambientColor, ambientColor);
+                q.toMatIV(qRotate, rotateMat);
+                m.multiply(mMat, rotateMat, mMat);
 
-            // Draw triangles based on the index buffer.
-            gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
+                m.translate(mMat, [0, 0, -5.0], mMat);
+
+                m.multiply(vpMat, mMat, mvpMat);
+                m.inverse(mMat, invMat);
+
+                gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+                gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
+                gl.uniform3fv(uniforms.lightDirection, lightDirection);
+                gl.uniform3fv(uniforms.eyeDirection, cameraPosition);
+                gl.uniform4fv(uniforms.ambientColor, ambientColor);
+
+                // Draw triangles based on the index buffer.
+                gl.drawElements(
+                    gl.TRIANGLES,
+                    indices.length,
+                    /* type of index */ gl.UNSIGNED_SHORT,
+                    /* start offset */ 0,
+                );
+            }
 
             // Actual re-rendering happens here
             gl.flush();
