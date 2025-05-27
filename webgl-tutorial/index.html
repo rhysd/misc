@@ -11,8 +11,8 @@
             row-gap: 12px;
           }
           #canvas {
-            width: 300px;
-            height: 300px;
+            width: 600px;
+            height: 400px;
           }
         </style>
         <script src="minMatrix.js"></script>
@@ -20,9 +20,12 @@
     <body>
         <canvas id="canvas"></canvas>
         <div>
-          0.0
-          <input id="range" type="range" min="0" max="1" step="0.01" />
-          0.1
+          Point size: <input id="pointer-size" type="range" value="2" min="1" max="24" step="1" />
+        </div>
+        <div>
+          <div><input id="mode-lines" name="mode" type="radio" checked/>gl.LINES</div>
+          <div><input id="mode-line-strip" name="mode" type="radio"/>gl.LINE_STRIP</div>
+          <div><input id="mode-line-loop" name="mode" type="radio"/>gl.LINE_LOOP</div>
         </div>
         <script src="script.js"></script>
     </body>
