@@ -136,6 +136,41 @@
         return [positions, normals, colors, indices];
     }
 
+    function loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+
+            img.onload = () => {
+                resolve(img);
+            };
+
+            img.onerror = () => {
+                reject(new Error(`Could not load image ${src}`));
+            };
+
+            img.src = src;
+        });
+    }
+
+    async function loadTexture2D(src) {
+        const img = await loadImage(src);
+        const tex = gl.createTexture();
+
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(
+            /* target */ gl.TEXTURE_2D,
+            /* level of mipmap */ 0,
+            /* color components in texture */ gl.RGBA,
+            /* format of the texel data*/ gl.RGBA,
+            /* 1 byte per element of RGBA */ gl.UNSIGNED_BYTE,
+            img,
+        );
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
+        return tex;
+    }
+
     async function main() {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
@@ -167,10 +202,18 @@
         ];
         const lineColorAttr = createAttribute('color', lineColors, 4, prog);
 
-        const uniforms = ['mvpMat', 'pointSize'].reduce((acc, name) => {
+        const uniforms = ['mvpMat', 'pointSize', 'texture', 'useTexture'].reduce((acc, name) => {
             acc[name] = gl.getUniformLocation(prog, name);
             return acc;
         }, {});
+
+        const ballTex = await loadTexture2D('ball.png');
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, ballTex);
+        gl.uniform1i(uniforms.texture, 0);
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
+        const ballPosAttr = createAttribute('position', [0, 0, 0], 3, prog);
+        const ballColorAttr = createAttribute('color', [0, 0, 0, 0], 4, prog);
 
         const pMat = m.identity(m.create());
         m.perspective(
@@ -228,6 +271,7 @@
 
             const pointSize = Math.max(pointSizeMin, Math.min(pointSizeMax, parseFloat(pointSizePercent.value)));
             gl.uniform1f(uniforms.pointSize, pointSize);
+            gl.uniform1i(uniforms.useTexture, false);
 
             // Render points
 
@@ -261,6 +305,18 @@
             }
 
             gl.drawArrays(mode, 0, linePositions.length / 3);
+
+            // Render billboard at the center of the sphere
+            if (pointSizeMax >= 64) {
+                setAttribute(ballPosAttr);
+                setAttribute(ballColorAttr);
+
+                gl.uniform1f(uniforms.pointSize, 64); // The ball image size is 64x64
+                gl.uniform1i(uniforms.useTexture, true);
+
+                gl.uniformMatrix4fv(uniforms.mvpMat, /*transpose*/ false, vpMat); // `m` is identity matrix
+                gl.drawArrays(gl.POINTS, 0, 1);
+            }
 
             // Actual re-rendering happens here
             gl.flush();
