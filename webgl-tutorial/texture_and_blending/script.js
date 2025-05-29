@@ -164,8 +164,8 @@
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 
         // Load texture data and activate textures
-        const texture0 = await loadTexture2D('ferris.png');
-        const texture1 = await loadTexture2D('rust-logo.png');
+        const texture0 = await loadTexture2D('../assets/ferris.png');
+        const texture1 = await loadTexture2D('../assets/rust-logo.png');
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());

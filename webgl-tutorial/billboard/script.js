@@ -157,8 +157,8 @@
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 
         // Load texture data and activate textures
-        const texBall = await loadTexture2D('ball.png');
-        const texFloor = await loadTexture2D('floor.png');
+        const texBall = await loadTexture2D('../assets/ball.png');
+        const texFloor = await loadTexture2D('../assets/floor.png');
 
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
 

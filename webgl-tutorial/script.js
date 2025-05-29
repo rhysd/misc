@@ -207,7 +207,7 @@
             return acc;
         }, {});
 
-        const ballTex = await loadTexture2D('ball.png');
+        const ballTex = await loadTexture2D('./assets/ball.png');
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, ballTex);
         gl.uniform1i(uniforms.texture, 0);
