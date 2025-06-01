@@ -2,22 +2,17 @@
 
 (function () {
     const canvas = document.getElementById('canvas');
-    canvas.width = 600;
-    canvas.height = 400;
+    canvas.width = 300;
+    canvas.height = 300;
 
-    const modeLines = document.getElementById('mode-lines');
-    const modeLineStrip = document.getElementById('mode-line-strip');
-    const modeLineLoop = document.getElementById('mode-line-loop');
-    const pointSizePercent = document.getElementById('pointer-size');
-
-    const gl = canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl', { stencil: true });
     const m = new matIV();
     const q = new qtnIV();
 
     function clear() {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     }
 
     async function loadShader(path) {
@@ -83,137 +78,73 @@
         gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
     }
 
-    function hsva(h, s, v, a) {
-        if (s > 1 || v > 1 || a > 1) {
-            throw new Error(`Invalid HSVA color (${h}, ${s}, ${v}, ${a})`);
-        }
-        const th = h % 360;
-        const i = Math.floor(th / 60);
-        const f = th / 60 - i;
-        const m = v * (1 - s);
-        const n = v * (1 - s * f);
-        const k = v * (1 - s * (1 - f));
-        const r = [v, n, m, m, k, v][i];
-        const g = [k, v, v, n, m, m][i];
-        const b = [m, m, k, v, v, n][i];
-        return [r, g, b, a];
-    }
-
-    function sphere(row, col, radius) {
-        const positions = [];
-        const normals = [];
-        const colors = [];
-        const indices = [];
-
-        for (let i = 0; i <= row; i++) {
-            const rad = (Math.PI / row) * i;
-            const ry = Math.cos(rad);
-            const rr = Math.sin(rad);
-            for (let j = 0; j <= col; j++) {
-                const rad = ((Math.PI * 2) / col) * j;
-
-                const x = rr * radius * Math.cos(rad);
-                const y = ry * radius;
-                const z = rr * radius * Math.sin(rad);
-                positions.push(x, y, z);
-
-                const rx = rr * Math.cos(rad);
-                const rz = rr * Math.sin(rad);
-                normals.push(rx, ry, rz);
-
-                colors.push(...hsva((360 / row) * i, 1, 1, 1));
-            }
-        }
-
-        for (let i = 0; i < row; i++) {
-            for (let j = 0; j < col; j++) {
-                const r = (col + 1) * i + j;
-                indices.push(r, r + 1, r + col + 2);
-                indices.push(r, r + col + 2, r + col + 1);
-            }
-        }
-
-        return [positions, normals, colors, indices];
-    }
-
-    function loadImage(src) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-
-            img.onload = () => {
-                resolve(img);
-            };
-
-            img.onerror = () => {
-                reject(new Error(`Could not load image ${src}`));
-            };
-
-            img.src = src;
-        });
-    }
-
-    async function loadTexture2D(src) {
-        const img = await loadImage(src);
-        const tex = gl.createTexture();
-
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texImage2D(
-            /* target */ gl.TEXTURE_2D,
-            /* level of mipmap */ 0,
-            /* color components in texture */ gl.RGBA,
-            /* format of the texel data*/ gl.RGBA,
-            /* 1 byte per element of RGBA */ gl.UNSIGNED_BYTE,
-            img,
-        );
-        gl.generateMipmap(gl.TEXTURE_2D);
-        gl.bindTexture(gl.TEXTURE_2D, null);
-
-        return tex;
+    function createIndexBuffer(data) {
+        const ibo = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        return ibo;
     }
 
     async function main() {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
         gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.STENCIL_TEST);
         gl.depthFunc(gl.LEQUAL);
         gl.enable(gl.BLEND);
 
         const prog = createProgram(vs, fs);
 
-        const [spherePositions, , sphereColors] = sphere(16, 16, 2);
-        const spherePosAttr = createAttribute('position', spherePositions, 3, prog);
-        const sphereColorAttr = createAttribute('color', sphereColors, 4, prog);
-
         // prettier-ignore
-        const linePositions = [
+        const positions = [
             -1.0, -1.0, 0.0,
              1.0, -1.0, 0.0,
             -1.0,  1.0, 0.0,
              1.0,  1.0, 0.0,
         ];
-        const linePosAttr = createAttribute('position', linePositions, 3, prog);
+        const posAttr = createAttribute('position', positions, 3, prog);
+        setAttribute(posAttr);
 
         // prettier-ignore
-        const lineColors = [
-            1.0, 1.0, 1.0, 1.0,
-            1.0, 0.0, 0.0, 1.0,
-            0.0, 1.0, 0.0, 1.0,
+        const blue = [
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
             0.0, 0.0, 1.0, 1.0,
         ];
-        const lineColorAttr = createAttribute('color', lineColors, 4, prog);
+        const blueAttr = createAttribute('color', blue, 4, prog);
 
-        const uniforms = ['mvpMat', 'pointSize', 'texture', 'useTexture'].reduce((acc, name) => {
+        // prettier-ignore
+        const red = [
+            1.0, 0.0, 0.0, 1.0,
+            1.0, 0.0, 0.0, 1.0,
+            1.0, 0.0, 0.0, 1.0,
+            1.0, 0.0, 0.0, 1.0,
+        ];
+        const redAttr = createAttribute('color', red, 4, prog);
+
+        // prettier-ignore
+        const green = [
+            0.0, 1.0, 0.0, 1.0,
+            0.0, 1.0, 0.0, 1.0,
+            0.0, 1.0, 0.0, 1.0,
+            0.0, 1.0, 0.0, 1.0,
+        ];
+        const greenAttr = createAttribute('color', green, 4, prog);
+
+        // prettier-ignore
+        const indices = [
+            0, 1, 2,
+            3, 2, 1,
+        ];
+        const ibo = createIndexBuffer(indices);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+
+        const uniforms = ['mvpMat'].reduce((acc, name) => {
             acc[name] = gl.getUniformLocation(prog, name);
             return acc;
         }, {});
-
-        const ballTex = await loadTexture2D('./assets/ball.png');
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, ballTex);
-        gl.uniform1i(uniforms.texture, 0);
-        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
-        const ballPosAttr = createAttribute('position', [0, 0, 0], 3, prog);
-        const ballColorAttr = createAttribute('color', [0, 0, 0, 0], 4, prog);
 
         const pMat = m.identity(m.create());
         m.perspective(
@@ -230,7 +161,6 @@
         const mvpMat = m.create();
         const qCamera = q.identity(q.create());
         const mouseMat = m.create();
-        const [pointSizeMin, pointSizeMax] = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE);
 
         canvas.addEventListener(
             'mousemove',
@@ -255,68 +185,36 @@
             { passive: true },
         );
 
-        let count = 0;
         function update() {
             clear();
-
-            count++;
-            const rad = ((count % 720) * Math.PI) / 360;
 
             m.identity(mouseMat);
             q.toMatIV(qCamera, mouseMat);
 
-            m.lookAt(/* eye position */ [0, 5, 10], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
+            m.lookAt(/* eye position */ [0, 0, 10], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
             m.multiply(vMat, mouseMat, vMat);
             m.multiply(pMat, vMat, vpMat);
 
-            const pointSize = Math.max(pointSizeMin, Math.min(pointSizeMax, parseFloat(pointSizePercent.value)));
-            gl.uniform1f(uniforms.pointSize, pointSize);
-            gl.uniform1i(uniforms.useTexture, false);
-
-            // Render points
-
-            setAttribute(spherePosAttr);
-            setAttribute(sphereColorAttr);
-
-            m.identity(mMat);
-            m.rotate(mMat, rad, [0, 1, 0], mMat);
-            m.multiply(vpMat, mMat, mvpMat);
-            gl.uniformMatrix4fv(uniforms.mvpMat, /*transpose*/ false, mvpMat);
-            gl.drawArrays(gl.POINTS, 0, spherePositions.length / 3);
-
-            // Render lines
-
-            setAttribute(linePosAttr);
-            setAttribute(lineColorAttr);
-
-            m.identity(mMat);
-            m.rotate(mMat, Math.PI / 2, [1, 0, 0], mMat);
-            m.scale(mMat, [3, 3, 1], mMat);
-            m.multiply(vpMat, mMat, mvpMat);
-            gl.uniformMatrix4fv(uniforms.mvpMat, /*transpose*/ false, mvpMat);
-
-            let mode;
-            if (modeLines.checked) {
-                mode = gl.LINES;
-            } else if (modeLineStrip.checked) {
-                mode = gl.LINE_STRIP;
-            } else if (modeLineLoop.checked) {
-                mode = gl.LINE_LOOP;
+            function renderRect(pos, attr) {
+                setAttribute(attr);
+                m.identity(mMat);
+                m.translate(mMat, pos, mMat);
+                m.multiply(vpMat, mMat, mvpMat);
+                gl.uniformMatrix4fv(uniforms.mvpMat, /*transpose*/ false, mvpMat);
+                gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
             }
 
-            gl.drawArrays(mode, 0, linePositions.length / 3);
+            gl.stencilFunc(gl.ALWAYS, 1, ~0);
+            gl.stencilOp(gl.KEEP, gl.REPLACE, gl.REPLACE);
+            renderRect([-0.25, 0.25, -0.5], redAttr);
 
-            // Render billboard at the center of the sphere
-            if (pointSizeMax >= 64) {
-                setAttribute(ballPosAttr);
-                setAttribute(ballColorAttr);
+            gl.stencilFunc(gl.ALWAYS, 0, ~0);
+            gl.stencilOp(gl.KEEP, gl.INCR, gl.INCR);
+            renderRect([0, 0, 0], blueAttr);
 
-                gl.uniform1f(uniforms.pointSize, 64); // The ball image size is 64x64
-                gl.uniform1i(uniforms.useTexture, true);
-
-                gl.uniformMatrix4fv(uniforms.mvpMat, /*transpose*/ false, vpMat); // `m` is identity matrix
-                gl.drawArrays(gl.POINTS, 0, 1);
-            }
+            gl.stencilFunc(gl.EQUAL, 2, ~0);
+            gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+            renderRect([0.25, -0.25, 0.5], greenAttr);
 
             // Actual re-rendering happens here
             gl.flush();
