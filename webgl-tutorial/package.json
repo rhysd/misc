@@ -5,6 +5,8 @@
   "description": "",
   "scripts": {
     "start": "http-server . -p 1234",
+    "watch": "tsc --pretty -p . --watch",
+    "build": "tsc --pretty -p .",
     "fmt": "prettier -w '**/*.js'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,6 +14,7 @@
   "license": "MIT",
   "devDependencies": {
     "http-server": "^14.1.1",
-    "prettier": "^3.5.3"
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3"
   }
 }

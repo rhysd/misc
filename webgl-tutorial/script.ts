@@ -1,24 +1,22 @@
-'use strict';
-
 (function () {
-    const canvas = document.getElementById('canvas');
+    const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
     canvas.width = 300;
     canvas.height = 300;
 
-    const gl = canvas.getContext('webgl', { stencil: true });
+    const gl = canvas.getContext('webgl', { stencil: true })!;
     const m = new matIV();
     const q = new qtnIV();
 
-    function clear() {
+    function clear(): void {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     }
 
-    async function loadShader(path) {
+    async function loadShader(path: string): Promise<WebGLShader> {
         const res = await fetch(path);
         if (!res.ok) {
-            throw new Error(`Fetching ${path} failed with status ${response.status}: ${response.statusText}`);
+            throw new Error(`Fetching ${path} failed with status ${res.status}: ${res.statusText}`);
         }
         const src = await res.text();
 
@@ -29,6 +27,9 @@
             shader = gl.createShader(gl.FRAGMENT_SHADER);
         } else {
             throw new Error(`Unknown file extension for shader: ${path}`);
+        }
+        if (!shader) {
+            throw new Error(`Shader could not be created for ${path}`);
         }
 
         gl.shaderSource(shader, src);
@@ -41,7 +42,7 @@
         }
     }
 
-    function createProgram(vs, fs) {
+    function createProgram(vs: WebGLShader, fs: WebGLShader): WebGLProgram {
         const program = gl.createProgram();
 
         gl.attachShader(program, vs);
@@ -57,7 +58,7 @@
         }
     }
 
-    function createVertexBuffer(data) {
+    function createVertexBuffer(data: number[]): WebGLBuffer {
         const vbo = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
@@ -65,20 +66,26 @@
         return vbo;
     }
 
-    function createAttribute(name, data, stride, program) {
+    interface Attribute {
+        loc: number;
+        vbo: WebGLBuffer;
+        stride: number;
+    }
+
+    function createAttribute(name: string, data: number[], stride: number, program: WebGLProgram): Attribute {
         const loc = gl.getAttribLocation(program, name);
         const vbo = createVertexBuffer(data);
         return { loc, vbo, stride };
     }
 
-    function setAttribute(attr) {
+    function setAttribute(attr: Attribute): void {
         const { loc, vbo, stride } = attr;
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.enableVertexAttribArray(loc);
         gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
     }
 
-    function createIndexBuffer(data) {
+    function createIndexBuffer(data: number[]): WebGLBuffer {
         const ibo = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
@@ -86,7 +93,7 @@
         return ibo;
     }
 
-    async function main() {
+    async function main(): Promise<void> {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
         gl.enable(gl.DEPTH_TEST);
@@ -141,10 +148,13 @@
         const ibo = createIndexBuffer(indices);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 
-        const uniforms = ['mvpMat'].reduce((acc, name) => {
-            acc[name] = gl.getUniformLocation(prog, name);
-            return acc;
-        }, {});
+        const uniforms = ['mvpMat'].reduce(
+            (acc, name) => {
+                acc[name] = gl.getUniformLocation(prog, name)!;
+                return acc;
+            },
+            {} as Record<string, WebGLUniformLocation>,
+        );
 
         const pMat = m.identity(m.create());
         m.perspective(
@@ -185,7 +195,7 @@
             { passive: true },
         );
 
-        function update() {
+        function update(): void {
             clear();
 
             m.identity(mouseMat);
@@ -195,12 +205,12 @@
             m.multiply(vMat, mouseMat, vMat);
             m.multiply(pMat, vMat, vpMat);
 
-            function renderRect(pos, attr) {
+            function renderRect(pos: Vec3, attr: Attribute): void {
                 setAttribute(attr);
                 m.identity(mMat);
                 m.translate(mMat, pos, mMat);
                 m.multiply(vpMat, mMat, mvpMat);
-                gl.uniformMatrix4fv(uniforms.mvpMat, /*transpose*/ false, mvpMat);
+                gl.uniformMatrix4fv(uniforms['mvpMat'], /*transpose*/ false, mvpMat);
                 gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
             }
 
