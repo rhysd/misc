@@ -1,23 +1,21 @@
-'use strict';
-
 (function () {
-    const canvas = document.getElementById('canvas');
+    const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
     canvas.width = 300;
     canvas.height = 300;
 
-    const gl = canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl')!;
     const m = new matIV();
 
-    function clear() {
+    function clear(): void {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
 
-    async function loadShader(path) {
+    async function loadShader(path: string): Promise<WebGLShader> {
         const res = await fetch(path);
         if (!res.ok) {
-            throw new Error(`Fetching ${path} failed with status ${response.status}: ${response.statusText}`);
+            throw new Error(`Fetching ${path} failed with status ${res.status}: ${res.statusText}`);
         }
         const src = await res.text();
 
@@ -28,6 +26,9 @@
             shader = gl.createShader(gl.FRAGMENT_SHADER);
         } else {
             throw new Error(`Unknown file extension for shader: ${path}`);
+        }
+        if (!shader) {
+            throw new Error(`Shader could not be created for ${path}`);
         }
 
         gl.shaderSource(shader, src);
@@ -40,7 +41,7 @@
         }
     }
 
-    function createProgram(vs, fs) {
+    function createProgram(vs: WebGLShader, fs: WebGLShader): WebGLProgram {
         const program = gl.createProgram();
 
         gl.attachShader(program, vs);
@@ -56,7 +57,7 @@
         }
     }
 
-    function createVertexBuffer(data) {
+    function createVertexBuffer(data: number[]): WebGLBuffer {
         const vbo = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
@@ -64,7 +65,7 @@
         return vbo;
     }
 
-    function setAttribute(name, data, stride, program) {
+    function setAttribute(name: string, data: number[], stride: number, program: WebGLProgram): void {
         const loc = gl.getAttribLocation(program, name);
         const vbo = createVertexBuffer(data);
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -72,7 +73,7 @@
         gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
     }
 
-    function createIndexBuffer(data) {
+    function createIndexBuffer(data: number[]): WebGLBuffer {
         const ibo = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
@@ -80,7 +81,7 @@
         return ibo;
     }
 
-    async function main() {
+    async function main(): Promise<void> {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
         gl.enable(gl.CULL_FACE);

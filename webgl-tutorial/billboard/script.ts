@@ -1,26 +1,26 @@
-'use strict';
-
 (function () {
-    const canvas = document.getElementById('canvas');
+    type Pos = [number, number, number];
+
+    const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
     canvas.width = 600;
     canvas.height = 400;
 
-    const checkbox = document.getElementById('checkbox');
+    const checkbox = document.getElementById('checkbox')! as HTMLInputElement;
 
-    const gl = canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl')!;
     const m = new matIV();
     const q = new qtnIV();
 
-    function clear() {
+    function clear(): void {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     }
 
-    async function loadShader(path) {
+    async function loadShader(path: string): Promise<WebGLShader> {
         const res = await fetch(path);
         if (!res.ok) {
-            throw new Error(`Fetching ${path} failed with status ${response.status}: ${response.statusText}`);
+            throw new Error(`Fetching ${path} failed with status ${res.status}: ${res.statusText}`);
         }
         const src = await res.text();
 
@@ -31,6 +31,9 @@
             shader = gl.createShader(gl.FRAGMENT_SHADER);
         } else {
             throw new Error(`Unknown file extension for shader: ${path}`);
+        }
+        if (!shader) {
+            throw new Error(`Shader could not be created for ${path}`);
         }
 
         gl.shaderSource(shader, src);
@@ -43,7 +46,7 @@
         }
     }
 
-    function createProgram(vs, fs) {
+    function createProgram(vs: WebGLShader, fs: WebGLShader): WebGLProgram {
         const program = gl.createProgram();
 
         gl.attachShader(program, vs);
@@ -59,7 +62,7 @@
         }
     }
 
-    function createVertexBuffer(data) {
+    function createVertexBuffer(data: number[]): WebGLBuffer {
         const vbo = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
@@ -67,20 +70,26 @@
         return vbo;
     }
 
-    function createAttribute(name, data, stride, program) {
+    interface Attribute {
+        loc: number;
+        vbo: WebGLBuffer;
+        stride: number;
+    }
+
+    function createAttribute(name: string, data: number[], stride: number, program: WebGLProgram): Attribute {
         const loc = gl.getAttribLocation(program, name);
         const vbo = createVertexBuffer(data);
         return { loc, vbo, stride };
     }
 
-    function setAttribute(attr) {
+    function setAttribute(attr: Attribute): void {
         const { loc, vbo, stride } = attr;
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.enableVertexAttribArray(loc);
         gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
     }
 
-    function createIndexBuffer(data) {
+    function createIndexBuffer(data: number[]): WebGLBuffer {
         const ibo = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
@@ -88,19 +97,21 @@
         return ibo;
     }
 
-    function loadImage(src) {
+    function loadImage(src: string): Promise<HTMLImageElement> {
         const img = new Image();
 
         return new Promise((resolve, reject) => {
             img.onload = () => {
                 resolve(img);
             };
-            img.onerror = reject;
+            img.onerror = () => {
+                reject(new Error(`Could not load image ${src}`));
+            };
             img.src = src;
         });
     }
 
-    async function loadTexture2D(src) {
+    async function loadTexture2D(src: string): Promise<WebGLTexture> {
         const img = await loadImage(src);
         const tex = gl.createTexture();
 
@@ -119,7 +130,7 @@
         return tex;
     }
 
-    async function main() {
+    async function main(): Promise<void> {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
         gl.enable(gl.DEPTH_TEST);
@@ -162,10 +173,13 @@
 
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
 
-        const uniforms = ['mvpMat', 'texture'].reduce((acc, name) => {
-            acc[name] = gl.getUniformLocation(prog, name);
-            return acc;
-        }, {});
+        const uniforms = ['mvpMat', 'texture'].reduce(
+            (acc, name) => {
+                acc[name] = gl.getUniformLocation(prog, name)!;
+                return acc;
+            },
+            {} as Record<string, WebGLUniformLocation>,
+        );
 
         const pMat = m.identity(m.create());
         m.perspective(
@@ -181,7 +195,7 @@
         const vpMat = m.create();
         const mMat = m.create();
         const mvpMat = m.create();
-        const cameraPosInit = [0, 5, 10];
+        const cameraPosInit: Pos = [0, 5, 10];
         const qCamera = q.identity(q.create());
         const mouseMat = m.create();
 

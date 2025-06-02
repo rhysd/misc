@@ -1,29 +1,29 @@
-'use strict';
-
 (function () {
-    const canvas = document.getElementById('canvas');
+    type Color = [number, number, number, number];
+
+    const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
     canvas.width = 600;
     canvas.height = 400;
 
-    const modeLines = document.getElementById('mode-lines');
-    const modeLineStrip = document.getElementById('mode-line-strip');
-    const modeLineLoop = document.getElementById('mode-line-loop');
-    const pointSizePercent = document.getElementById('pointer-size');
+    const modeLines = document.getElementById('mode-lines')! as HTMLInputElement;
+    const modeLineStrip = document.getElementById('mode-line-strip')! as HTMLInputElement;
+    const modeLineLoop = document.getElementById('mode-line-loop')! as HTMLInputElement;
+    const pointSizePercent = document.getElementById('pointer-size')! as HTMLInputElement;
 
-    const gl = canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl')!;
     const m = new matIV();
     const q = new qtnIV();
 
-    function clear() {
+    function clear(): void {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     }
 
-    async function loadShader(path) {
+    async function loadShader(path: string): Promise<WebGLShader> {
         const res = await fetch(path);
         if (!res.ok) {
-            throw new Error(`Fetching ${path} failed with status ${response.status}: ${response.statusText}`);
+            throw new Error(`Fetching ${path} failed with status ${res.status}: ${res.statusText}`);
         }
         const src = await res.text();
 
@@ -34,6 +34,9 @@
             shader = gl.createShader(gl.FRAGMENT_SHADER);
         } else {
             throw new Error(`Unknown file extension for shader: ${path}`);
+        }
+        if (!shader) {
+            throw new Error(`Shader could not be created for ${path}`);
         }
 
         gl.shaderSource(shader, src);
@@ -46,7 +49,7 @@
         }
     }
 
-    function createProgram(vs, fs) {
+    function createProgram(vs: WebGLShader, fs: WebGLShader): WebGLProgram {
         const program = gl.createProgram();
 
         gl.attachShader(program, vs);
@@ -62,7 +65,7 @@
         }
     }
 
-    function createVertexBuffer(data) {
+    function createVertexBuffer(data: number[]): WebGLBuffer {
         const vbo = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
@@ -70,20 +73,26 @@
         return vbo;
     }
 
-    function createAttribute(name, data, stride, program) {
+    interface Attribute {
+        loc: number;
+        vbo: WebGLBuffer;
+        stride: number;
+    }
+
+    function createAttribute(name: string, data: number[], stride: number, program: WebGLProgram): Attribute {
         const loc = gl.getAttribLocation(program, name);
         const vbo = createVertexBuffer(data);
         return { loc, vbo, stride };
     }
 
-    function setAttribute(attr) {
+    function setAttribute(attr: Attribute): void {
         const { loc, vbo, stride } = attr;
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.enableVertexAttribArray(loc);
         gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
     }
 
-    function hsva(h, s, v, a) {
+    function hsva(h: number, s: number, v: number, a: number): Color {
         if (s > 1 || v > 1 || a > 1) {
             throw new Error(`Invalid HSVA color (${h}, ${s}, ${v}, ${a})`);
         }
@@ -99,7 +108,7 @@
         return [r, g, b, a];
     }
 
-    function sphere(row, col, radius) {
+    function sphere(row: number, col: number, radius: number): [number[], number[], number[], number[]] {
         const positions = [];
         const normals = [];
         const colors = [];
@@ -136,23 +145,21 @@
         return [positions, normals, colors, indices];
     }
 
-    function loadImage(src) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
+    function loadImage(src: string): Promise<HTMLImageElement> {
+        const img = new Image();
 
+        return new Promise((resolve, reject) => {
             img.onload = () => {
                 resolve(img);
             };
-
             img.onerror = () => {
                 reject(new Error(`Could not load image ${src}`));
             };
-
             img.src = src;
         });
     }
 
-    async function loadTexture2D(src) {
+    async function loadTexture2D(src: string): Promise<WebGLTexture> {
         const img = await loadImage(src);
         const tex = gl.createTexture();
 
@@ -171,7 +178,7 @@
         return tex;
     }
 
-    async function main() {
+    async function main(): Promise<void> {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
         gl.enable(gl.DEPTH_TEST);
@@ -202,10 +209,13 @@
         ];
         const lineColorAttr = createAttribute('color', lineColors, 4, prog);
 
-        const uniforms = ['mvpMat', 'pointSize', 'texture', 'useTexture'].reduce((acc, name) => {
-            acc[name] = gl.getUniformLocation(prog, name);
-            return acc;
-        }, {});
+        const uniforms = ['mvpMat', 'pointSize', 'texture', 'useTexture'].reduce(
+            (acc, name) => {
+                acc[name] = gl.getUniformLocation(prog, name)!;
+                return acc;
+            },
+            {} as Record<string, WebGLUniformLocation>,
+        );
 
         const ballTex = await loadTexture2D('../assets/ball.png');
         gl.activeTexture(gl.TEXTURE0);
@@ -271,7 +281,7 @@
 
             const pointSize = Math.max(pointSizeMin, Math.min(pointSizeMax, parseFloat(pointSizePercent.value)));
             gl.uniform1f(uniforms.pointSize, pointSize);
-            gl.uniform1i(uniforms.useTexture, false);
+            gl.uniform1i(uniforms.useTexture, 0);
 
             // Render points
 
@@ -295,13 +305,15 @@
             m.multiply(vpMat, mMat, mvpMat);
             gl.uniformMatrix4fv(uniforms.mvpMat, /*transpose*/ false, mvpMat);
 
-            let mode;
+            let mode: number;
             if (modeLines.checked) {
                 mode = gl.LINES;
             } else if (modeLineStrip.checked) {
                 mode = gl.LINE_STRIP;
             } else if (modeLineLoop.checked) {
                 mode = gl.LINE_LOOP;
+            } else {
+                throw new Error('Unknown WebGL rendering mode');
             }
 
             gl.drawArrays(mode, 0, linePositions.length / 3);
@@ -312,7 +324,7 @@
                 setAttribute(ballColorAttr);
 
                 gl.uniform1f(uniforms.pointSize, 64); // The ball image size is 64x64
-                gl.uniform1i(uniforms.useTexture, true);
+                gl.uniform1i(uniforms.useTexture, 1);
 
                 gl.uniformMatrix4fv(uniforms.mvpMat, /*transpose*/ false, vpMat); // `m` is identity matrix
                 gl.drawArrays(gl.POINTS, 0, 1);

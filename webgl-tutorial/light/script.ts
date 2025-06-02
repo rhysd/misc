@@ -1,23 +1,23 @@
-'use strict';
-
 (function () {
-    const canvas = document.getElementById('canvas');
+    type Color = [number, number, number, number];
+
+    const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
     canvas.width = 300;
     canvas.height = 300;
 
-    const gl = canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl')!;
     const m = new matIV();
 
-    function clear() {
+    function clear(): void {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     }
 
-    async function loadShader(path) {
+    async function loadShader(path: string): Promise<WebGLShader> {
         const res = await fetch(path);
         if (!res.ok) {
-            throw new Error(`Fetching ${path} failed with status ${response.status}: ${response.statusText}`);
+            throw new Error(`Fetching ${path} failed with status ${res.status}: ${res.statusText}`);
         }
         const src = await res.text();
 
@@ -28,6 +28,9 @@
             shader = gl.createShader(gl.FRAGMENT_SHADER);
         } else {
             throw new Error(`Unknown file extension for shader: ${path}`);
+        }
+        if (!shader) {
+            throw new Error(`Shader could not be created for ${path}`);
         }
 
         gl.shaderSource(shader, src);
@@ -40,7 +43,7 @@
         }
     }
 
-    function createProgram(vs, fs) {
+    function createProgram(vs: WebGLShader, fs: WebGLShader): WebGLProgram {
         const program = gl.createProgram();
 
         gl.attachShader(program, vs);
@@ -56,7 +59,7 @@
         }
     }
 
-    function createVertexBuffer(data) {
+    function createVertexBuffer(data: number[]): WebGLBuffer {
         const vbo = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
@@ -64,13 +67,31 @@
         return vbo;
     }
 
-    function createAttribute(name, data, stride, program) {
+    interface Attribute {
+        loc: number;
+        vbo: WebGLBuffer;
+        stride: number;
+    }
+
+    function createAttribute(name: string, data: number[], stride: number, program: WebGLProgram): Attribute {
         const loc = gl.getAttribLocation(program, name);
         const vbo = createVertexBuffer(data);
         return { loc, vbo, stride };
     }
 
-    function createObject(prog, positions, normals, colors, indices) {
+    interface RenderObject {
+        attrs: Attribute[];
+        ibo: WebGLBuffer;
+        lenIndices: number;
+    }
+
+    function createObject(
+        prog: WebGLProgram,
+        positions: number[],
+        normals: number[],
+        colors: number[],
+        indices: number[],
+    ): RenderObject {
         return {
             attrs: [
                 createAttribute('position', positions, 3, prog),
@@ -82,7 +103,7 @@
         };
     }
 
-    function createIndexBuffer(data) {
+    function createIndexBuffer(data: number[]): WebGLBuffer {
         const ibo = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
@@ -90,7 +111,7 @@
         return ibo;
     }
 
-    function bindBuffers(object) {
+    function bindBuffers(object: RenderObject): void {
         for (const attr of object.attrs) {
             const { loc, vbo, stride } = attr;
             gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -100,7 +121,7 @@
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
     }
 
-    function hsva(h, s, v, a) {
+    function hsva(h: number, s: number, v: number, a: number): Color {
         if (s > 1 || v > 1 || a > 1) {
             throw new Error(`Invalid HSVA color (${h}, ${s}, ${v}, ${a})`);
         }
@@ -116,7 +137,12 @@
         return [r, g, b, a];
     }
 
-    function torus(row, col, innerRadius, outerRadius) {
+    function torus(
+        row: number,
+        col: number,
+        innerRadius: number,
+        outerRadius: number,
+    ): [number[], number[], number[], number[]] {
         const positions = [];
         const normals = [];
         const colors = [];
@@ -153,7 +179,7 @@
         return [positions, normals, colors, indices];
     }
 
-    function sphere(row, col, radius, color) {
+    function sphere(row: number, col: number, radius: number, color: Color): [number[], number[], number[], number[]] {
         const positions = [];
         const normals = [];
         const colors = [];
@@ -190,7 +216,7 @@
         return [positions, normals, colors, indices];
     }
 
-    async function main() {
+    async function main(): Promise<void> {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
         gl.enable(gl.CULL_FACE);
@@ -205,7 +231,7 @@
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
-        const eyeDirection = [0, 0, 20];
+        const eyeDirection: [number, number, number] = [0, 0, 20];
 
         m.lookAt(/* eye position */ eyeDirection, /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
         m.perspective(
@@ -219,10 +245,10 @@
 
         const uniforms = ['mvpMat', 'mMat', 'invMat', 'lightPosition', 'eyeDirection', 'ambientColor'].reduce(
             (acc, name) => {
-                acc[name] = gl.getUniformLocation(prog, name);
+                acc[name] = gl.getUniformLocation(prog, name)!;
                 return acc;
             },
-            {},
+            {} as Record<string, WebGLUniformLocation>,
         );
 
         const mMat = m.create();

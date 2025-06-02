@@ -9,7 +9,7 @@
     "noUnusedParameters": true,
     "noEmitOnError": true,
     "noFallthroughCasesInSwitch": true,
-    "noPropertyAccessFromIndexSignature": true,
+    "noPropertyAccessFromIndexSignature": false,
     "strict": true,
     "target": "es2022",
     "sourceMap": true,
@@ -17,6 +17,12 @@
   },
   "files": [
     "types/minMatrix.d.ts",
+    "polygon/script.ts",
+    "light/script.ts",
+    "texture_and_blending/script.ts",
+    "quaternion/script.ts",
+    "billboard/script.ts",
+    "point_and_line/script.ts",
     "script.ts"
   ]
 }

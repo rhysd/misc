@@ -210,7 +210,7 @@
                 m.identity(mMat);
                 m.translate(mMat, pos, mMat);
                 m.multiply(vpMat, mMat, mvpMat);
-                gl.uniformMatrix4fv(uniforms['mvpMat'], /*transpose*/ false, mvpMat);
+                gl.uniformMatrix4fv(uniforms.mvpMat, /*transpose*/ false, mvpMat);
                 gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
             }
 

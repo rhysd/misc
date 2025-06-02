@@ -1,26 +1,27 @@
-'use strict';
-
 (function () {
-    const canvas = document.getElementById('canvas');
+    type Color = [number, number, number, number];
+    type Pos = [number, number, number];
+
+    const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
     canvas.width = 300;
     canvas.height = 300;
 
-    const range = document.getElementById('range');
+    const range = document.getElementById('range')! as HTMLInputElement;
 
-    const gl = canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl')!;
     const m = new matIV();
     const q = new qtnIV();
 
-    function clear() {
+    function clear(): void {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     }
 
-    async function loadShader(path) {
+    async function loadShader(path: string): Promise<WebGLShader> {
         const res = await fetch(path);
         if (!res.ok) {
-            throw new Error(`Fetching ${path} failed with status ${response.status}: ${response.statusText}`);
+            throw new Error(`Fetching ${path} failed with status ${res.status}: ${res.statusText}`);
         }
         const src = await res.text();
 
@@ -31,6 +32,9 @@
             shader = gl.createShader(gl.FRAGMENT_SHADER);
         } else {
             throw new Error(`Unknown file extension for shader: ${path}`);
+        }
+        if (!shader) {
+            throw new Error(`Shader could not be created for ${path}`);
         }
 
         gl.shaderSource(shader, src);
@@ -43,7 +47,7 @@
         }
     }
 
-    function createProgram(vs, fs) {
+    function createProgram(vs: WebGLShader, fs: WebGLShader): WebGLProgram {
         const program = gl.createProgram();
 
         gl.attachShader(program, vs);
@@ -59,7 +63,7 @@
         }
     }
 
-    function createVertexBuffer(data) {
+    function createVertexBuffer(data: number[]): WebGLBuffer {
         const vbo = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
@@ -67,7 +71,7 @@
         return vbo;
     }
 
-    function setAttribute(name, data, stride, program) {
+    function setAttribute(name: string, data: number[], stride: number, program: WebGLProgram): void {
         const loc = gl.getAttribLocation(program, name);
         const vbo = createVertexBuffer(data);
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -75,7 +79,7 @@
         gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
     }
 
-    function createIndexBuffer(data) {
+    function createIndexBuffer(data: number[]): WebGLBuffer {
         const ibo = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
@@ -83,7 +87,13 @@
         return ibo;
     }
 
-    function torus(row, col, innerRadius, outerRadius, color) {
+    function torus(
+        row: number,
+        col: number,
+        innerRadius: number,
+        outerRadius: number,
+        color: Color,
+    ): [number[], number[], number[], number[]] {
         const positions = [];
         const normals = [];
         const colors = [];
@@ -120,7 +130,7 @@
         return [positions, normals, colors, indices];
     }
 
-    async function main() {
+    async function main(): Promise<void> {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
         gl.enable(gl.CULL_FACE);
@@ -137,10 +147,13 @@
         const ibo = createIndexBuffer(indices);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 
-        const uniforms = ['mvpMat', 'invMat', 'lightDirection', 'eyeDirection', 'ambientColor'].reduce((acc, name) => {
-            acc[name] = gl.getUniformLocation(prog, name);
-            return acc;
-        }, {});
+        const uniforms = ['mvpMat', 'invMat', 'lightDirection', 'eyeDirection', 'ambientColor'].reduce(
+            (acc, name) => {
+                acc[name] = gl.getUniformLocation(prog, name)!;
+                return acc;
+            },
+            {} as Record<string, WebGLUniformLocation>,
+        );
 
         const mvpMat = m.create();
         const mMat = m.create();
@@ -150,7 +163,7 @@
         const invMat = m.create();
         const lightDirection = [-0.5, 0.5, 0.5];
         const qMouse = q.identity(q.create());
-        const cameraPosition = [0, 0, 20];
+        const cameraPosition: Pos = [0, 0, 20];
         const qRotateX = q.create();
         const qRotateY = q.create();
         const qRotateInterp = q.create();
@@ -182,7 +195,7 @@
         range.addEventListener(
             'input',
             event => {
-                time = parseFloat(event.target.value);
+                time = parseFloat((event.target! as HTMLInputElement).value);
             },
             { passive: true },
         );
@@ -213,9 +226,9 @@
             q.slerp(qRotateX, qRotateY, time, qRotateInterp);
 
             for (const [ambientColor, qRotate] of [
-                [[0.0, 0.0, 0.5, 1.0], qRotateX],
-                [[0.5, 0.0, 0.0, 1.0], qRotateY],
-                [[0.0, 0.5, 0.0, 1.0], qRotateInterp],
+                [[0.0, 0.0, 0.5, 1.0], qRotateX] as const,
+                [[0.5, 0.0, 0.0, 1.0], qRotateY] as const,
+                [[0.0, 0.5, 0.0, 1.0], qRotateInterp] as const,
             ]) {
                 m.multiply(m.identity(mMat), mouseMat, mMat);
 
