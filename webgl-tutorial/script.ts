@@ -88,20 +88,22 @@
         return ibo;
     }
 
-    interface RenderObject {
+    interface ObjectInstance {
         attrs: Attribute[];
         ibo: WebGLBuffer;
         lenIndices: number;
     }
 
-    function createObject(
-        prog: WebGLProgram,
-        positions: number[],
-        normals: number[],
-        colors: number[],
-        indices: number[],
-        textures: number[],
-    ): RenderObject {
+    interface ObjectData {
+        positions: number[];
+        normals: number[];
+        colors: number[];
+        indices: number[];
+        textures: number[];
+    }
+
+    function createObject(prog: WebGLProgram, data: ObjectData): ObjectInstance {
+        const { positions, normals, colors, indices, textures } = data;
         return {
             attrs: [
                 createAttribute('position', positions, 3, prog),
@@ -114,7 +116,7 @@
         };
     }
 
-    function bindObjectToBuffers(object: RenderObject): void {
+    function bindObjectToBuffers(object: ObjectInstance): void {
         for (const attr of object.attrs) {
             const { loc, vbo, stride } = attr;
             gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -140,12 +142,7 @@
         return [r, g, b, a];
     }
 
-    function torus(
-        row: number,
-        col: number,
-        innerRadius: number,
-        outerRadius: number,
-    ): [number[], number[], number[], number[], number[]] {
+    function torus(row: number, col: number, innerRadius: number, outerRadius: number): ObjectData {
         const positions = [];
         const normals = [];
         const colors = [];
@@ -188,15 +185,10 @@
             }
         }
 
-        return [positions, normals, colors, indices, textures];
+        return { positions, normals, colors, indices, textures };
     }
 
-    function sphere(
-        row: number,
-        col: number,
-        radius: number,
-        color: Color,
-    ): [number[], number[], number[], number[], number[]] {
+    function sphere(row: number, col: number, radius: number, color: Color): ObjectData {
         const positions = [];
         const normals = [];
         const colors = [];
@@ -233,7 +225,7 @@
             }
         }
 
-        return [positions, normals, colors, indices, textures];
+        return { positions, normals, colors, indices, textures };
     }
 
     function loadImage(src: string): Promise<HTMLImageElement> {
@@ -277,8 +269,8 @@
 
         const prog = createProgram(vs, fs);
 
-        const torusObject = createObject(prog, ...torus(64, 64, 0.25, 1));
-        const sphereObject = createObject(prog, ...sphere(64, 64, 1, [1, 1, 1, 1]));
+        const torusObject = createObject(prog, torus(64, 64, 0.25, 1));
+        const sphereObject = createObject(prog, sphere(64, 64, 1, [1, 1, 1, 1]));
 
         const uniforms = ['mvpMat', 'isOutline', 'texture', 'useTexture'].reduce(
             (acc, name) => {
