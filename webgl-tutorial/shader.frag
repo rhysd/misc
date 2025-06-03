@@ -1,13 +1,14 @@
 precision mediump float;
 
 uniform sampler2D texture; // Texture for billboard
-uniform int useTexture;
+uniform bool useTexture;
 
 varying vec4 vColor;
+varying vec2 vTextureCoord;
 
 void main(void) {
-    if (bool(useTexture)) {
-        gl_FragColor = texture2D(texture, gl_PointCoord);
+    if (useTexture) {
+        gl_FragColor = vColor * texture2D(texture, vTextureCoord);
     } else {
         gl_FragColor = vColor;
     }

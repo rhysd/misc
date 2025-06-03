@@ -1,7 +1,9 @@
 (function () {
+    type Color = [number, number, number, number];
+
     const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
-    canvas.width = 300;
-    canvas.height = 300;
+    canvas.width = 600;
+    canvas.height = 400;
 
     const gl = canvas.getContext('webgl', { stencil: true })!;
     const m = new matIV();
@@ -78,13 +80,6 @@
         return { loc, vbo, stride };
     }
 
-    function setAttribute(attr: Attribute): void {
-        const { loc, vbo, stride } = attr;
-        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-        gl.enableVertexAttribArray(loc);
-        gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
-    }
-
     function createIndexBuffer(data: number[]): WebGLBuffer {
         const ibo = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
@@ -93,68 +88,210 @@
         return ibo;
     }
 
+    interface RenderObject {
+        attrs: Attribute[];
+        ibo: WebGLBuffer;
+        lenIndices: number;
+    }
+
+    function createObject(
+        prog: WebGLProgram,
+        positions: number[],
+        normals: number[],
+        colors: number[],
+        indices: number[],
+        textures: number[],
+    ): RenderObject {
+        return {
+            attrs: [
+                createAttribute('position', positions, 3, prog),
+                createAttribute('normal', normals, 3, prog),
+                createAttribute('color', colors, 4, prog),
+                createAttribute('textureCoord', textures, 2, prog),
+            ],
+            ibo: createIndexBuffer(indices),
+            lenIndices: indices.length,
+        };
+    }
+
+    function bindObjectToBuffers(object: RenderObject): void {
+        for (const attr of object.attrs) {
+            const { loc, vbo, stride } = attr;
+            gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+            gl.enableVertexAttribArray(loc);
+            gl.vertexAttribPointer(loc, stride, gl.FLOAT, false, 0, 0);
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
+    }
+
+    function hsva(h: number, s: number, v: number, a: number): Color {
+        if (s > 1 || v > 1 || a > 1) {
+            throw new Error(`Invalid HSVA color (${h}, ${s}, ${v}, ${a})`);
+        }
+        const th = h % 360;
+        const i = Math.floor(th / 60);
+        const f = th / 60 - i;
+        const m = v * (1 - s);
+        const n = v * (1 - s * f);
+        const k = v * (1 - s * (1 - f));
+        const r = [v, n, m, m, k, v][i];
+        const g = [k, v, v, n, m, m][i];
+        const b = [m, m, k, v, v, n][i];
+        return [r, g, b, a];
+    }
+
+    function torus(
+        row: number,
+        col: number,
+        innerRadius: number,
+        outerRadius: number,
+    ): [number[], number[], number[], number[], number[]] {
+        const positions = [];
+        const normals = [];
+        const colors = [];
+        const indices = [];
+        const textures = [];
+
+        for (let i = 0; i <= row; i++) {
+            const rad = ((Math.PI * 2) / row) * i;
+            const rr = Math.cos(rad);
+            const ry = Math.sin(rad);
+            for (let j = 0; j <= col; j++) {
+                const rad = ((Math.PI * 2) / col) * j;
+
+                const x = (rr * innerRadius + outerRadius) * Math.cos(rad);
+                const y = ry * innerRadius;
+                const z = (rr * innerRadius + outerRadius) * Math.sin(rad);
+                positions.push(x, y, z);
+
+                const rx = rr * Math.cos(rad);
+                const rz = rr * Math.sin(rad);
+                normals.push(rx, ry, rz);
+
+                colors.push(...hsva((360 / col) * j, 1, 1, 1));
+
+                const s = (1 / col) * j;
+                let t = (1 / row) * i + 0.5;
+                if (t > 1) {
+                    t -= 1;
+                }
+                t = 1 - t;
+                textures.push(s, t);
+            }
+        }
+
+        for (let i = 0; i < row; i++) {
+            for (let j = 0; j < col; j++) {
+                const r = (col + 1) * i + j;
+                indices.push(r, r + col + 1, r + 1);
+                indices.push(r + col + 1, r + col + 2, r + 1);
+            }
+        }
+
+        return [positions, normals, colors, indices, textures];
+    }
+
+    function sphere(
+        row: number,
+        col: number,
+        radius: number,
+        color: Color,
+    ): [number[], number[], number[], number[], number[]] {
+        const positions = [];
+        const normals = [];
+        const colors = [];
+        const indices = [];
+        const textures = [];
+
+        for (let i = 0; i <= row; i++) {
+            const rad = (Math.PI / row) * i;
+            const ry = Math.cos(rad);
+            const rr = Math.sin(rad);
+            for (let j = 0; j <= col; j++) {
+                const rad = ((Math.PI * 2) / col) * j;
+
+                const x = rr * radius * Math.cos(rad);
+                const y = ry * radius;
+                const z = rr * radius * Math.sin(rad);
+                positions.push(x, y, z);
+
+                const rx = rr * Math.cos(rad);
+                const rz = rr * Math.sin(rad);
+                normals.push(rx, ry, rz);
+
+                colors.push(...color);
+
+                textures.push(1 - (1 / col) * j, (1 / row) * i);
+            }
+        }
+
+        for (let i = 0; i < row; i++) {
+            for (let j = 0; j < col; j++) {
+                const r = (col + 1) * i + j;
+                indices.push(r, r + 1, r + col + 2);
+                indices.push(r, r + col + 2, r + col + 1);
+            }
+        }
+
+        return [positions, normals, colors, indices, textures];
+    }
+
+    function loadImage(src: string): Promise<HTMLImageElement> {
+        const img = new Image();
+
+        return new Promise((resolve, reject) => {
+            img.onload = () => {
+                resolve(img);
+            };
+            img.onerror = () => {
+                reject(new Error(`Could not load image ${src}`));
+            };
+            img.src = src;
+        });
+    }
+
+    async function loadTexture2D(src: string): Promise<WebGLTexture> {
+        const img = await loadImage(src);
+        const tex = gl.createTexture();
+
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(
+            /* target */ gl.TEXTURE_2D,
+            /* level of mipmap */ 0,
+            /* color components in texture */ gl.RGBA,
+            /* format of the texel data*/ gl.RGBA,
+            /* 1 byte per element of RGBA */ gl.UNSIGNED_BYTE,
+            img,
+        );
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
+        return tex;
+    }
+
     async function main(): Promise<void> {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
         gl.enable(gl.DEPTH_TEST);
-        gl.enable(gl.STENCIL_TEST);
         gl.depthFunc(gl.LEQUAL);
-        gl.enable(gl.BLEND);
 
         const prog = createProgram(vs, fs);
 
-        // prettier-ignore
-        const positions = [
-            -1.0, -1.0, 0.0,
-             1.0, -1.0, 0.0,
-            -1.0,  1.0, 0.0,
-             1.0,  1.0, 0.0,
-        ];
-        const posAttr = createAttribute('position', positions, 3, prog);
-        setAttribute(posAttr);
+        const torusObject = createObject(prog, ...torus(64, 64, 0.25, 1));
+        const sphereObject = createObject(prog, ...sphere(64, 64, 1, [1, 1, 1, 1]));
 
-        // prettier-ignore
-        const blue = [
-            0.0, 0.0, 1.0, 1.0,
-            0.0, 0.0, 1.0, 1.0,
-            0.0, 0.0, 1.0, 1.0,
-            0.0, 0.0, 1.0, 1.0,
-        ];
-        const blueAttr = createAttribute('color', blue, 4, prog);
-
-        // prettier-ignore
-        const red = [
-            1.0, 0.0, 0.0, 1.0,
-            1.0, 0.0, 0.0, 1.0,
-            1.0, 0.0, 0.0, 1.0,
-            1.0, 0.0, 0.0, 1.0,
-        ];
-        const redAttr = createAttribute('color', red, 4, prog);
-
-        // prettier-ignore
-        const green = [
-            0.0, 1.0, 0.0, 1.0,
-            0.0, 1.0, 0.0, 1.0,
-            0.0, 1.0, 0.0, 1.0,
-            0.0, 1.0, 0.0, 1.0,
-        ];
-        const greenAttr = createAttribute('color', green, 4, prog);
-
-        // prettier-ignore
-        const indices = [
-            0, 1, 2,
-            3, 2, 1,
-        ];
-        const ibo = createIndexBuffer(indices);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
-
-        const uniforms = ['mvpMat'].reduce(
+        const uniforms = ['mvpMat', 'isOutline', 'texture', 'useTexture'].reduce(
             (acc, name) => {
                 acc[name] = gl.getUniformLocation(prog, name)!;
                 return acc;
             },
             {} as Record<string, WebGLUniformLocation>,
         );
+
+        const texture = await loadTexture2D('assets/floor.png');
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.uniform1i(uniforms.texture, 0);
 
         const pMat = m.identity(m.create());
         m.perspective(
@@ -195,7 +332,12 @@
             { passive: true },
         );
 
+        let count = 0;
         function update(): void {
+            count++;
+
+            const rad = ((count % 360) * Math.PI) / 180;
+
             clear();
 
             m.identity(mouseMat);
@@ -205,26 +347,82 @@
             m.multiply(vMat, mouseMat, vMat);
             m.multiply(pMat, vMat, vpMat);
 
-            function renderRect(pos: Vec3, attr: Attribute): void {
-                setAttribute(attr);
-                m.identity(mMat);
-                m.translate(mMat, pos, mMat);
+            // The first path: Render the silhouette on depth buffer
+            {
+                gl.enable(gl.STENCIL_TEST);
+                // Do not render colors
+                gl.colorMask(/*R*/ false, /*G*/ false, /*B*/ false, /*A*/ false);
+                // Do not write to depth buffer
+                gl.depthMask(false);
+
+                // Write to stencil buffer.
+                // - Write 1 on the pixel where the model is rendered
+                // - Write 0 on the pixel where the model is not rendered
+                gl.stencilFunc(gl.ALWAYS, 1, ~0);
+                gl.stencilOp(gl.KEEP, gl.REPLACE, gl.REPLACE);
+
+                bindObjectToBuffers(torusObject);
+
+                m.rotate(m.identity(mMat), rad, [0, 1, 1], mMat);
                 m.multiply(vpMat, mMat, mvpMat);
-                gl.uniformMatrix4fv(uniforms.mvpMat, /*transpose*/ false, mvpMat);
-                gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+                gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
+                gl.uniform1i(uniforms.useTexture, 0);
+                gl.uniform1i(uniforms.isOutline, 1);
+
+                gl.drawElements(
+                    gl.TRIANGLES,
+                    torusObject.lenIndices,
+                    /* type of index */ gl.UNSIGNED_SHORT,
+                    /* start offset */ 0,
+                );
             }
 
-            gl.stencilFunc(gl.ALWAYS, 1, ~0);
-            gl.stencilOp(gl.KEEP, gl.REPLACE, gl.REPLACE);
-            renderRect([-0.25, 0.25, -0.5], redAttr);
+            // The second path: Render background texture on large sphere
+            {
+                // Enable rendering colors and depth test
+                gl.colorMask(/*R*/ true, /*G*/ true, /*B*/ true, /*A*/ true);
+                gl.depthMask(true);
 
-            gl.stencilFunc(gl.ALWAYS, 0, ~0);
-            gl.stencilOp(gl.KEEP, gl.INCR, gl.INCR);
-            renderRect([0, 0, 0], blueAttr);
+                // Render the texture only where the model is not rendered
+                gl.stencilFunc(gl.EQUAL, 0, ~0);
+                gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
 
-            gl.stencilFunc(gl.EQUAL, 2, ~0);
-            gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
-            renderRect([0.25, -0.25, 0.5], greenAttr);
+                bindObjectToBuffers(sphereObject);
+
+                m.scale(m.identity(mMat), [50, 50, 50], mMat); // Render 50x sphere
+                m.multiply(vpMat, mMat, mvpMat);
+                gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
+                gl.uniform1i(uniforms.useTexture, 1);
+                gl.uniform1i(uniforms.isOutline, 0);
+
+                gl.drawElements(
+                    gl.TRIANGLES,
+                    sphereObject.lenIndices,
+                    /* type of index */ gl.UNSIGNED_SHORT,
+                    /* start offset */ 0,
+                );
+            }
+
+            // The third path: Render the torus model on the silhouette
+            {
+                // Disable stencil test to render object without the effect of stencil buffer
+                gl.disable(gl.STENCIL_TEST);
+
+                bindObjectToBuffers(torusObject);
+
+                m.rotate(m.identity(mMat), rad, [0, 1, 1], mMat);
+                m.multiply(vpMat, mMat, mvpMat);
+                gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
+                gl.uniform1i(uniforms.useTexture, 0);
+                gl.uniform1i(uniforms.isOutline, 0);
+
+                gl.drawElements(
+                    gl.TRIANGLES,
+                    torusObject.lenIndices,
+                    /* type of index */ gl.UNSIGNED_SHORT,
+                    /* start offset */ 0,
+                );
+            }
 
             // Actual re-rendering happens here
             gl.flush();
