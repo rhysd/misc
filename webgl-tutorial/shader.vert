@@ -1,20 +1,20 @@
 attribute vec3 position;
-attribute vec4 color;
 attribute vec3 normal;
+attribute vec4 color;
 attribute vec2 textureCoord;
 
 uniform mat4 mvpMat;
-uniform bool isOutline;
+uniform mat4 mMat;
 
+varying vec3 vPosition;
 varying vec4 vColor;
+varying vec3 vNormal;
 varying vec2 vTextureCoord;
 
 void main(void) {
-    vColor = color;
     vTextureCoord = textureCoord;
-    vec3 pos = position;
-    if (isOutline) {
-        pos += normal * 0.2; // The silhouette is 1.2x larger than the model
-    }
-    gl_Position = mvpMat * vec4(pos, 1.0);
+    vPosition = (mMat * vec4(position, 1.0)).xyz;
+    vColor = color;
+    vNormal = normal;
+    gl_Position = mvpMat * vec4(position, 1.0);
 }

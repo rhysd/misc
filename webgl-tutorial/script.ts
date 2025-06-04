@@ -2,17 +2,16 @@
     type Color = [number, number, number, number];
 
     const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
-    canvas.width = 600;
-    canvas.height = 400;
+    canvas.width = 512;
+    canvas.height = 512;
 
-    const gl = canvas.getContext('webgl', { stencil: true })!;
+    const gl = canvas.getContext('webgl')!;
     const m = new matIV();
-    const q = new qtnIV();
 
     function clear(): void {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
 
     async function loadShader(path: string): Promise<WebGLShader> {
@@ -80,15 +79,7 @@
         return { loc, vbo, stride };
     }
 
-    function createIndexBuffer(data: number[]): WebGLBuffer {
-        const ibo = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-        return ibo;
-    }
-
-    interface ObjectInstance {
+    interface RenderObject {
         attrs: Attribute[];
         ibo: WebGLBuffer;
         lenIndices: number;
@@ -98,12 +89,12 @@
         positions: number[];
         normals: number[];
         colors: number[];
-        indices: number[];
         textures: number[];
+        indices: number[];
     }
 
-    function createObject(prog: WebGLProgram, data: ObjectData): ObjectInstance {
-        const { positions, normals, colors, indices, textures } = data;
+    function createObject(prog: WebGLProgram, data: ObjectData): RenderObject {
+        const { positions, normals, colors, textures, indices } = data;
         return {
             attrs: [
                 createAttribute('position', positions, 3, prog),
@@ -116,7 +107,15 @@
         };
     }
 
-    function bindObjectToBuffers(object: ObjectInstance): void {
+    function createIndexBuffer(data: number[]): WebGLBuffer {
+        const ibo = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        return ibo;
+    }
+
+    function bindRenderObject(object: RenderObject): void {
         for (const attr of object.attrs) {
             const { loc, vbo, stride } = attr;
             gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -147,7 +146,6 @@
         const normals = [];
         const colors = [];
         const indices = [];
-        const textures = [];
 
         for (let i = 0; i <= row; i++) {
             const rad = ((Math.PI * 2) / row) * i;
@@ -166,14 +164,6 @@
                 normals.push(rx, ry, rz);
 
                 colors.push(...hsva((360 / col) * j, 1, 1, 1));
-
-                const s = (1 / col) * j;
-                let t = (1 / row) * i + 0.5;
-                if (t > 1) {
-                    t -= 1;
-                }
-                t = 1 - t;
-                textures.push(s, t);
             }
         }
 
@@ -185,80 +175,84 @@
             }
         }
 
-        return { positions, normals, colors, indices, textures };
+        return { positions, normals, colors, textures: [], indices };
     }
 
-    function sphere(row: number, col: number, radius: number, color: Color): ObjectData {
-        const positions = [];
-        const normals = [];
-        const colors = [];
-        const indices = [];
-        const textures = [];
-
-        for (let i = 0; i <= row; i++) {
-            const rad = (Math.PI / row) * i;
-            const ry = Math.cos(rad);
-            const rr = Math.sin(rad);
-            for (let j = 0; j <= col; j++) {
-                const rad = ((Math.PI * 2) / col) * j;
-
-                const x = rr * radius * Math.cos(rad);
-                const y = ry * radius;
-                const z = rr * radius * Math.sin(rad);
-                positions.push(x, y, z);
-
-                const rx = rr * Math.cos(rad);
-                const rz = rr * Math.sin(rad);
-                normals.push(rx, ry, rz);
-
-                colors.push(...color);
-
-                textures.push(1 - (1 / col) * j, (1 / row) * i);
-            }
-        }
-
-        for (let i = 0; i < row; i++) {
-            for (let j = 0; j < col; j++) {
-                const r = (col + 1) * i + j;
-                indices.push(r, r + 1, r + col + 2);
-                indices.push(r, r + col + 2, r + col + 1);
-            }
-        }
-
-        return { positions, normals, colors, indices, textures };
+    function rect(size: number): ObjectData {
+        // prettier-ignore
+        const positions = [
+               0, size, 0,
+            size, size, 0,
+               0,    0, 0,
+            size,    0, 0,
+        ];
+        // prettier-ignore
+        const colors = [
+            1, 0, 0, 1,
+            1, 0, 0, 1,
+            1, 0, 0, 1,
+            1, 0, 0, 1,
+        ];
+        // prettier-ignore
+        const textures = [
+            0, 0,
+            1, 0,
+            0, 1,
+            1, 1
+        ];
+        // prettier-ignore
+        const indices = [
+            0, 1, 2,
+            3, 2, 1,
+        ];
+        return { positions, normals: [], colors, textures, indices };
     }
 
-    function loadImage(src: string): Promise<HTMLImageElement> {
-        const img = new Image();
-
-        return new Promise((resolve, reject) => {
-            img.onload = () => {
-                resolve(img);
-            };
-            img.onerror = () => {
-                reject(new Error(`Could not load image ${src}`));
-            };
-            img.src = src;
-        });
+    interface OfflineFrameBuffer {
+        frame: WebGLFramebuffer;
+        depth: WebGLRenderbuffer;
+        texture: WebGLTexture;
     }
 
-    async function loadTexture2D(src: string): Promise<WebGLTexture> {
-        const img = await loadImage(src);
-        const tex = gl.createTexture();
+    function createOfflineFrameBuffer(width: number, height: number): OfflineFrameBuffer {
+        const frame = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frame);
 
-        gl.bindTexture(gl.TEXTURE_2D, tex);
+        // Setup the render buffer as depth buffer
+        const depth = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+
+        // Attach the depth buffer to the frame buffer
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
+
+        // Create texture as the rendering target
+        const mipmapLevel = 0;
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
-            /* target */ gl.TEXTURE_2D,
-            /* level of mipmap */ 0,
-            /* color components in texture */ gl.RGBA,
-            /* format of the texel data*/ gl.RGBA,
-            /* 1 byte per element of RGBA */ gl.UNSIGNED_BYTE,
-            img,
+            gl.TEXTURE_2D,
+            mipmapLevel,
+            gl.RGBA,
+            width,
+            height,
+            /* width of border */ 0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            /* texture data is unbound*/ null,
         );
-        gl.generateMipmap(gl.TEXTURE_2D);
-        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 
-        return tex;
+        // Attach the texture to the frame buffer
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, mipmapLevel);
+
+        // Ensure all buffers are unbound after creation
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        return { frame, depth, texture };
     }
 
     async function main(): Promise<void> {
@@ -269,23 +263,15 @@
 
         const prog = createProgram(vs, fs);
 
-        const torusObject = createObject(prog, torus(64, 64, 0.25, 1));
-        const sphereObject = createObject(prog, sphere(64, 64, 1, [1, 1, 1, 1]));
+        const torusObject = createObject(prog, torus(64, 64, 1.5, 3.0));
+        const rectObject = createObject(prog, rect(2.0));
 
-        const uniforms = ['mvpMat', 'isOutline', 'texture', 'useTexture'].reduce(
-            (acc, name) => {
-                acc[name] = gl.getUniformLocation(prog, name)!;
-                return acc;
-            },
-            {} as Record<string, WebGLUniformLocation>,
-        );
-
-        const texture = await loadTexture2D('assets/floor.png');
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.uniform1i(uniforms.texture, 0);
-
+        const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
+        const vpMat = m.identity(m.create());
+        const eyeDirection: [number, number, number] = [0, 0, 20];
+
+        m.lookAt(/* eye position */ eyeDirection, /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
         m.perspective(
             /* fov */ 45,
             /* aspect ratio */ canvas.width / canvas.height,
@@ -293,127 +279,104 @@
             /* far clip */ 100,
             pMat,
         );
+        m.multiply(pMat, vMat, vpMat);
 
-        const vMat = m.create();
-        const vpMat = m.create();
-        const mMat = m.create();
-        const mvpMat = m.create();
-        const qCamera = q.identity(q.create());
-        const mouseMat = m.create();
-
-        canvas.addEventListener(
-            'mousemove',
-            event => {
-                const w = canvas.width;
-                const h = canvas.height;
-                const x = event.clientX - canvas.offsetLeft - w / 2;
-                const y = event.clientY - canvas.offsetTop - h / 2;
-                const len = Math.sqrt(x * x + y * y);
-
-                // Normalize position
-                const normX = x / len;
-                const normY = y / len;
-
-                // Use distance from the center of canvas to calculate the angle
-                const diag = Math.sqrt(w * w + h * h);
-                const rad = 2 * Math.PI * (len / diag);
-
-                // Calculate quaternion to rotate the model
-                q.rotate(rad, [normY, normX, 0], qCamera);
+        const uniforms = [
+            'mvpMat',
+            'mMat',
+            'invMat',
+            'lightPosition',
+            'eyeDirection',
+            'ambientColor',
+            'texture',
+            'useTexture',
+        ].reduce(
+            (acc, name) => {
+                acc[name] = gl.getUniformLocation(prog, name)!;
+                return acc;
             },
-            { passive: true },
+            {} as Record<string, WebGLUniformLocation>,
         );
 
-        let count = 0;
-        function update(): void {
-            count++;
+        gl.activeTexture(gl.TEXTURE0);
+        gl.uniform1i(uniforms.texture, 0);
 
+        const offline = createOfflineFrameBuffer(canvas.width, canvas.height);
+
+        const mMat = m.create();
+        const mvpMat = m.create();
+        const invMat = m.create();
+        const lightPosition = [10, 0, 0];
+        const ambientColor = [0.1, 0.1, 0.1, 1.0];
+
+        gl.uniform3fv(uniforms.lightPosition, lightPosition);
+        gl.uniform3fv(uniforms.eyeDirection, eyeDirection);
+        gl.uniform4fv(uniforms.ambientColor, ambientColor);
+
+        let count = 0;
+        function update() {
+            count++;
             const rad = ((count % 360) * Math.PI) / 180;
 
-            clear();
-
-            m.identity(mouseMat);
-            q.toMatIV(qCamera, mouseMat);
-
-            m.lookAt(/* eye position */ [0, 0, 10], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
-            m.multiply(vMat, mouseMat, vMat);
-            m.multiply(pMat, vMat, vpMat);
-
-            // The first path: Render the silhouette on depth buffer
+            // Render a torus object on the offline frame buffer
             {
-                gl.enable(gl.STENCIL_TEST);
-                // Do not render colors
-                gl.colorMask(/*R*/ false, /*G*/ false, /*B*/ false, /*A*/ false);
-                // Do not write to depth buffer
-                gl.depthMask(false);
+                // Bind the offline frame buffer
+                gl.bindFramebuffer(gl.FRAMEBUFFER, offline.frame);
 
-                // Write to stencil buffer.
-                // - Write 1 on the pixel where the model is rendered
-                // - Write 0 on the pixel where the model is not rendered
-                gl.stencilFunc(gl.ALWAYS, 1, ~0);
-                gl.stencilOp(gl.KEEP, gl.REPLACE, gl.REPLACE);
+                // Unbind the texture because the render target cannot be bound while it is rendered
+                gl.bindTexture(gl.TEXTURE_2D, null);
 
-                bindObjectToBuffers(torusObject);
+                // Clear the offline frame buffer
+                clear();
 
-                m.rotate(m.identity(mMat), rad, [0, 1, 1], mMat);
+                bindRenderObject(torusObject);
+
+                m.identity(mMat);
+                m.rotate(mMat, rad, /* axis */ [0, 1, 1], mMat);
                 m.multiply(vpMat, mMat, mvpMat);
-                gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
-                gl.uniform1i(uniforms.useTexture, 0);
-                gl.uniform1i(uniforms.isOutline, 1);
+                m.inverse(mMat, invMat);
 
+                gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+                gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
+                gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
+                gl.uniform1i(uniforms.useTexture, 0);
+
+                // Draw triangles based on the index buffer.
                 gl.drawElements(
                     gl.TRIANGLES,
                     torusObject.lenIndices,
                     /* type of index */ gl.UNSIGNED_SHORT,
                     /* start offset */ 0,
                 );
+
+                // Unbind the offline frame buffer. Actual rendering to the offline frame buffer happens here
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
             }
 
-            // The second path: Render background texture on large sphere
+            // Render the torus object rendered to the texture to the actual canvas multiple times
             {
-                // Enable rendering colors and depth test
-                gl.colorMask(/*R*/ true, /*G*/ true, /*B*/ true, /*A*/ true);
-                gl.depthMask(true);
+                // Clear the main canvas
+                clear();
 
-                // Render the texture only where the model is not rendered
-                gl.stencilFunc(gl.EQUAL, 0, ~0);
-                gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+                bindRenderObject(rectObject);
 
-                bindObjectToBuffers(sphereObject);
+                // Bind the texture which is the rendering result of the offline frame buffer
+                gl.bindTexture(gl.TEXTURE_2D, offline.texture);
 
-                m.scale(m.identity(mMat), [50, 50, 50], mMat); // Render 50x sphere
-                m.multiply(vpMat, mMat, mvpMat);
-                gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
                 gl.uniform1i(uniforms.useTexture, 1);
-                gl.uniform1i(uniforms.isOutline, 0);
+                for (let y = -4; y < 4; y++) {
+                    for (let x = -4; x < 4; x++) {
+                        m.identity(mMat);
+                        m.translate(mMat, [x * 2.0, y * 2.0, 0], mMat);
+                        m.multiply(vpMat, mMat, mvpMat);
 
-                gl.drawElements(
-                    gl.TRIANGLES,
-                    sphereObject.lenIndices,
-                    /* type of index */ gl.UNSIGNED_SHORT,
-                    /* start offset */ 0,
-                );
-            }
+                        gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+                        gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
 
-            // The third path: Render the torus model on the silhouette
-            {
-                // Disable stencil test to render object without the effect of stencil buffer
-                gl.disable(gl.STENCIL_TEST);
-
-                bindObjectToBuffers(torusObject);
-
-                m.rotate(m.identity(mMat), rad, [0, 1, 1], mMat);
-                m.multiply(vpMat, mMat, mvpMat);
-                gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
-                gl.uniform1i(uniforms.useTexture, 0);
-                gl.uniform1i(uniforms.isOutline, 0);
-
-                gl.drawElements(
-                    gl.TRIANGLES,
-                    torusObject.lenIndices,
-                    /* type of index */ gl.UNSIGNED_SHORT,
-                    /* start offset */ 0,
-                );
+                        // Draw triangles based on the index buffer.
+                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                    }
+                }
             }
 
             // Actual re-rendering happens here
