@@ -23,6 +23,7 @@
     "quaternion/script.ts",
     "billboard/script.ts",
     "point_and_line/script.ts",
+    "stencil/script.ts",
     "script.ts"
   ]
 }
