@@ -24,6 +24,7 @@
     "billboard/script.ts",
     "point_and_line/script.ts",
     "stencil/script.ts",
+    "framebuffer/script.ts",
     "script.ts"
   ]
 }
