@@ -146,6 +146,7 @@
         const normals = [];
         const colors = [];
         const indices = [];
+        const textures = [];
 
         for (let i = 0; i <= row; i++) {
             const rad = ((Math.PI * 2) / row) * i;
@@ -164,6 +165,14 @@
                 normals.push(rx, ry, rz);
 
                 colors.push(...hsva((360 / col) * j, 1, 1, 1));
+
+                const s = (1 / col) * j;
+                let t = (1 / row) * i + 0.5;
+                if (t > 1) {
+                    t -= 1;
+                }
+                t = 1 - t;
+                textures.push(s, t);
             }
         }
 
@@ -175,7 +184,7 @@
             }
         }
 
-        return { positions, normals, colors, textures: [], indices };
+        return { positions, normals, colors, textures, indices };
     }
 
     function rect(size: number): ObjectData {
@@ -185,6 +194,13 @@
             size, size, 0,
                0,    0, 0,
             size,    0, 0,
+        ];
+        // prettier-ignore
+        const normals = [
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
         ];
         // prettier-ignore
         const colors = [
@@ -205,7 +221,7 @@
             0, 1, 2,
             3, 2, 1,
         ];
-        return { positions, normals: [], colors, textures, indices };
+        return { positions, normals, colors, textures, indices };
     }
 
     interface OfflineFrameBuffer {
