@@ -5,7 +5,7 @@
     canvas.width = 512;
     canvas.height = 512;
 
-    const enableBlur = document.getElementById('enable-blur')! as HTMLInputElement;
+    const blur = document.getElementById('blur')! as HTMLInputElement;
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
@@ -322,9 +322,10 @@
         gl.uniform3fv(uniforms.eyeDirection, eyeDirection);
         gl.uniform4fv(uniforms.ambientColor, ambientColor);
 
+        // Create another program for rendering the rendered texture
         const blurProg = createProgram(blurVS, blurFS);
         const rectObject = createRect(blurProg, 2.0);
-        const blurUniforms = uniformLocations(blurProg, ['mvpMat', 'texture', 'textureLength', 'enableBlur']);
+        const blurUniforms = uniformLocations(blurProg, ['mvpMat', 'texture', 'textureLength', 'blur']);
         gl.uniform1i(blurUniforms.texture, 0);
         gl.uniform1f(blurUniforms.textureLength, 512.0);
 
@@ -393,7 +394,7 @@
                         m.multiply(vpMat, mMat, mvpMat);
 
                         gl.uniformMatrix4fv(blurUniforms.mvpMat, /* transpose */ false, mvpMat);
-                        gl.uniform1i(blurUniforms.enableBlur, 0);
+                        gl.uniform1f(blurUniforms.blur, 0.0);
 
                         // Draw triangles based on the index buffer.
                         gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
@@ -405,7 +406,8 @@
                 m.scale(mMat, [4, 4, 0], mMat);
                 m.multiply(vpMat, mMat, mvpMat);
                 gl.uniformMatrix4fv(blurUniforms.mvpMat, /* transpose */ false, mvpMat);
-                gl.uniform1i(blurUniforms.enableBlur, +enableBlur.checked);
+                console.log(parseFloat(blur.value));
+                gl.uniform1f(blurUniforms.blur, parseFloat(blur.value));
                 gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
             }
 
