@@ -406,7 +406,6 @@
                 m.scale(mMat, [4, 4, 0], mMat);
                 m.multiply(vpMat, mMat, mvpMat);
                 gl.uniformMatrix4fv(blurUniforms.mvpMat, /* transpose */ false, mvpMat);
-                console.log(parseFloat(blur.value));
                 gl.uniform1f(blurUniforms.blur, parseFloat(blur.value));
                 gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
             }
