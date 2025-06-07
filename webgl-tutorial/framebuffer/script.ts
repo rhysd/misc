@@ -5,6 +5,8 @@
     canvas.width = 512;
     canvas.height = 512;
 
+    const blur = document.getElementById('blur')! as HTMLInputElement;
+
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
 
@@ -89,18 +91,16 @@
         positions: number[];
         normals: number[];
         colors: number[];
-        textures: number[];
         indices: number[];
     }
 
     function createObject(prog: WebGLProgram, data: ObjectData): RenderObject {
-        const { positions, normals, colors, textures, indices } = data;
+        const { positions, normals, colors, indices } = data;
         return {
             attrs: [
                 createAttribute('position', positions, 3, prog),
                 createAttribute('normal', normals, 3, prog),
                 createAttribute('color', colors, 4, prog),
-                createAttribute('textureCoord', textures, 2, prog),
             ],
             ibo: createIndexBuffer(indices),
             lenIndices: indices.length,
@@ -146,7 +146,6 @@
         const normals = [];
         const colors = [];
         const indices = [];
-        const textures = [];
 
         for (let i = 0; i <= row; i++) {
             const rad = ((Math.PI * 2) / row) * i;
@@ -165,14 +164,6 @@
                 normals.push(rx, ry, rz);
 
                 colors.push(...hsva((360 / col) * j, 1, 1, 1));
-
-                const s = (1 / col) * j;
-                let t = (1 / row) * i + 0.5;
-                if (t > 1) {
-                    t -= 1;
-                }
-                t = 1 - t;
-                textures.push(s, t);
             }
         }
 
@@ -184,30 +175,16 @@
             }
         }
 
-        return { positions, normals, colors, textures, indices };
+        return { positions, normals, colors, indices };
     }
 
-    function rect(size: number): ObjectData {
+    function createRect(prog: WebGLProgram, size: number): RenderObject {
         // prettier-ignore
         const positions = [
                0, size, 0,
             size, size, 0,
                0,    0, 0,
             size,    0, 0,
-        ];
-        // prettier-ignore
-        const normals = [
-            0, 0, 1,
-            0, 0, 1,
-            0, 0, 1,
-            0, 0, 1,
-        ];
-        // prettier-ignore
-        const colors = [
-            1, 0, 0, 1,
-            1, 0, 0, 1,
-            1, 0, 0, 1,
-            1, 0, 0, 1,
         ];
         // prettier-ignore
         const textures = [
@@ -221,7 +198,14 @@
             0, 1, 2,
             3, 2, 1,
         ];
-        return { positions, normals, colors, textures, indices };
+        return {
+            attrs: [
+                createAttribute('position', positions, 3, prog),
+                createAttribute('textureCoord', textures, 2, prog),
+            ],
+            ibo: createIndexBuffer(indices),
+            lenIndices: indices.length,
+        };
     }
 
     interface OfflineFrameBuffer {
@@ -259,6 +243,8 @@
         );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
         // Attach the texture to the frame buffer
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, mipmapLevel);
@@ -271,16 +257,30 @@
         return { frame, depth, texture };
     }
 
-    async function main(): Promise<void> {
-        const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
+    function uniformLocations(prog: WebGLProgram, names: string[]): Record<string, WebGLUniformLocation> {
+        return names.reduce(
+            (acc, name) => {
+                acc[name] = gl.getUniformLocation(prog, name)!;
+                return acc;
+            },
+            {} as Record<string, WebGLUniformLocation>,
+        );
+    }
 
+    async function main(): Promise<void> {
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
 
-        const prog = createProgram(vs, fs);
+        const [frameVS, frameFS, blurVS, blurFS] = await Promise.all([
+            loadShader('frame.vert'),
+            loadShader('frame.frag'),
+            loadShader('blur.vert'),
+            loadShader('blur.frag'),
+        ]);
 
-        const torusObject = createObject(prog, torus(64, 64, 1.5, 3.0));
-        const rectObject = createObject(prog, rect(2.0));
+        const frameProg = createProgram(frameVS, frameFS);
+
+        const torusObject = createObject(frameProg, torus(64, 64, 1.5, 3.0));
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
@@ -297,7 +297,7 @@
         );
         m.multiply(pMat, vMat, vpMat);
 
-        const uniforms = [
+        const uniforms = uniformLocations(frameProg, [
             'mvpMat',
             'mMat',
             'invMat',
@@ -305,14 +305,7 @@
             'eyeDirection',
             'ambientColor',
             'texture',
-            'useTexture',
-        ].reduce(
-            (acc, name) => {
-                acc[name] = gl.getUniformLocation(prog, name)!;
-                return acc;
-            },
-            {} as Record<string, WebGLUniformLocation>,
-        );
+        ]);
 
         gl.activeTexture(gl.TEXTURE0);
         gl.uniform1i(uniforms.texture, 0);
@@ -329,6 +322,13 @@
         gl.uniform3fv(uniforms.eyeDirection, eyeDirection);
         gl.uniform4fv(uniforms.ambientColor, ambientColor);
 
+        // Create another program for rendering the rendered texture
+        const blurProg = createProgram(blurVS, blurFS);
+        const rectObject = createRect(blurProg, 2.0);
+        const blurUniforms = uniformLocations(blurProg, ['mvpMat', 'texture', 'textureLength', 'blur']);
+        gl.uniform1i(blurUniforms.texture, 0);
+        gl.uniform1f(blurUniforms.textureLength, 512.0);
+
         let count = 0;
         function update() {
             count++;
@@ -336,6 +336,9 @@
 
             // Render a torus object on the offline frame buffer
             {
+                // Switch shaders
+                gl.useProgram(frameProg);
+
                 // Bind the offline frame buffer
                 gl.bindFramebuffer(gl.FRAMEBUFFER, offline.frame);
 
@@ -355,7 +358,6 @@
                 gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
                 gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
-                gl.uniform1i(uniforms.useTexture, 0);
 
                 // Draw triangles based on the index buffer.
                 gl.drawElements(
@@ -371,6 +373,9 @@
 
             // Render the torus object rendered to the texture to the actual canvas multiple times
             {
+                // Switch shaders
+                gl.useProgram(blurProg);
+
                 // Clear the main canvas
                 clear();
 
@@ -379,20 +384,30 @@
                 // Bind the texture which is the rendering result of the offline frame buffer
                 gl.bindTexture(gl.TEXTURE_2D, offline.texture);
 
-                gl.uniform1i(uniforms.useTexture, 1);
                 for (let y = -4; y < 4; y++) {
                     for (let x = -4; x < 4; x++) {
+                        if (-2 <= x && x < 2 && -2 <= y && y < 2) {
+                            continue;
+                        }
                         m.identity(mMat);
                         m.translate(mMat, [x * 2.0, y * 2.0, 0], mMat);
                         m.multiply(vpMat, mMat, mvpMat);
 
-                        gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
-                        gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
+                        gl.uniformMatrix4fv(blurUniforms.mvpMat, /* transpose */ false, mvpMat);
+                        gl.uniform1f(blurUniforms.blur, 0.0);
 
                         // Draw triangles based on the index buffer.
                         gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                     }
                 }
+
+                m.identity(mMat);
+                m.translate(mMat, [-4, -4, 0], mMat);
+                m.scale(mMat, [4, 4, 0], mMat);
+                m.multiply(vpMat, mMat, mvpMat);
+                gl.uniformMatrix4fv(blurUniforms.mvpMat, /* transpose */ false, mvpMat);
+                gl.uniform1f(blurUniforms.blur, parseFloat(blur.value));
+                gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
             }
 
             // Actual re-rendering happens here
