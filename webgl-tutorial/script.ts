@@ -1,11 +1,7 @@
 (function () {
-    type Color = [number, number, number, number];
-
     const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
-    canvas.width = 512;
-    canvas.height = 512;
-
-    const blur = document.getElementById('blur')! as HTMLInputElement;
+    canvas.width = 600;
+    canvas.height = 600;
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
@@ -13,7 +9,7 @@
     function clear(): void {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     }
 
     async function loadShader(path: string): Promise<WebGLShader> {
@@ -90,18 +86,13 @@
     interface ObjectData {
         positions: number[];
         normals: number[];
-        colors: number[];
         indices: number[];
     }
 
     function createObject(prog: WebGLProgram, data: ObjectData): RenderObject {
-        const { positions, normals, colors, indices } = data;
+        const { positions, normals, indices } = data;
         return {
-            attrs: [
-                createAttribute('position', positions, 3, prog),
-                createAttribute('normal', normals, 3, prog),
-                createAttribute('color', colors, 4, prog),
-            ],
+            attrs: [createAttribute('position', positions, 3, prog), createAttribute('normal', normals, 3, prog)],
             ibo: createIndexBuffer(indices),
             lenIndices: indices.length,
         };
@@ -115,7 +106,7 @@
         return ibo;
     }
 
-    function bindRenderObject(object: RenderObject): void {
+    function bindObjectBuffers(object: RenderObject): void {
         for (const attr of object.attrs) {
             const { loc, vbo, stride } = attr;
             gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -125,26 +116,9 @@
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
     }
 
-    function hsva(h: number, s: number, v: number, a: number): Color {
-        if (s > 1 || v > 1 || a > 1) {
-            throw new Error(`Invalid HSVA color (${h}, ${s}, ${v}, ${a})`);
-        }
-        const th = h % 360;
-        const i = Math.floor(th / 60);
-        const f = th / 60 - i;
-        const m = v * (1 - s);
-        const n = v * (1 - s * f);
-        const k = v * (1 - s * (1 - f));
-        const r = [v, n, m, m, k, v][i];
-        const g = [k, v, v, n, m, m][i];
-        const b = [m, m, k, v, v, n][i];
-        return [r, g, b, a];
-    }
-
     function torus(row: number, col: number, innerRadius: number, outerRadius: number): ObjectData {
         const positions = [];
         const normals = [];
-        const colors = [];
         const indices = [];
 
         for (let i = 0; i <= row; i++) {
@@ -162,8 +136,6 @@
                 const rx = rr * Math.cos(rad);
                 const rz = rr * Math.sin(rad);
                 normals.push(rx, ry, rz);
-
-                colors.push(...hsva((360 / col) * j, 1, 1, 1));
             }
         }
 
@@ -175,112 +147,105 @@
             }
         }
 
-        return { positions, normals, colors, indices };
+        return { positions, normals, indices };
     }
 
-    function createRect(prog: WebGLProgram, size: number): RenderObject {
-        // prettier-ignore
-        const positions = [
-               0, size, 0,
-            size, size, 0,
-               0,    0, 0,
-            size,    0, 0,
-        ];
-        // prettier-ignore
-        const textures = [
-            0, 0,
-            1, 0,
-            0, 1,
-            1, 1
-        ];
-        // prettier-ignore
-        const indices = [
-            0, 1, 2,
-            3, 2, 1,
-        ];
-        return {
-            attrs: [
-                createAttribute('position', positions, 3, prog),
-                createAttribute('textureCoord', textures, 2, prog),
-            ],
-            ibo: createIndexBuffer(indices),
-            lenIndices: indices.length,
-        };
+    function sphere(row: number, col: number, radius: number): ObjectData {
+        const positions = [];
+        const normals = [];
+        const indices = [];
+
+        for (let i = 0; i <= row; i++) {
+            const rad = (Math.PI / row) * i;
+            const ry = Math.cos(rad);
+            const rr = Math.sin(rad);
+            for (let j = 0; j <= col; j++) {
+                const rad = ((Math.PI * 2) / col) * j;
+
+                const x = rr * radius * Math.cos(rad);
+                const y = ry * radius;
+                const z = rr * radius * Math.sin(rad);
+                positions.push(x, y, z);
+
+                const rx = rr * Math.cos(rad);
+                const rz = rr * Math.sin(rad);
+                normals.push(rx, ry, rz);
+            }
+        }
+
+        for (let i = 0; i < row; i++) {
+            for (let j = 0; j < col; j++) {
+                const r = (col + 1) * i + j;
+                indices.push(r, r + 1, r + col + 2);
+                indices.push(r, r + col + 2, r + col + 1);
+            }
+        }
+
+        return { positions, normals, indices };
     }
 
-    interface OfflineFrameBuffer {
-        frame: WebGLFramebuffer;
-        depth: WebGLRenderbuffer;
-        texture: WebGLTexture;
+    function loadImage(src: string): Promise<HTMLImageElement> {
+        const img = new Image();
+
+        return new Promise((resolve, reject) => {
+            img.onload = () => {
+                resolve(img);
+            };
+            img.onerror = () => {
+                reject(new Error(`Could not load image ${src}`));
+            };
+            img.src = src;
+        });
     }
 
-    function createOfflineFrameBuffer(width: number, height: number): OfflineFrameBuffer {
-        const frame = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, frame);
-
-        // Setup the render buffer as depth buffer
-        const depth = gl.createRenderbuffer();
-        gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
-        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
-
-        // Attach the depth buffer to the frame buffer
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
-
-        // Create texture as the rendering target
-        const mipmapLevel = 0;
-        const texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            mipmapLevel,
-            gl.RGBA,
-            width,
-            height,
-            /* width of border */ 0,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            /* texture data is unbound*/ null,
+    async function loadCubeTexture(sources: Array<[number, string]>): Promise<WebGLTexture> {
+        const map = await Promise.all(
+            sources.map(async ([pos, path]) => {
+                const img = await loadImage(path);
+                return [pos, img] as const;
+            }),
         );
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-        // Attach the texture to the frame buffer
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, mipmapLevel);
+        const tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, tex);
 
-        // Ensure all buffers are unbound after creation
-        gl.bindTexture(gl.TEXTURE_2D, null);
-        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        for (const [pos, image] of map) {
+            gl.texImage2D(pos, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        }
 
-        return { frame, depth, texture };
-    }
+        gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-    function uniformLocations(prog: WebGLProgram, names: string[]): Record<string, WebGLUniformLocation> {
-        return names.reduce(
-            (acc, name) => {
-                acc[name] = gl.getUniformLocation(prog, name)!;
-                return acc;
-            },
-            {} as Record<string, WebGLUniformLocation>,
-        );
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+
+        return tex;
     }
 
     async function main(): Promise<void> {
+        const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
+
+        gl.enable(gl.CULL_FACE);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
 
-        const [frameVS, frameFS, blurVS, blurFS] = await Promise.all([
-            loadShader('frame.vert'),
-            loadShader('frame.frag'),
-            loadShader('blur.vert'),
-            loadShader('blur.frag'),
+        const prog = createProgram(vs, fs);
+
+        const cubeTexture = await loadCubeTexture([
+            [gl.TEXTURE_CUBE_MAP_POSITIVE_X, 'assets/cubemap/px.png'],
+            [gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 'assets/cubemap/py.png'],
+            [gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 'assets/cubemap/pz.png'],
+            [gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 'assets/cubemap/nx.png'],
+            [gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 'assets/cubemap/ny.png'],
+            [gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 'assets/cubemap/nz.png'],
         ]);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeTexture);
 
-        const frameProg = createProgram(frameVS, frameFS);
-
-        const torusObject = createObject(frameProg, torus(64, 64, 1.5, 3.0));
+        const torusObject = createObject(prog, torus(64, 64, 0.75, 1.75));
+        const sphereObject = createObject(prog, sphere(64, 64, 2));
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
@@ -297,67 +262,42 @@
         );
         m.multiply(pMat, vMat, vpMat);
 
-        const uniforms = uniformLocations(frameProg, [
-            'mvpMat',
-            'mMat',
-            'invMat',
-            'lightPosition',
-            'eyeDirection',
-            'ambientColor',
-            'texture',
-        ]);
+        const uniforms = ['mvpMat', 'mMat', 'eyeDirection', 'envTexture'].reduce(
+            (acc, name) => {
+                acc[name] = gl.getUniformLocation(prog, name)!;
+                return acc;
+            },
+            {} as Record<string, WebGLUniformLocation>,
+        );
 
-        gl.activeTexture(gl.TEXTURE0);
-        gl.uniform1i(uniforms.texture, 0);
-
-        const offline = createOfflineFrameBuffer(canvas.width, canvas.height);
+        gl.uniform1i(uniforms.envTexture, 0);
 
         const mMat = m.create();
         const mvpMat = m.create();
-        const invMat = m.create();
-        const lightPosition = [10, 0, 0];
-        const ambientColor = [0.1, 0.1, 0.1, 1.0];
-
-        gl.uniform3fv(uniforms.lightPosition, lightPosition);
-        gl.uniform3fv(uniforms.eyeDirection, eyeDirection);
-        gl.uniform4fv(uniforms.ambientColor, ambientColor);
-
-        // Create another program for rendering the rendered texture
-        const blurProg = createProgram(blurVS, blurFS);
-        const rectObject = createRect(blurProg, 2.0);
-        const blurUniforms = uniformLocations(blurProg, ['mvpMat', 'texture', 'textureLength', 'blur']);
-        gl.uniform1i(blurUniforms.texture, 0);
-        gl.uniform1f(blurUniforms.textureLength, 512.0);
 
         let count = 0;
         function update() {
+            clear();
+
             count++;
             const rad = ((count % 360) * Math.PI) / 180;
+            const x = Math.cos(rad) * 3.5;
+            const y = Math.sin(rad) * 3.5;
+            const z = Math.sin(rad) * 3.5;
 
-            // Render a torus object on the offline frame buffer
+            gl.uniform3fv(uniforms.eyeDirection, eyeDirection);
+
+            // Render torus object
             {
-                // Switch shaders
-                gl.useProgram(frameProg);
-
-                // Bind the offline frame buffer
-                gl.bindFramebuffer(gl.FRAMEBUFFER, offline.frame);
-
-                // Unbind the texture because the render target cannot be bound while it is rendered
-                gl.bindTexture(gl.TEXTURE_2D, null);
-
-                // Clear the offline frame buffer
-                clear();
-
-                bindRenderObject(torusObject);
+                bindObjectBuffers(torusObject);
 
                 m.identity(mMat);
-                m.rotate(mMat, rad, /* axis */ [0, 1, 1], mMat);
+                m.translate(mMat, [x, -y, -z], mMat);
+                m.rotate(mMat, -rad, /* axis */ [0, 1, 1], mMat);
                 m.multiply(vpMat, mMat, mvpMat);
-                m.inverse(mMat, invMat);
 
                 gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
-                gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
 
                 // Draw triangles based on the index buffer.
                 gl.drawElements(
@@ -366,48 +306,26 @@
                     /* type of index */ gl.UNSIGNED_SHORT,
                     /* start offset */ 0,
                 );
-
-                // Unbind the offline frame buffer. Actual rendering to the offline frame buffer happens here
-                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
             }
 
-            // Render the torus object rendered to the texture to the actual canvas multiple times
+            // Render sphere object
             {
-                // Switch shaders
-                gl.useProgram(blurProg);
-
-                // Clear the main canvas
-                clear();
-
-                bindRenderObject(rectObject);
-
-                // Bind the texture which is the rendering result of the offline frame buffer
-                gl.bindTexture(gl.TEXTURE_2D, offline.texture);
-
-                for (let y = -4; y < 4; y++) {
-                    for (let x = -4; x < 4; x++) {
-                        if (-2 <= x && x < 2 && -2 <= y && y < 2) {
-                            continue;
-                        }
-                        m.identity(mMat);
-                        m.translate(mMat, [x * 2.0, y * 2.0, 0], mMat);
-                        m.multiply(vpMat, mMat, mvpMat);
-
-                        gl.uniformMatrix4fv(blurUniforms.mvpMat, /* transpose */ false, mvpMat);
-                        gl.uniform1f(blurUniforms.blur, 0.0);
-
-                        // Draw triangles based on the index buffer.
-                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
-                    }
-                }
+                bindObjectBuffers(sphereObject);
 
                 m.identity(mMat);
-                m.translate(mMat, [-4, -4, 0], mMat);
-                m.scale(mMat, [4, 4, 0], mMat);
+                m.translate(mMat, [-x, y, z], mMat);
                 m.multiply(vpMat, mMat, mvpMat);
-                gl.uniformMatrix4fv(blurUniforms.mvpMat, /* transpose */ false, mvpMat);
-                gl.uniform1f(blurUniforms.blur, parseFloat(blur.value));
-                gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+
+                gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+                gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
+
+                // Draw triangles based on the index buffer.
+                gl.drawElements(
+                    gl.TRIANGLES,
+                    sphereObject.lenIndices,
+                    /* type of index */ gl.UNSIGNED_SHORT,
+                    /* start offset */ 0,
+                );
             }
 
             // Actual re-rendering happens here
