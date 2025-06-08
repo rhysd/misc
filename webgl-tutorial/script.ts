@@ -184,6 +184,38 @@
         return { positions, normals, indices };
     }
 
+    function cube(side: number): ObjectData {
+        const hs = side * 0.5;
+        // prettier-ignore
+        const positions = [
+            -hs, -hs,  hs,  hs, -hs,  hs,  hs,  hs,  hs, -hs,  hs,  hs,
+            -hs, -hs, -hs, -hs,  hs, -hs,  hs,  hs, -hs,  hs, -hs, -hs,
+            -hs,  hs, -hs, -hs,  hs,  hs,  hs,  hs,  hs,  hs,  hs, -hs,
+            -hs, -hs, -hs,  hs, -hs, -hs,  hs, -hs,  hs, -hs, -hs,  hs,
+             hs, -hs, -hs,  hs,  hs, -hs,  hs,  hs,  hs,  hs, -hs,  hs,
+            -hs, -hs, -hs, -hs, -hs,  hs, -hs,  hs,  hs, -hs,  hs, -hs
+        ];
+        // prettier-ignore
+        const normals = [
+            -1.0, -1.0,  1.0,  1.0, -1.0,  1.0,  1.0,  1.0,  1.0, -1.0,  1.0,  1.0,
+            -1.0, -1.0, -1.0, -1.0,  1.0, -1.0,  1.0,  1.0, -1.0,  1.0, -1.0, -1.0,
+            -1.0,  1.0, -1.0, -1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0, -1.0,
+            -1.0, -1.0, -1.0,  1.0, -1.0, -1.0,  1.0, -1.0,  1.0, -1.0, -1.0,  1.0,
+            1.0, -1.0, -1.0,  1.0,  1.0, -1.0,  1.0,  1.0,  1.0,  1.0, -1.0,  1.0,
+            -1.0, -1.0, -1.0, -1.0, -1.0,  1.0, -1.0,  1.0,  1.0, -1.0,  1.0, -1.0
+        ];
+        // prettier-ignore
+        const indices = [
+             0,  1,  2,  0,  2,  3,
+             4,  5,  6,  4,  6,  7,
+             8,  9, 10,  8, 10, 11,
+            12, 13, 14, 12, 14, 15,
+            16, 17, 18, 16, 18, 19,
+            20, 21, 22, 20, 22, 23
+        ];
+        return { positions, normals, indices };
+    }
+
     function loadImage(src: string): Promise<HTMLImageElement> {
         const img = new Image();
 
@@ -198,19 +230,26 @@
         });
     }
 
-    async function loadCubeTexture(sources: Array<[number, string]>): Promise<WebGLTexture> {
+    async function loadCubeMapTexture(sources: Array<[number, string]>): Promise<WebGLTexture> {
         const map = await Promise.all(
-            sources.map(async ([pos, path]) => {
+            sources.map(async ([target, path]) => {
                 const img = await loadImage(path);
-                return [pos, img] as const;
+                return [target, img] as const;
             }),
         );
 
         const tex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, tex);
 
-        for (const [pos, image] of map) {
-            gl.texImage2D(pos, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        for (const [target, image] of map) {
+            gl.texImage2D(
+                /* target */ target,
+                /* level of mipmap */ 0,
+                /* color components in texture */ gl.RGBA,
+                /* format of the texel data*/ gl.RGBA,
+                /* 1 byte per element of RGBA */ gl.UNSIGNED_BYTE,
+                image,
+            );
         }
 
         gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
@@ -227,13 +266,12 @@
     async function main(): Promise<void> {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
-        gl.enable(gl.CULL_FACE);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
 
         const prog = createProgram(vs, fs);
 
-        const cubeTexture = await loadCubeTexture([
+        const cubeMapTex = await loadCubeMapTexture([
             [gl.TEXTURE_CUBE_MAP_POSITIVE_X, 'assets/cubemap/px.png'],
             [gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 'assets/cubemap/py.png'],
             [gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 'assets/cubemap/pz.png'],
@@ -242,27 +280,28 @@
             [gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 'assets/cubemap/nz.png'],
         ]);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeTexture);
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeMapTex);
 
         const torusObject = createObject(prog, torus(64, 64, 0.75, 1.75));
         const sphereObject = createObject(prog, sphere(64, 64, 2));
+        const cubeObject = createObject(prog, cube(2.0));
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
-        const eyeDirection: [number, number, number] = [0, 0, 20];
+        const eyePosition: [number, number, number] = [0, 0, 20];
 
-        m.lookAt(/* eye position */ eyeDirection, /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
+        m.lookAt(/* eye position */ eyePosition, /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
         m.perspective(
             /* fov */ 45,
             /* aspect ratio */ canvas.width / canvas.height,
             /* near clip */ 0.1,
-            /* far clip */ 100,
+            /* far clip */ 200,
             pMat,
         );
         m.multiply(pMat, vMat, vpMat);
 
-        const uniforms = ['mvpMat', 'mMat', 'eyeDirection', 'envTexture'].reduce(
+        const uniforms = ['mvpMat', 'mMat', 'eyePosition', 'envTexture', 'isBackground'].reduce(
             (acc, name) => {
                 acc[name] = gl.getUniformLocation(prog, name)!;
                 return acc;
@@ -285,9 +324,29 @@
             const y = Math.sin(rad) * 3.5;
             const z = Math.sin(rad) * 3.5;
 
-            gl.uniform3fv(uniforms.eyeDirection, eyeDirection);
+            gl.uniform3fv(uniforms.eyePosition, eyePosition);
 
-            // Render torus object
+            // Render the cube object for background
+            {
+                bindObjectBuffers(cubeObject);
+
+                m.identity(mMat);
+                m.scale(mMat, [100, 100, 100], mMat);
+                m.multiply(vpMat, mMat, mvpMat);
+
+                gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
+                gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
+                gl.uniform1i(uniforms.isBackground, 1);
+
+                gl.drawElements(
+                    gl.TRIANGLES,
+                    cubeObject.lenIndices,
+                    /* type of index */ gl.UNSIGNED_SHORT,
+                    /* start offset */ 0,
+                );
+            }
+
+            // Render the torus object
             {
                 bindObjectBuffers(torusObject);
 
@@ -298,6 +357,7 @@
 
                 gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
+                gl.uniform1i(uniforms.isBackground, 0);
 
                 // Draw triangles based on the index buffer.
                 gl.drawElements(
@@ -308,7 +368,7 @@
                 );
             }
 
-            // Render sphere object
+            // Render the sphere object
             {
                 bindObjectBuffers(sphereObject);
 
@@ -318,6 +378,7 @@
 
                 gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
+                gl.uniform1i(uniforms.isBackground, 0);
 
                 // Draw triangles based on the index buffer.
                 gl.drawElements(
