@@ -5,6 +5,7 @@
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
+    const q = new qtnIV();
 
     function clear(): void {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -286,20 +287,32 @@
         const sphereObject = createObject(prog, sphere(64, 64, 2));
         const cubeObject = createObject(prog, cube(2.0));
 
-        const vMat = m.identity(m.create());
-        const pMat = m.identity(m.create());
-        const vpMat = m.identity(m.create());
-        const eyePosition: [number, number, number] = [0, 0, 20];
+        const cameraPos: [number, number, number] = [0, 0, 20];
+        const cameraUp: [number, number, number] = [0, 1, 0];
+        const qCamera = q.identity(q.create());
 
-        m.lookAt(/* eye position */ eyePosition, /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
-        m.perspective(
-            /* fov */ 45,
-            /* aspect ratio */ canvas.width / canvas.height,
-            /* near clip */ 0.1,
-            /* far clip */ 200,
-            pMat,
+        canvas.addEventListener(
+            'mousemove',
+            event => {
+                const w = canvas.width;
+                const h = canvas.height;
+                const x = event.clientX - canvas.offsetLeft - w / 2;
+                const y = event.clientY - canvas.offsetTop - h / 2;
+                const len = Math.sqrt(x * x + y * y);
+
+                // Normalize position
+                const normX = x / len;
+                const normY = y / len;
+
+                // Use distance from the center of canvas to calculate the angle
+                const diag = Math.sqrt(w * w + h * h);
+                const rad = 2 * Math.PI * (len / diag);
+
+                // Calculate quaternion to rotate the model
+                q.rotate(rad, [normY, normX, 0], qCamera);
+            },
+            { passive: true },
         );
-        m.multiply(pMat, vMat, vpMat);
 
         const uniforms = ['mvpMat', 'mMat', 'eyePosition', 'envTexture', 'isBackground'].reduce(
             (acc, name) => {
@@ -311,6 +324,16 @@
 
         gl.uniform1i(uniforms.envTexture, 0);
 
+        const pMat = m.identity(m.create());
+        m.perspective(
+            /* fov */ 45,
+            /* aspect ratio */ canvas.width / canvas.height,
+            /* near clip */ 0.1,
+            /* far clip */ 200,
+            pMat,
+        );
+        const vMat = m.identity(m.create());
+        const vpMat = m.identity(m.create());
         const mMat = m.create();
         const mvpMat = m.create();
 
@@ -324,7 +347,12 @@
             const y = Math.sin(rad) * 3.5;
             const z = Math.sin(rad) * 3.5;
 
-            gl.uniform3fv(uniforms.eyePosition, eyePosition);
+            q.toVecIII([0, 0, 20], qCamera, cameraPos);
+            q.toVecIII([0, 1, 0], qCamera, cameraUp);
+            m.lookAt(cameraPos, /* Camera center */ [0, 0, 0], cameraUp, vMat);
+            m.multiply(pMat, vMat, vpMat);
+
+            gl.uniform3fv(uniforms.eyePosition, cameraPos);
 
             // Render the cube object for background
             {
