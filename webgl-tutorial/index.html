@@ -4,13 +4,23 @@
         <title>WEBGL TEST</title>
         <style>
           body {
-            background-color: #666;
+            background-color: #888;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            row-gap: 12px;
+          }
+          #canvas {
+            width: 600px;
+            height: 600px;
           }
         </style>
         <script src="../minMatrix.js"></script>
     </head>
     <body>
         <canvas id="canvas"></canvas>
+        <div><input id="reflect-surface" name="surface" type="radio" checked/>Reflection</div>
+        <div><input id="refract-surface" name="surface" type="radio"/>Refraction</div>
         <script src="script.js"></script>
     </body>
 </html>

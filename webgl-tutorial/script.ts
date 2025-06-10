@@ -3,6 +3,9 @@
     canvas.width = 600;
     canvas.height = 600;
 
+    const reflectButton = document.getElementById('reflect-surface')! as HTMLInputElement;
+    const refractButton = document.getElementById('refract-surface')! as HTMLInputElement;
+
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
     const q = new qtnIV();
@@ -314,7 +317,7 @@
             { passive: true },
         );
 
-        const uniforms = ['mvpMat', 'mMat', 'eyePosition', 'envTexture', 'isBackground'].reduce(
+        const uniforms = ['mvpMat', 'mMat', 'eyePosition', 'envTexture', 'surface'].reduce(
             (acc, name) => {
                 acc[name] = gl.getUniformLocation(prog, name)!;
                 return acc;
@@ -336,6 +339,9 @@
         const vpMat = m.identity(m.create());
         const mMat = m.create();
         const mvpMat = m.create();
+        const SURFACE_BACKGROUND = 0;
+        const SURFACE_REFLECTION = 1;
+        const SURFACE_REFRACTION = 2;
 
         let count = 0;
         function update() {
@@ -364,7 +370,7 @@
 
                 gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
-                gl.uniform1i(uniforms.isBackground, 1);
+                gl.uniform1i(uniforms.surface, SURFACE_BACKGROUND);
 
                 gl.drawElements(
                     gl.TRIANGLES,
@@ -373,6 +379,9 @@
                     /* start offset */ 0,
                 );
             }
+
+            const surface = reflectButton.checked ? SURFACE_REFLECTION : refractButton.checked ? SURFACE_REFRACTION : 3;
+            gl.uniform1i(uniforms.surface, surface);
 
             // Render the torus object
             {
@@ -385,7 +394,6 @@
 
                 gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
-                gl.uniform1i(uniforms.isBackground, 0);
 
                 // Draw triangles based on the index buffer.
                 gl.drawElements(
@@ -406,7 +414,6 @@
 
                 gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
-                gl.uniform1i(uniforms.isBackground, 0);
 
                 // Draw triangles based on the index buffer.
                 gl.drawElements(
