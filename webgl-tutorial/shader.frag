@@ -1,28 +1,20 @@
 precision mediump float;
 
-uniform vec3 eyePosition;
-uniform samplerCube envTexture;
-uniform int surface;
+uniform mat4 invMat;
+uniform vec3 lightDirection;
+uniform bool isOutline;
+uniform sampler2D toonTexture;
 
-varying vec3 vModelPos;
+varying vec4 vColor;
 varying vec3 vNormal;
 
-#define BACKGROUND 0
-#define REFLECTION 1
-#define REFRACTION 2
-
 void main(void) {
-    vec3 coord;
-    if (surface == BACKGROUND) {
-        coord = vNormal;
-    } else if (surface == REFLECTION) {
-        coord = reflect(vModelPos - eyePosition, vNormal);
-    } else if (surface == REFRACTION) {
-        float refractiveIndex = 0.6;
-        coord = refract(normalize(vModelPos - eyePosition), vNormal, refractiveIndex);
-    } else {
-        discard;
+    if (isOutline) {
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
         return;
     }
-    gl_FragColor = textureCube(envTexture, coord);
+    vec3 invLight = normalize(invMat * vec4(lightDirection, 0.0)).xyz;
+    float diffuse = clamp(dot(vNormal, invLight), 0.00, 1.0);
+    vec4 light = texture2D(toonTexture, vec2(diffuse, 0.0));
+    gl_FragColor = vColor * light;
 }
