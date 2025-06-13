@@ -213,43 +213,6 @@
         return { positions, normals, colors, indices };
     }
 
-    function loadImage(src: string): Promise<HTMLImageElement> {
-        const img = new Image();
-
-        return new Promise((resolve, reject) => {
-            img.onload = () => {
-                resolve(img);
-            };
-            img.onerror = () => {
-                reject(new Error(`Could not load image ${src}`));
-            };
-            img.src = src;
-        });
-    }
-
-    async function loadTexture2D(src: string): Promise<WebGLTexture> {
-        const img = await loadImage(src);
-        const tex = gl.createTexture();
-
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texImage2D(
-            /* target */ gl.TEXTURE_2D,
-            /* level of mipmap */ 0,
-            /* color components in texture */ gl.RGBA,
-            /* format of the texel data*/ gl.RGBA,
-            /* 1 byte per element of RGBA */ gl.UNSIGNED_BYTE,
-            img,
-        );
-        gl.generateMipmap(gl.TEXTURE_2D);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.bindTexture(gl.TEXTURE_2D, null);
-
-        return tex;
-    }
-
     async function main(): Promise<void> {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
@@ -261,10 +224,6 @@
 
         const torusObject = createObject(prog, torus(64, 64, 0.5, 2.5));
         const sphereObject = createObject(prog, sphere(64, 64, 1.5));
-
-        const toonTexture = await loadTexture2D('assets/toon.png');
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, toonTexture);
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
@@ -281,7 +240,15 @@
         );
         m.multiply(pMat, vMat, vpMat);
 
-        const uniforms = ['mvpMat', 'invMat', 'lightDirection', 'isOutline', 'toonTexture'].reduce(
+        const uniforms = [
+            'mvpMat',
+            'invMat',
+            'lightDirection',
+            'isOutline',
+            'toonTexture',
+            'toonThresholds',
+            'toonGradation',
+        ].reduce(
             (acc, name) => {
                 acc[name] = gl.getUniformLocation(prog, name)!;
                 return acc;
@@ -291,6 +258,8 @@
 
         gl.uniform3fv(uniforms.lightDirection, lightDirection);
         gl.uniform1i(uniforms.toonTexture, 0);
+        gl.uniform1fv(uniforms.toonThresholds, [0.2, 0.5, 1.0]); // Thresholds of light gradation
+        gl.uniform1fv(uniforms.toonGradation, [0.5, 0.7, 1.0]);
 
         const mMat = m.create();
         const mvpMat = m.create();
