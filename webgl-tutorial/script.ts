@@ -7,6 +7,7 @@
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
+    const q = new qtnIV();
 
     function clear(): void {
         gl.clearColor(0.5, 0.7, 1.0, 1.0);
@@ -228,9 +229,7 @@
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
-        const lightDirection: [number, number, number] = [-0.5, 0.5, 0.5];
 
-        m.lookAt(/* eye position */ [0, 0, 10], /* camera center */ [0, 0, 0], /* axis */ [0, 1, 0], vMat);
         m.perspective(
             /* fov */ 45,
             /* aspect ratio */ canvas.width / canvas.height,
@@ -238,17 +237,36 @@
             /* far clip */ 100,
             pMat,
         );
-        m.multiply(pMat, vMat, vpMat);
 
-        const uniforms = [
-            'mvpMat',
-            'invMat',
-            'lightDirection',
-            'isOutline',
-            'toonTexture',
-            'toonThresholds',
-            'toonGradation',
-        ].reduce(
+        const lightDirection: [number, number, number] = [-0.5, 0.5, 0.5];
+        const cameraPos: [number, number, number] = [0, 0, 10];
+        const cameraUp: [number, number, number] = [0, 1, 0];
+        const qCamera = q.identity(q.create());
+
+        canvas.addEventListener(
+            'mousemove',
+            event => {
+                const w = canvas.width;
+                const h = canvas.height;
+                const x = event.clientX - canvas.offsetLeft - w / 2;
+                const y = event.clientY - canvas.offsetTop - h / 2;
+                const len = Math.sqrt(x * x + y * y);
+
+                // Normalize position
+                const normX = x / len;
+                const normY = y / len;
+
+                // Use distance from the center of canvas to calculate the angle
+                const diag = Math.sqrt(w * w + h * h);
+                const rad = 2 * Math.PI * (len / diag);
+
+                // Calculate quaternion to rotate the model
+                q.rotate(rad, [normY, normX, 0], qCamera);
+            },
+            { passive: true },
+        );
+
+        const uniforms = ['mvpMat', 'invMat', 'lightDirection', 'isOutline', 'toonThresholds', 'toonGradation'].reduce(
             (acc, name) => {
                 acc[name] = gl.getUniformLocation(prog, name)!;
                 return acc;
@@ -256,10 +274,8 @@
             {} as Record<string, WebGLUniformLocation>,
         );
 
-        gl.uniform3fv(uniforms.lightDirection, lightDirection);
-        gl.uniform1i(uniforms.toonTexture, 0);
         gl.uniform1fv(uniforms.toonThresholds, [0.2, 0.5, 1.0]); // Thresholds of light gradation
-        gl.uniform1fv(uniforms.toonGradation, [0.5, 0.7, 1.0]);
+        gl.uniform1fv(uniforms.toonGradation, [0.5, 0.7, 1.0]); // Light of each thresholds
 
         const mMat = m.create();
         const mvpMat = m.create();
@@ -283,6 +299,14 @@
                 gl.uniform1i(uniforms.isOutline, 1);
                 gl.drawElements(gl.TRIANGLES, lenIndices, gl.UNSIGNED_SHORT, 0);
             }
+
+            q.toVecIII([0, 0, 10], qCamera, cameraPos);
+            q.toVecIII([0, 1, 0], qCamera, cameraUp);
+            m.lookAt(cameraPos, /* Camera center */ [0, 0, 0], cameraUp, vMat);
+            m.multiply(pMat, vMat, vpMat);
+
+            q.toVecIII([-0.5, 0.5, 0.5], qCamera, lightDirection);
+            gl.uniform3fv(uniforms.lightDirection, lightDirection);
 
             // Render torus object
             {
