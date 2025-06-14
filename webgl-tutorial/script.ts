@@ -4,6 +4,7 @@
     const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
     canvas.width = 300;
     canvas.height = 300;
+    const lightScaleInput = document.getElementById('light-scale')! as HTMLInputElement;
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
@@ -124,23 +125,7 @@
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
     }
 
-    function hsva(h: number, s: number, v: number, a: number): Color {
-        if (s > 1 || v > 1 || a > 1) {
-            throw new Error(`Invalid HSVA color (${h}, ${s}, ${v}, ${a})`);
-        }
-        const th = h % 360;
-        const i = Math.floor(th / 60);
-        const f = th / 60 - i;
-        const m = v * (1 - s);
-        const n = v * (1 - s * f);
-        const k = v * (1 - s * (1 - f));
-        const r = [v, n, m, m, k, v][i];
-        const g = [k, v, v, n, m, m][i];
-        const b = [m, m, k, v, v, n][i];
-        return [r, g, b, a];
-    }
-
-    function torus(row: number, col: number, innerRadius: number, outerRadius: number): ObjectData {
+    function torus(row: number, col: number, innerRadius: number, outerRadius: number, color: Color): ObjectData {
         const positions = [];
         const normals = [];
         const colors = [];
@@ -162,7 +147,7 @@
                 const rz = rr * Math.sin(rad);
                 normals.push(rx, ry, rz);
 
-                colors.push(...hsva((360 / col) * j, 1, 1, 1));
+                colors.push(...color);
             }
         }
 
@@ -177,70 +162,99 @@
         return { positions, normals, colors, indices };
     }
 
-    function sphere(row: number, col: number, radius: number): ObjectData {
-        const positions = [];
-        const normals = [];
-        const colors = [];
-        const indices = [];
-
-        for (let i = 0; i <= row; i++) {
-            const rad = (Math.PI / row) * i;
-            const ry = Math.cos(rad);
-            const rr = Math.sin(rad);
-            for (let j = 0; j <= col; j++) {
-                const rad = ((Math.PI * 2) / col) * j;
-
-                const x = rr * radius * Math.cos(rad);
-                const y = ry * radius;
-                const z = rr * radius * Math.sin(rad);
-                positions.push(x, y, z);
-
-                const rx = rr * Math.cos(rad);
-                const rz = rr * Math.sin(rad);
-                normals.push(rx, ry, rz);
-
-                colors.push(...hsva((360 / row) * i, 1, 1, 1));
-            }
-        }
-
-        for (let i = 0; i < row; i++) {
-            for (let j = 0; j < col; j++) {
-                const r = (col + 1) * i + j;
-                indices.push(r, r + 1, r + col + 2);
-                indices.push(r, r + col + 2, r + col + 1);
-            }
-        }
-
+    function rect(size: number, color: Color): ObjectData {
+        // prettier-ignore
+        const positions = [
+            -size, 0.0, -size,
+            size,  0.0, -size,
+            -size, 0.0,  size,
+            size,  0.0,  size,
+        ];
+        // prettier-ignore
+        const normals = [
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+        ];
+        const colors = [...color, ...color, ...color, ...color];
+        // prettier-ignore
+        const indices = [
+            0, 1, 2,
+            3, 2, 1,
+        ];
         return { positions, normals, colors, indices };
+    }
+
+    function loadImage(src: string): Promise<HTMLImageElement> {
+        const img = new Image();
+
+        return new Promise((resolve, reject) => {
+            img.onload = () => {
+                resolve(img);
+            };
+            img.onerror = () => {
+                reject(new Error(`Could not load image ${src}`));
+            };
+            img.src = src;
+        });
+    }
+
+    async function loadTexture2D(src: string): Promise<WebGLTexture> {
+        const img = await loadImage(src);
+        const tex = gl.createTexture();
+
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(
+            /* target */ gl.TEXTURE_2D,
+            /* level of mipmap */ 0,
+            /* color components in texture */ gl.RGBA,
+            /* format of the texel data*/ gl.RGBA,
+            /* 1 byte per element of RGBA */ gl.UNSIGNED_BYTE,
+            img,
+        );
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
+        return tex;
     }
 
     async function main(): Promise<void> {
         const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
-        gl.enable(gl.CULL_FACE);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
 
         const prog = createProgram(vs, fs);
 
-        const torusObject = createObject(prog, torus(64, 64, 0.5, 2.5));
-        const sphereObject = createObject(prog, sphere(64, 64, 1.5));
+        const texture = await loadTexture2D('assets/ferris-bg.png');
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+
+        const torusObject = createObject(prog, torus(64, 64, 1, 2, [1, 1, 1, 1]));
+        const rectObject = createObject(prog, rect(1, [1, 1, 1, 1]));
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
+        const tvMat = m.create();
+        const tpMat = m.create(); // Projection matrix looking from the light position
 
         m.perspective(
             /* fov */ 45,
             /* aspect ratio */ canvas.width / canvas.height,
             /* near clip */ 0.1,
-            /* far clip */ 100,
+            /* far clip */ 150,
             pMat,
         );
+        m.perspective(90, 1.0, 0.1, 150, tpMat);
 
-        const lightDirection: [number, number, number] = [-0.5, 0.5, 0.5];
-        const cameraPos: [number, number, number] = [0, 0, 10];
-        const cameraUp: [number, number, number] = [0, 1, 0];
+        const cameraPos: Vec3 = [0, 0, 70];
+        const cameraUp: Vec3 = [0, 1, 0];
         const qCamera = q.identity(q.create());
 
         canvas.addEventListener(
@@ -266,7 +280,7 @@
             { passive: true },
         );
 
-        const uniforms = ['mvpMat', 'invMat', 'lightDirection', 'isOutline', 'toonThresholds', 'toonGradation'].reduce(
+        const uniforms = ['mMat', 'mvpMat', 'invMat', 'tMat', 'texture'].reduce(
             (acc, name) => {
                 acc[name] = gl.getUniformLocation(prog, name)!;
                 return acc;
@@ -274,68 +288,87 @@
             {} as Record<string, WebGLUniformLocation>,
         );
 
-        gl.uniform1fv(uniforms.toonThresholds, [0.2, 0.5, 1.0]); // Thresholds of light gradation
-        gl.uniform1fv(uniforms.toonGradation, [0.5, 0.7, 1.0]); // Light of each thresholds
+        gl.uniform1i(uniforms.texture, 0);
 
         const mMat = m.create();
         const mvpMat = m.create();
         const invMat = m.create();
+        const lightUpDirection: Vec3 = [0.577, 0.577, -0.577];
 
         let count = 0;
         function update() {
             clear();
 
             count++;
-            const rad = ((count % 720) * Math.PI) / 360;
 
-            function drawElementsWithOutline(lenIndices: number): void {
-                // Render the model normally to only the front face. `gl.BACK` means removing the back face.
-                gl.cullFace(gl.BACK);
-                gl.uniform1i(uniforms.isOutline, 0);
-                gl.drawElements(gl.TRIANGLES, lenIndices, gl.UNSIGNED_SHORT, 0);
+            const lightScale = parseFloat(lightScaleInput.value);
+            const lightPosition: Vec3 = [-lightScale, lightScale, lightScale];
+            m.lookAt(lightPosition, [0, 0, 0], lightUpDirection, tvMat);
+            gl.uniform3fv(uniforms.lightPosition, lightPosition);
 
-                // Render the outline to only the back face. `gl.FRONT` means removing the front face.
-                gl.cullFace(gl.FRONT);
-                gl.uniform1i(uniforms.isOutline, 1);
-                gl.drawElements(gl.TRIANGLES, lenIndices, gl.UNSIGNED_SHORT, 0);
-            }
-
-            q.toVecIII([0, 0, 10], qCamera, cameraPos);
+            q.toVecIII([0, 0, 70], qCamera, cameraPos);
             q.toVecIII([0, 1, 0], qCamera, cameraUp);
             m.lookAt(cameraPos, /* Camera center */ [0, 0, 0], cameraUp, vMat);
             m.multiply(pMat, vMat, vpMat);
 
-            q.toVecIII([-0.5, 0.5, 0.5], qCamera, lightDirection);
-            gl.uniform3fv(uniforms.lightDirection, lightDirection);
+            // prettier-ignore
+            const tMat = new Float32Array([
+                0.5,  0.0, 0.0, 0.0,
+                0.0, -0.5, 0.0, 0.0,
+                0.0,  0.0, 1.0, 0.0,
+                0.5,  0.5, 0.0, 1.0,
+            ]);
+            m.multiply(tMat, tpMat, tMat);
+            m.multiply(tMat, tvMat, tMat);
+            gl.uniformMatrix4fv(uniforms.tMat, /* transpose */ false, tMat);
 
             // Render torus object
-            {
-                bindBuffers(torusObject);
+            bindBuffers(torusObject);
+            for (let i = 0; i < 10; i++) {
+                const pos: Vec3 = [((i % 5) - 2) * 7, Math.floor(i / 5) * 7 - 5, ((i % 5) - 2) * 5];
+                const rad = (((count + i * 36) % 360) * Math.PI) / 180;
 
                 m.identity(mMat);
-                m.rotate(mMat, rad, /* axis */ [0, 1, 1], mMat);
+                m.translate(mMat, pos, mMat);
+                m.rotate(mMat, rad, /* axis */ [1, 1, 0], mMat);
                 m.multiply(vpMat, mMat, mvpMat);
                 m.inverse(mMat, invMat);
 
+                gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
                 gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
 
-                drawElementsWithOutline(torusObject.lenIndices);
+                gl.drawElements(gl.TRIANGLES, torusObject.lenIndices, gl.UNSIGNED_SHORT, 0);
             }
 
-            // Render sphere object
-            {
-                bindBuffers(sphereObject);
+            // Render background rects
+            bindBuffers(rectObject);
 
-                m.identity(mMat);
+            function drawBackground(): void {
                 m.multiply(vpMat, mMat, mvpMat);
                 m.inverse(mMat, invMat);
-
+                gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
                 gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
-
-                drawElementsWithOutline(sphereObject.lenIndices);
+                gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
             }
+
+            m.identity(mMat);
+            m.translate(mMat, [0.0, -10.0, 0.0], mMat);
+            m.scale(mMat, [20.0, 0.0, 20.0], mMat);
+            drawBackground();
+
+            m.identity(mMat);
+            m.translate(mMat, [0.0, 10.0, -20.0], mMat);
+            m.rotate(mMat, Math.PI / 2, [1, 0, 0], mMat);
+            m.scale(mMat, [20.0, 0.0, 20.0], mMat);
+            drawBackground();
+
+            m.identity(mMat);
+            m.translate(mMat, [20.0, 10.0, 0.0], mMat);
+            m.rotate(mMat, Math.PI / 2, [0, 0, 1], mMat);
+            m.scale(mMat, [20.0, 0.0, 20.0], mMat);
+            drawBackground();
 
             // Actual re-rendering happens here
             gl.flush();
