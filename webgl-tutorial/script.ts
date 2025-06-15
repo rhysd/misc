@@ -2,18 +2,18 @@
     type Color = [number, number, number, number];
 
     const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
-    canvas.width = 300;
-    canvas.height = 300;
+    canvas.width = 512;
+    canvas.height = 512;
     const lightScaleInput = document.getElementById('light-scale')! as HTMLInputElement;
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
     const q = new qtnIV();
 
-    function clear(): void {
-        gl.clearColor(0.5, 0.7, 1.0, 1.0);
+    function clear(color: Color): void {
+        gl.clearColor(...color);
         gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
 
     async function loadShader(path: string): Promise<WebGLShader> {
@@ -115,7 +115,7 @@
         return ibo;
     }
 
-    function bindBuffers(object: RenderObject): void {
+    function bindObjectBuffers(object: RenderObject): void {
         for (const attr of object.attrs) {
             const { loc, vbo, stride } = attr;
             gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -180,63 +180,78 @@
         const colors = [...color, ...color, ...color, ...color];
         // prettier-ignore
         const indices = [
-            0, 1, 2,
-            3, 2, 1,
+            0, 2, 1,
+            3, 1, 2,
         ];
         return { positions, normals, colors, indices };
     }
 
-    function loadImage(src: string): Promise<HTMLImageElement> {
-        const img = new Image();
-
-        return new Promise((resolve, reject) => {
-            img.onload = () => {
-                resolve(img);
-            };
-            img.onerror = () => {
-                reject(new Error(`Could not load image ${src}`));
-            };
-            img.src = src;
-        });
+    interface OfflineFrameBuffer {
+        frame: WebGLFramebuffer;
+        depth: WebGLRenderbuffer;
+        texture: WebGLTexture;
     }
 
-    async function loadTexture2D(src: string): Promise<WebGLTexture> {
-        const img = await loadImage(src);
-        const tex = gl.createTexture();
+    function createOfflineFrameBuffer(width: number, height: number): OfflineFrameBuffer {
+        const frame = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frame);
 
-        gl.bindTexture(gl.TEXTURE_2D, tex);
+        // Setup the render buffer as depth buffer
+        const depth = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+
+        // Attach the depth buffer to the frame buffer
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
+
+        // Create texture as the rendering target
+        const mipmapLevel = 0;
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
-            /* target */ gl.TEXTURE_2D,
-            /* level of mipmap */ 0,
-            /* color components in texture */ gl.RGBA,
-            /* format of the texel data*/ gl.RGBA,
-            /* 1 byte per element of RGBA */ gl.UNSIGNED_BYTE,
-            img,
+            gl.TEXTURE_2D,
+            mipmapLevel,
+            gl.RGBA,
+            width,
+            height,
+            /* width of border */ 0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            /* texture data is unbound*/ null,
         );
-        gl.generateMipmap(gl.TEXTURE_2D);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.bindTexture(gl.TEXTURE_2D, null);
 
-        return tex;
+        // Attach the texture to the frame buffer
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, mipmapLevel);
+
+        // Ensure all buffers are unbound after creation
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        return { frame, depth, texture };
     }
 
     async function main(): Promise<void> {
-        const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
+        const [vs, fs, vsDepth, fsDepth] = await Promise.all([
+            loadShader('shader.vert'),
+            loadShader('shader.frag'),
+            loadShader('depth.vert'),
+            loadShader('depth.frag'),
+        ]);
 
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
+        gl.enable(gl.CULL_FACE);
 
         const prog = createProgram(vs, fs);
-
-        const texture = await loadTexture2D('assets/ferris-bg.png');
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
+        const depthProg = createProgram(vsDepth, fsDepth);
 
         const torusObject = createObject(prog, torus(64, 64, 1, 2, [1, 1, 1, 1]));
-        const rectObject = createObject(prog, rect(1, [1, 1, 1, 1]));
+        const rectObject = createObject(prog, rect(1, [0.5, 0.5, 0.5, 1]));
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
@@ -253,8 +268,8 @@
         );
         m.perspective(90, 1.0, 0.1, 150, tpMat);
 
-        const cameraPos: Vec3 = [0, 0, 70];
-        const cameraUp: Vec3 = [0, 1, 0];
+        const cameraPos: Vec3 = [0, 70, 0];
+        const cameraUp: Vec3 = [0, 0, -1];
         const qCamera = q.identity(q.create());
 
         canvas.addEventListener(
@@ -280,95 +295,132 @@
             { passive: true },
         );
 
-        const uniforms = ['mMat', 'mvpMat', 'invMat', 'tMat', 'texture'].reduce(
+        const uniforms = ['mMat', 'mvpMat', 'invMat', 'tMat', 'lgtMat', 'lightPosition', 'texture'].reduce(
             (acc, name) => {
                 acc[name] = gl.getUniformLocation(prog, name)!;
                 return acc;
             },
             {} as Record<string, WebGLUniformLocation>,
         );
-
-        gl.uniform1i(uniforms.texture, 0);
+        const depthUniforms = ['mvpMat'].reduce(
+            (acc, name) => {
+                acc[name] = gl.getUniformLocation(depthProg, name)!;
+                return acc;
+            },
+            {} as Record<string, WebGLUniformLocation>,
+        );
 
         const mMat = m.create();
         const mvpMat = m.create();
         const invMat = m.create();
-        const lightUpDirection: Vec3 = [0.577, 0.577, -0.577];
+        const dvpMat = m.create();
+        const lgtMat = m.create();
+        const lightUpDirection: Vec3 = [0, 0, -1];
+        const frameBuf = createOfflineFrameBuffer(512, 512);
 
         let count = 0;
         function update() {
-            clear();
-
             count++;
 
-            const lightScale = parseFloat(lightScaleInput.value);
-            const lightPosition: Vec3 = [-lightScale, lightScale, lightScale];
-            m.lookAt(lightPosition, [0, 0, 0], lightUpDirection, tvMat);
-            gl.uniform3fv(uniforms.lightPosition, lightPosition);
-
-            q.toVecIII([0, 0, 70], qCamera, cameraPos);
-            q.toVecIII([0, 1, 0], qCamera, cameraUp);
+            // Calculate the view-projection matrix
+            q.toVecIII([0, 70, 0], qCamera, cameraPos);
+            q.toVecIII([0, 0, -1], qCamera, cameraUp);
             m.lookAt(cameraPos, /* Camera center */ [0, 0, 0], cameraUp, vMat);
             m.multiply(pMat, vMat, vpMat);
 
-            // prettier-ignore
-            const tMat = new Float32Array([
-                0.5,  0.0, 0.0, 0.0,
-                0.0, -0.5, 0.0, 0.0,
-                0.0,  0.0, 1.0, 0.0,
-                0.5,  0.5, 0.0, 1.0,
-            ]);
-            m.multiply(tMat, tpMat, tMat);
-            m.multiply(tMat, tvMat, tMat);
-            gl.uniformMatrix4fv(uniforms.tMat, /* transpose */ false, tMat);
+            // Calculate the view projection matrix for light
+            const lightPos: Vec3 = [0, parseFloat(lightScaleInput.value), 0];
+            m.lookAt(lightPos, [0, 0, 0], lightUpDirection, tvMat);
+            m.multiply(tpMat, tvMat, dvpMat);
 
-            // Render torus object
-            bindBuffers(torusObject);
-            for (let i = 0; i < 10; i++) {
-                const pos: Vec3 = [((i % 5) - 2) * 7, Math.floor(i / 5) * 7 - 5, ((i % 5) - 2) * 5];
-                const rad = (((count + i * 36) % 360) * Math.PI) / 180;
+            // Render the shadow mapping with depth buffer in an offline frame buffer
+            {
+                gl.useProgram(depthProg);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuf.frame);
 
+                clear([1.0, 1.0, 1.0, 1.0]);
+
+                bindObjectBuffers(torusObject);
+                for (let i = 0; i < 10; i++) {
+                    const rad = (((count + i * 36) % 360) * Math.PI) / 180;
+                    const rad2 = ((((i % 5) * 72) % 360) * Math.PI) / 180;
+                    const ifl = -Math.floor(i / 5) + 1;
+                    m.identity(mMat);
+                    m.rotate(mMat, rad2, [0.0, 1.0, 0.0], mMat);
+                    m.translate(mMat, [0.0, ifl * 10.0 + 10.0, (ifl - 2.0) * 7.0], mMat);
+                    m.rotate(mMat, rad, [1.0, 1.0, 0.0], mMat);
+                    m.multiply(dvpMat, mMat, lgtMat);
+                    gl.uniformMatrix4fv(depthUniforms.mvpMat, false, lgtMat);
+                    gl.drawElements(gl.TRIANGLES, torusObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                }
+
+                bindObjectBuffers(rectObject);
                 m.identity(mMat);
-                m.translate(mMat, pos, mMat);
-                m.rotate(mMat, rad, /* axis */ [1, 1, 0], mMat);
-                m.multiply(vpMat, mMat, mvpMat);
-                m.inverse(mMat, invMat);
-
-                gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
-                gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
-                gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
-
-                gl.drawElements(gl.TRIANGLES, torusObject.lenIndices, gl.UNSIGNED_SHORT, 0);
-            }
-
-            // Render background rects
-            bindBuffers(rectObject);
-
-            function drawBackground(): void {
-                m.multiply(vpMat, mMat, mvpMat);
-                m.inverse(mMat, invMat);
-                gl.uniformMatrix4fv(uniforms.mMat, /* transpose */ false, mMat);
-                gl.uniformMatrix4fv(uniforms.mvpMat, /* transpose */ false, mvpMat);
-                gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
+                m.translate(mMat, [0.0, -10.0, 0.0], mMat);
+                m.scale(mMat, [30.0, 0.0, 30.0], mMat);
+                m.multiply(dvpMat, mMat, lgtMat);
+                gl.uniformMatrix4fv(depthUniforms.mvpMat, false, lgtMat);
                 gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
             }
 
-            m.identity(mMat);
-            m.translate(mMat, [0.0, -10.0, 0.0], mMat);
-            m.scale(mMat, [20.0, 0.0, 20.0], mMat);
-            drawBackground();
+            // Render the canvas
+            {
+                gl.useProgram(prog);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-            m.identity(mMat);
-            m.translate(mMat, [0.0, 10.0, -20.0], mMat);
-            m.rotate(mMat, Math.PI / 2, [1, 0, 0], mMat);
-            m.scale(mMat, [20.0, 0.0, 20.0], mMat);
-            drawBackground();
+                // Set the texture rendered on the frame buffer online to TEXTURE0
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, frameBuf.texture);
+                gl.uniform1i(uniforms.texture, 0);
 
-            m.identity(mMat);
-            m.translate(mMat, [20.0, 10.0, 0.0], mMat);
-            m.rotate(mMat, Math.PI / 2, [0, 0, 1], mMat);
-            m.scale(mMat, [20.0, 0.0, 20.0], mMat);
-            drawBackground();
+                clear([0.5, 0.7, 1.0, 1.0]);
+
+                gl.uniform3fv(uniforms.lightPosition, lightPos);
+
+                // Calculate the texture projection matrix
+                // prettier-ignore
+                const tMat = new Float32Array([
+                    0.5, 0.0, 0.0, 0.0,
+                    0.0, 0.5, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    0.5, 0.5, 0.0, 1.0,
+                ]);
+                m.multiply(tMat, tpMat, tMat);
+                m.multiply(tMat, tvMat, tMat);
+                gl.uniformMatrix4fv(uniforms.tMat, /* transpose */ false, tMat);
+
+                bindObjectBuffers(torusObject);
+                for (let i = 0; i < 10; i++) {
+                    const rad = (((count + i * 36) % 360) * Math.PI) / 180;
+                    const rad2 = ((((i % 5) * 72) % 360) * Math.PI) / 180;
+                    const ifl = -Math.floor(i / 5) + 1;
+
+                    m.identity(mMat);
+                    m.rotate(mMat, rad2, [0.0, 1.0, 0.0], mMat);
+                    m.translate(mMat, [0.0, ifl * 10.0 + 10.0, (ifl - 2.0) * 7.0], mMat);
+                    m.rotate(mMat, rad, [1.0, 1.0, 0.0], mMat);
+                    m.multiply(vpMat, mMat, mvpMat);
+                    m.inverse(mMat, invMat);
+                    m.multiply(dvpMat, mMat, lgtMat);
+
+                    gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
+                    gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
+                    gl.uniformMatrix4fv(uniforms.lgtMat, false, lgtMat);
+                    gl.drawElements(gl.TRIANGLES, torusObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                }
+
+                bindObjectBuffers(rectObject);
+                m.identity(mMat);
+                m.translate(mMat, [0.0, -10.0, 0.0], mMat);
+                m.scale(mMat, [30.0, 0.0, 30.0], mMat);
+                m.multiply(vpMat, mMat, mvpMat);
+                m.inverse(mMat, invMat);
+                m.multiply(dvpMat, mMat, lgtMat);
+                gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
+                gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
+                gl.uniformMatrix4fv(uniforms.lgtMat, false, lgtMat);
+                gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+            }
 
             // Actual re-rendering happens here
             gl.flush();
