@@ -107,13 +107,6 @@
         };
     }
 
-    function createDepthObject(prog: WebGLProgram, obj: RenderObject, data: ObjectData): RenderObject {
-        return {
-            ...obj,
-            attrs: [createAttribute('position', data.positions, 3, prog)],
-        };
-    }
-
     function createIndexBuffer(data: number[]): WebGLBuffer {
         const ibo = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
@@ -243,27 +236,16 @@
     }
 
     async function main(): Promise<void> {
-        const [vs, fs, vsDepth, fsDepth] = await Promise.all([
-            loadShader('shader.vert'),
-            loadShader('shader.frag'),
-            loadShader('depth.vert'),
-            loadShader('depth.frag'),
-        ]);
+        const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
 
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
         gl.enable(gl.CULL_FACE);
 
         const prog = createProgram(vs, fs);
-        const depthProg = createProgram(vsDepth, fsDepth);
 
-        const torusData = torus(64, 64, 1, 2, [1, 1, 1, 1]);
-        const torusObject = createObject(prog, torusData);
-        const torusDepthObject = createDepthObject(depthProg, torusObject, torusData);
-
-        const rectData = rect(1, [1, 1, 1, 1]);
-        const rectObject = createObject(prog, rectData);
-        const rectDepthObject = createDepthObject(depthProg, rectObject, rectData);
+        const torusObject = createObject(prog, torus(64, 64, 1, 2, [1, 1, 1, 1]));
+        const rectObject = createObject(prog, rect(1, [0.7, 0.7, 0.7, 1]));
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
@@ -307,16 +289,9 @@
             { passive: true },
         );
 
-        const uniforms = ['mMat', 'mvpMat', 'invMat', 'tMat', 'lgtMat', 'lightPosition', 'texture'].reduce(
+        const uniforms = ['isShadow', 'mMat', 'mvpMat', 'invMat', 'tMat', 'lgtMat', 'lightPosition', 'texture'].reduce(
             (acc, name) => {
                 acc[name] = gl.getUniformLocation(prog, name)!;
-                return acc;
-            },
-            {} as Record<string, WebGLUniformLocation>,
-        );
-        const depthUniforms = ['mvpMat'].reduce(
-            (acc, name) => {
-                acc[name] = gl.getUniformLocation(depthProg, name)!;
                 return acc;
             },
             {} as Record<string, WebGLUniformLocation>,
@@ -347,12 +322,12 @@
 
             // Render the shadow mapping with depth buffer in an offline frame buffer
             {
-                gl.useProgram(depthProg);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuf.frame);
 
                 clear([1.0, 1.0, 1.0, 1.0]);
+                gl.uniform1i(uniforms.isShadow, 1);
 
-                bindObjectBuffers(torusDepthObject);
+                bindObjectBuffers(torusObject);
                 for (let i = 0; i < 10; i++) {
                     const rad = (((count + i * 36) % 360) * Math.PI) / 180;
                     const rad2 = ((((i % 5) * 72) % 360) * Math.PI) / 180;
@@ -362,22 +337,21 @@
                     m.translate(mMat, [0.0, ifl * 10.0 + 10.0, (ifl - 2.0) * 7.0], mMat);
                     m.rotate(mMat, rad, [1.0, 1.0, 0.0], mMat);
                     m.multiply(dvpMat, mMat, lgtMat);
-                    gl.uniformMatrix4fv(depthUniforms.mvpMat, false, lgtMat);
-                    gl.drawElements(gl.TRIANGLES, torusDepthObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                    gl.uniformMatrix4fv(uniforms.mvpMat, false, lgtMat);
+                    gl.drawElements(gl.TRIANGLES, torusObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                 }
 
-                bindObjectBuffers(rectDepthObject);
+                bindObjectBuffers(rectObject);
                 m.identity(mMat);
                 m.translate(mMat, [0.0, -10.0, 0.0], mMat);
                 m.scale(mMat, [30.0, 0.0, 30.0], mMat);
                 m.multiply(dvpMat, mMat, lgtMat);
-                gl.uniformMatrix4fv(depthUniforms.mvpMat, false, lgtMat);
-                gl.drawElements(gl.TRIANGLES, rectDepthObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                gl.uniformMatrix4fv(uniforms.mvpMat, false, lgtMat);
+                gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
             }
 
             // Render the canvas
             {
-                gl.useProgram(prog);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
                 // Bind the texture rendered on the frame buffer online to TEXTURE0
@@ -386,6 +360,7 @@
                 gl.uniform1i(uniforms.texture, 0);
 
                 clear([0.5, 0.7, 1.0, 1.0]);
+                gl.uniform1i(uniforms.isShadow, 0);
 
                 gl.uniform3fv(uniforms.lightPosition, lightPos);
 
@@ -434,6 +409,9 @@
                 gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
                 gl.uniformMatrix4fv(uniforms.lgtMat, false, lgtMat);
                 gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+
+                // The frame buffer will be used on the next iteration. Texture in frame buffer cannot be active.
+                gl.bindTexture(gl.TEXTURE_2D, null);
             }
 
             // Actual re-rendering happens here
