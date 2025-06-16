@@ -24,15 +24,16 @@ void main(void) {
     vec3 invLight = normalize(invMat * vec4(light, 0.0)).xyz;
     float diffuse = clamp(dot(vNormal, invLight), 0.2, 1.0);
 
-    vec4 depthColor = vec4(1.0);
+    vec4 shadow = vec4(1.0);
     if (vDepth.w > 0.0) {
         float depth = decodeDepthFromRGBA(texture2DProj(texture, vTexCoord));
         vec4 lightCoord = vDepth / vDepth.w;
         // Subtract 0.0001 to avoid Mach bands when `lightCoord.z` is equal to `depth`
         if (lightCoord.z - 0.0001 > depth) {
             // When the fragment is in shadow
-            depthColor = vec4(0.5, 0.5, 0.5, 1.0);
+            shadow = vec4(0.3, 0.3, 0.3, 1.0);
         }
     }
-    gl_FragColor = vColor * vec4(vec3(diffuse), 1.0) * depthColor;
+
+    gl_FragColor = vColor * vec4(vec3(diffuse), 1.0) * shadow;
 }

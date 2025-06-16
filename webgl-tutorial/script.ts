@@ -107,6 +107,13 @@
         };
     }
 
+    function createDepthObject(prog: WebGLProgram, obj: RenderObject, data: ObjectData): RenderObject {
+        return {
+            ...obj,
+            attrs: [createAttribute('position', data.positions, 3, prog)],
+        };
+    }
+
     function createIndexBuffer(data: number[]): WebGLBuffer {
         const ibo = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
@@ -250,8 +257,13 @@
         const prog = createProgram(vs, fs);
         const depthProg = createProgram(vsDepth, fsDepth);
 
-        const torusObject = createObject(prog, torus(64, 64, 1, 2, [1, 1, 1, 1]));
-        const rectObject = createObject(prog, rect(1, [0.5, 0.5, 0.5, 1]));
+        const torusData = torus(64, 64, 1, 2, [1, 1, 1, 1]);
+        const torusObject = createObject(prog, torusData);
+        const torusDepthObject = createDepthObject(depthProg, torusObject, torusData);
+
+        const rectData = rect(1, [1, 1, 1, 1]);
+        const rectObject = createObject(prog, rectData);
+        const rectDepthObject = createDepthObject(depthProg, rectObject, rectData);
 
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
@@ -322,7 +334,7 @@
         function update() {
             count++;
 
-            // Calculate the view-projection matrix
+            // Calculate the view projection matrix
             q.toVecIII([0, 70, 0], qCamera, cameraPos);
             q.toVecIII([0, 0, -1], qCamera, cameraUp);
             m.lookAt(cameraPos, /* Camera center */ [0, 0, 0], cameraUp, vMat);
@@ -340,7 +352,7 @@
 
                 clear([1.0, 1.0, 1.0, 1.0]);
 
-                bindObjectBuffers(torusObject);
+                bindObjectBuffers(torusDepthObject);
                 for (let i = 0; i < 10; i++) {
                     const rad = (((count + i * 36) % 360) * Math.PI) / 180;
                     const rad2 = ((((i % 5) * 72) % 360) * Math.PI) / 180;
@@ -351,16 +363,16 @@
                     m.rotate(mMat, rad, [1.0, 1.0, 0.0], mMat);
                     m.multiply(dvpMat, mMat, lgtMat);
                     gl.uniformMatrix4fv(depthUniforms.mvpMat, false, lgtMat);
-                    gl.drawElements(gl.TRIANGLES, torusObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                    gl.drawElements(gl.TRIANGLES, torusDepthObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                 }
 
-                bindObjectBuffers(rectObject);
+                bindObjectBuffers(rectDepthObject);
                 m.identity(mMat);
                 m.translate(mMat, [0.0, -10.0, 0.0], mMat);
                 m.scale(mMat, [30.0, 0.0, 30.0], mMat);
                 m.multiply(dvpMat, mMat, lgtMat);
                 gl.uniformMatrix4fv(depthUniforms.mvpMat, false, lgtMat);
-                gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                gl.drawElements(gl.TRIANGLES, rectDepthObject.lenIndices, gl.UNSIGNED_SHORT, 0);
             }
 
             // Render the canvas
@@ -368,7 +380,7 @@
                 gl.useProgram(prog);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-                // Set the texture rendered on the frame buffer online to TEXTURE0
+                // Bind the texture rendered on the frame buffer online to TEXTURE0
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, frameBuf.texture);
                 gl.uniform1i(uniforms.texture, 0);
@@ -403,6 +415,7 @@
                     m.inverse(mMat, invMat);
                     m.multiply(dvpMat, mMat, lgtMat);
 
+                    gl.uniformMatrix4fv(uniforms.mMat, false, mMat);
                     gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
                     gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
                     gl.uniformMatrix4fv(uniforms.lgtMat, false, lgtMat);
@@ -416,6 +429,7 @@
                 m.multiply(vpMat, mMat, mvpMat);
                 m.inverse(mMat, invMat);
                 m.multiply(dvpMat, mMat, lgtMat);
+                gl.uniformMatrix4fv(uniforms.mMat, false, mMat);
                 gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
                 gl.uniformMatrix4fv(uniforms.lgtMat, false, lgtMat);
