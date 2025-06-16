@@ -250,8 +250,8 @@
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
-        const tvMat = m.create();
-        const tpMat = m.create(); // Projection matrix looking from the light position
+        const vLightMat = m.create();
+        const pLightMat = m.create(); // Projection matrix looking from the light position
 
         m.perspective(
             /* fov */ 45,
@@ -260,10 +260,10 @@
             /* far clip */ 150,
             pMat,
         );
-        m.perspective(90, 1.0, 0.1, 150, tpMat);
+        m.perspective(90, 1.0, 0.1, 150, pLightMat);
 
-        const cameraPos: Vec3 = [0, 70, 0];
-        const cameraUp: Vec3 = [0, 0, -1];
+        const cameraPos: Vec3 = [0, 0, 0];
+        const cameraUp: Vec3 = [0, 0, 0];
         const qCamera = q.identity(q.create());
 
         canvas.addEventListener(
@@ -289,7 +289,16 @@
             { passive: true },
         );
 
-        const uniforms = ['isShadow', 'mMat', 'mvpMat', 'invMat', 'tMat', 'lgtMat', 'lightPosition', 'texture'].reduce(
+        const uniforms = [
+            'isShadow',
+            'mMat',
+            'mvpMat',
+            'invMat',
+            'tMat',
+            'mvpLightMat',
+            'lightPosition',
+            'texture',
+        ].reduce(
             (acc, name) => {
                 acc[name] = gl.getUniformLocation(prog, name)!;
                 return acc;
@@ -300,8 +309,8 @@
         const mMat = m.create();
         const mvpMat = m.create();
         const invMat = m.create();
-        const dvpMat = m.create();
-        const lgtMat = m.create();
+        const vpLightMat = m.create(); // View projection matrix for light
+        const mvpLightMat = m.create();
         const lightUpDirection: Vec3 = [0, 0, -1];
         const frameBuf = createOfflineFrameBuffer(512, 512);
 
@@ -310,15 +319,15 @@
             count++;
 
             // Calculate the view projection matrix
-            q.toVecIII([0, 70, 0], qCamera, cameraPos);
-            q.toVecIII([0, 0, -1], qCamera, cameraUp);
+            q.toVecIII([-24, 62, 19], qCamera, cameraPos);
+            q.toVecIII([0.9, 0.3, 0.3], qCamera, cameraUp);
             m.lookAt(cameraPos, /* Camera center */ [0, 0, 0], cameraUp, vMat);
             m.multiply(pMat, vMat, vpMat);
 
             // Calculate the view projection matrix for light
             const lightPos: Vec3 = [0, parseFloat(lightScaleInput.value), 0];
-            m.lookAt(lightPos, [0, 0, 0], lightUpDirection, tvMat);
-            m.multiply(tpMat, tvMat, dvpMat);
+            m.lookAt(lightPos, [0, 0, 0], lightUpDirection, vLightMat);
+            m.multiply(pLightMat, vLightMat, vpLightMat);
 
             // Render the shadow mapping with depth buffer in an offline frame buffer
             {
@@ -336,8 +345,8 @@
                     m.rotate(mMat, rad2, [0.0, 1.0, 0.0], mMat);
                     m.translate(mMat, [0.0, ifl * 10.0 + 10.0, (ifl - 2.0) * 7.0], mMat);
                     m.rotate(mMat, rad, [1.0, 1.0, 0.0], mMat);
-                    m.multiply(dvpMat, mMat, lgtMat);
-                    gl.uniformMatrix4fv(uniforms.mvpMat, false, lgtMat);
+                    m.multiply(vpLightMat, mMat, mvpLightMat);
+                    gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
                     gl.drawElements(gl.TRIANGLES, torusObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                 }
 
@@ -345,8 +354,8 @@
                 m.identity(mMat);
                 m.translate(mMat, [0.0, -10.0, 0.0], mMat);
                 m.scale(mMat, [30.0, 0.0, 30.0], mMat);
-                m.multiply(dvpMat, mMat, lgtMat);
-                gl.uniformMatrix4fv(uniforms.mvpMat, false, lgtMat);
+                m.multiply(vpLightMat, mMat, mvpLightMat);
+                gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
                 gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
             }
 
@@ -372,8 +381,7 @@
                     0.0, 0.0, 1.0, 0.0,
                     0.5, 0.5, 0.0, 1.0,
                 ]);
-                m.multiply(tMat, tpMat, tMat);
-                m.multiply(tMat, tvMat, tMat);
+                m.multiply(tMat, vpLightMat, tMat);
                 gl.uniformMatrix4fv(uniforms.tMat, /* transpose */ false, tMat);
 
                 bindObjectBuffers(torusObject);
@@ -388,12 +396,12 @@
                     m.rotate(mMat, rad, [1.0, 1.0, 0.0], mMat);
                     m.multiply(vpMat, mMat, mvpMat);
                     m.inverse(mMat, invMat);
-                    m.multiply(dvpMat, mMat, lgtMat);
+                    m.multiply(vpLightMat, mMat, mvpLightMat);
 
                     gl.uniformMatrix4fv(uniforms.mMat, false, mMat);
                     gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
                     gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
-                    gl.uniformMatrix4fv(uniforms.lgtMat, false, lgtMat);
+                    gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
                     gl.drawElements(gl.TRIANGLES, torusObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                 }
 
@@ -403,11 +411,11 @@
                 m.scale(mMat, [30.0, 0.0, 30.0], mMat);
                 m.multiply(vpMat, mMat, mvpMat);
                 m.inverse(mMat, invMat);
-                m.multiply(dvpMat, mMat, lgtMat);
+                m.multiply(vpLightMat, mMat, mvpLightMat);
                 gl.uniformMatrix4fv(uniforms.mMat, false, mMat);
                 gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
                 gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
-                gl.uniformMatrix4fv(uniforms.lgtMat, false, lgtMat);
+                gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
                 gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
 
                 // The frame buffer will be used on the next iteration. Texture in frame buffer cannot be active.

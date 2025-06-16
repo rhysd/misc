@@ -1,6 +1,6 @@
 precision mediump float;
 
-uniform bool isShadow;
+uniform bool isShadow; // True means rendering shadows on a frame buffer
 uniform mat4 invMat;
 uniform vec3 lightPosition;
 uniform sampler2D texture;
