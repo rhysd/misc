@@ -190,6 +190,8 @@
         frame: WebGLFramebuffer;
         depth: WebGLRenderbuffer;
         texture: WebGLTexture;
+        width: number;
+        height: number;
     }
 
     function createOfflineFrameBuffer(width: number, height: number): OfflineFrameBuffer {
@@ -232,7 +234,7 @@
         gl.bindRenderbuffer(gl.RENDERBUFFER, null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        return { frame, depth, texture };
+        return { frame, depth, texture, width, height };
     }
 
     async function main(): Promise<void> {
@@ -312,7 +314,8 @@
         const vpLightMat = m.create(); // View projection matrix for light
         const mvpLightMat = m.create();
         const lightUpDirection: Vec3 = [0, 0, -1];
-        const frameBuf = createOfflineFrameBuffer(512, 512);
+        // Use the large canvas size to render shadows in higher resolution
+        const frameBuf = createOfflineFrameBuffer(canvas.width * 4, canvas.height * 4);
 
         let count = 0;
         function update() {
@@ -334,6 +337,7 @@
                 gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuf.frame);
 
                 clear([1.0, 1.0, 1.0, 1.0]);
+                gl.viewport(0, 0, frameBuf.width, frameBuf.height);
                 gl.uniform1i(uniforms.isShadow, 1);
 
                 bindObjectBuffers(torusObject);
@@ -369,6 +373,7 @@
                 gl.uniform1i(uniforms.texture, 0);
 
                 clear([0.5, 0.7, 1.0, 1.0]);
+                gl.viewport(0, 0, canvas.width, canvas.height);
                 gl.uniform1i(uniforms.isShadow, 0);
 
                 gl.uniform3fv(uniforms.lightPosition, lightPos);
