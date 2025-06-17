@@ -308,7 +308,6 @@
             {} as Record<string, WebGLUniformLocation>,
         );
 
-        const mMat = m.create();
         const mvpMat = m.create();
         const invMat = m.create();
         const vpLightMat = m.create(); // View projection matrix for light
@@ -332,6 +331,22 @@
             m.lookAt(lightPos, [0, 0, 0], lightUpDirection, vLightMat);
             m.multiply(pLightMat, vLightMat, vpLightMat);
 
+            // Prepare model transoformation matrices
+            const torusModelMats = [];
+            for (let i = 0; i < 10; i++) {
+                const rad = (((count + i * 36) % 360) * Math.PI) / 180;
+                const rad2 = ((((i % 5) * 72) % 360) * Math.PI) / 180;
+                const ifl = -Math.floor(i / 5) + 1;
+                const mMat = m.identity(m.create());
+                m.rotate(mMat, rad2, [0.0, 1.0, 0.0], mMat);
+                m.translate(mMat, [0.0, ifl * 10.0 + 10.0, (ifl - 2.0) * 7.0], mMat);
+                m.rotate(mMat, rad, [1.0, 1.0, 0.0], mMat);
+                torusModelMats.push(mMat);
+            }
+            const rectModelMat = m.identity(m.create());
+            m.translate(rectModelMat, [0.0, -10.0, 0.0], rectModelMat);
+            m.scale(rectModelMat, [30.0, 0.0, 30.0], rectModelMat);
+
             // Render the shadow mapping with depth buffer in an offline frame buffer
             {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuf.frame);
@@ -340,27 +355,17 @@
                 gl.viewport(0, 0, frameBuf.width, frameBuf.height);
                 gl.uniform1i(uniforms.isShadow, 1);
 
-                bindObjectBuffers(torusObject);
-                for (let i = 0; i < 10; i++) {
-                    const rad = (((count + i * 36) % 360) * Math.PI) / 180;
-                    const rad2 = ((((i % 5) * 72) % 360) * Math.PI) / 180;
-                    const ifl = -Math.floor(i / 5) + 1;
-                    m.identity(mMat);
-                    m.rotate(mMat, rad2, [0.0, 1.0, 0.0], mMat);
-                    m.translate(mMat, [0.0, ifl * 10.0 + 10.0, (ifl - 2.0) * 7.0], mMat);
-                    m.rotate(mMat, rad, [1.0, 1.0, 0.0], mMat);
-                    m.multiply(vpLightMat, mMat, mvpLightMat);
-                    gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
-                    gl.drawElements(gl.TRIANGLES, torusObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                function draw(object: RenderObject, mMats: Float32Array[]): void {
+                    bindObjectBuffers(object);
+                    for (const mMat of mMats) {
+                        m.multiply(vpLightMat, mMat, mvpLightMat);
+                        gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
+                        gl.drawElements(gl.TRIANGLES, object.lenIndices, gl.UNSIGNED_SHORT, 0);
+                    }
                 }
 
-                bindObjectBuffers(rectObject);
-                m.identity(mMat);
-                m.translate(mMat, [0.0, -10.0, 0.0], mMat);
-                m.scale(mMat, [30.0, 0.0, 30.0], mMat);
-                m.multiply(vpLightMat, mMat, mvpLightMat);
-                gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
-                gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                draw(torusObject, torusModelMats);
+                draw(rectObject, [rectModelMat]);
             }
 
             // Render the canvas
@@ -389,39 +394,22 @@
                 m.multiply(tMat, vpLightMat, tMat);
                 gl.uniformMatrix4fv(uniforms.tMat, /* transpose */ false, tMat);
 
-                bindObjectBuffers(torusObject);
-                for (let i = 0; i < 10; i++) {
-                    const rad = (((count + i * 36) % 360) * Math.PI) / 180;
-                    const rad2 = ((((i % 5) * 72) % 360) * Math.PI) / 180;
-                    const ifl = -Math.floor(i / 5) + 1;
-
-                    m.identity(mMat);
-                    m.rotate(mMat, rad2, [0.0, 1.0, 0.0], mMat);
-                    m.translate(mMat, [0.0, ifl * 10.0 + 10.0, (ifl - 2.0) * 7.0], mMat);
-                    m.rotate(mMat, rad, [1.0, 1.0, 0.0], mMat);
-                    m.multiply(vpMat, mMat, mvpMat);
-                    m.inverse(mMat, invMat);
-                    m.multiply(vpLightMat, mMat, mvpLightMat);
-
-                    gl.uniformMatrix4fv(uniforms.mMat, false, mMat);
-                    gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
-                    gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
-                    gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
-                    gl.drawElements(gl.TRIANGLES, torusObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                function draw(object: RenderObject, mMats: Float32Array[]): void {
+                    bindObjectBuffers(object);
+                    for (const mMat of mMats) {
+                        m.multiply(vpMat, mMat, mvpMat);
+                        m.inverse(mMat, invMat);
+                        m.multiply(vpLightMat, mMat, mvpLightMat);
+                        gl.uniformMatrix4fv(uniforms.mMat, false, mMat);
+                        gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
+                        gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
+                        gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
+                        gl.drawElements(gl.TRIANGLES, object.lenIndices, gl.UNSIGNED_SHORT, 0);
+                    }
                 }
 
-                bindObjectBuffers(rectObject);
-                m.identity(mMat);
-                m.translate(mMat, [0.0, -10.0, 0.0], mMat);
-                m.scale(mMat, [30.0, 0.0, 30.0], mMat);
-                m.multiply(vpMat, mMat, mvpMat);
-                m.inverse(mMat, invMat);
-                m.multiply(vpLightMat, mMat, mvpLightMat);
-                gl.uniformMatrix4fv(uniforms.mMat, false, mMat);
-                gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
-                gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
-                gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
-                gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                draw(torusObject, torusModelMats);
+                draw(rectObject, [rectModelMat]);
 
                 // The frame buffer will be used on the next iteration. Texture in frame buffer cannot be active.
                 gl.bindTexture(gl.TEXTURE_2D, null);
