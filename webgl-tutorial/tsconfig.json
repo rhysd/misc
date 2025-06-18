@@ -27,6 +27,7 @@
     "framebuffer/script.ts",
     "cubemap/script.ts",
     "toon/script.ts",
+    "shadowmap/script.ts",
     "script.ts"
   ]
 }
