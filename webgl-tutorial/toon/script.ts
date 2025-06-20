@@ -12,7 +12,7 @@
     function clear(): void {
         gl.clearColor(0.5, 0.7, 1.0, 1.0);
         gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
 
     async function loadShader(path: string): Promise<WebGLShader> {
