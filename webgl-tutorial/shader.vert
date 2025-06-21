@@ -2,28 +2,20 @@ attribute vec3 position;
 attribute vec3 normal;
 attribute vec4 color;
 
-uniform bool isShadow; // True means rendering shadows on a frame buffer
-uniform mat4 mMat;
-uniform mat4 tMat; // Texture transformation matrix
 uniform mat4 mvpMat;
-uniform mat4 mvpLightMat; // Coordnate conversion matrix for light
+uniform mat4 invMat;
+uniform vec3 lightDirection;
+uniform vec3 eyePosition;
+uniform vec4 ambientColor;
 
-varying vec4 vColor;
-varying vec3 vNormal;
-varying vec3 vPosition;
-varying vec4 vTexCoord;
-varying vec4 vDepth;
+varying   vec4 vColor;
 
-void main(void) {
-    if (isShadow) {
-        gl_Position = mvpLightMat * vec4(position, 1.0);
-        return;
-    }
-
-    vColor = color;
-    vNormal = normal;
-    vPosition = (mMat * vec4(position, 1.0)).xyz;
-    vTexCoord = tMat * vec4(vPosition, 1.0); // Transform texture coordinates
-    vDepth = mvpLightMat * vec4(position, 1.0);
+void main(void){
+    vec3 invLight = normalize(invMat * vec4(lightDirection, 0.0)).xyz;
+    vec3 invEye = normalize(invMat * vec4(eyePosition, 0.0)).xyz;
+    vec3 halfLE = normalize(invLight + invEye);
+    float diffuse = clamp(dot(normal, invLight), 0.0, 1.0);
+    float specular = pow(clamp(dot(normal, halfLE), 0.0, 1.0), 50.0);
+    vColor = color * ambientColor * vec4(vec3(diffuse), 1.0) + vec4(vec3(specular), 1.0);
     gl_Position = mvpMat * vec4(position, 1.0);
 }

@@ -4,7 +4,7 @@
         <title>WEBGL TEST</title>
         <style>
           body {
-            background-color: #666;
+            background-color: #ccc;
           }
         </style>
         <script src="./minMatrix.js"></script>
@@ -12,7 +12,8 @@
     <body>
         <canvas id="canvas"></canvas>
         <div>
-        Light scale: <input id="light-scale" type="range" value="45" min="30" max="60" step="0.2" />
+            <input id="none" name="mode" type="radio" checked/>None
+            <input id="grayscale" name="mode" type="radio"/>Grayscale
         </div>
         <script src="script.js"></script>
     </body>

@@ -4,7 +4,9 @@
     const canvas = document.getElementById('canvas')! as HTMLCanvasElement;
     canvas.width = 512;
     canvas.height = 512;
-    const lightScaleInput = document.getElementById('light-scale')! as HTMLInputElement;
+
+    const noneButton = document.getElementById('none')! as HTMLInputElement;
+    const grayButton = document.getElementById('grayscale')! as HTMLInputElement;
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
@@ -45,22 +47,6 @@
         }
     }
 
-    function createProgram(vs: WebGLShader, fs: WebGLShader): WebGLProgram {
-        const program = gl.createProgram();
-
-        gl.attachShader(program, vs);
-        gl.attachShader(program, fs);
-
-        gl.linkProgram(program);
-
-        if (gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            gl.useProgram(program);
-            return program;
-        } else {
-            throw new Error(`Could not craete program: ${gl.getProgramInfoLog(program)}`);
-        }
-    }
-
     function createVertexBuffer(data: number[]): WebGLBuffer {
         const vbo = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -69,20 +55,98 @@
         return vbo;
     }
 
-    interface Attribute {
+    function createIndexBuffer(data: number[]): WebGLBuffer {
+        const ibo = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        return ibo;
+    }
+
+    interface BoundAttribute {
         loc: number;
         vbo: WebGLBuffer;
         stride: number;
     }
 
-    function createAttribute(name: string, data: number[], stride: number, program: WebGLProgram): Attribute {
-        const loc = gl.getAttribLocation(program, name);
-        const vbo = createVertexBuffer(data);
-        return { loc, vbo, stride };
+    interface AttributeDef {
+        name: string;
+        dataName: keyof ObjectData;
+        stride: number;
+    }
+
+    class Program {
+        prog: WebGLProgram;
+        attrLocs: Record<string, number>;
+        uniforms: Record<string, WebGLUniformLocation>;
+        attrDefs: AttributeDef[];
+
+        constructor(vs: WebGLShader, fs: WebGLShader) {
+            const p = gl.createProgram();
+
+            gl.attachShader(p, vs);
+            gl.attachShader(p, fs);
+            gl.linkProgram(p);
+            if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+                throw new Error(`Could not craete program: ${gl.getProgramInfoLog(p)}`);
+            }
+            gl.useProgram(p);
+
+            this.prog = p;
+            this.attrLocs = {};
+            this.uniforms = {};
+            this.attrDefs = [];
+        }
+
+        use(): void {
+            gl.useProgram(this.prog);
+        }
+
+        defineAttr(name: string, dataName: keyof ObjectData, stride: number): void {
+            this.attrDefs.push({ name, dataName, stride });
+        }
+
+        getAttrLoc(name: string): number {
+            let loc = this.attrLocs[name];
+            if (loc === undefined) {
+                loc = gl.getAttribLocation(this.prog, name);
+                this.attrLocs[name] = loc;
+            }
+            return loc;
+        }
+
+        createAttribute(name: string, data: number[], stride: number): BoundAttribute {
+            const loc = this.getAttrLoc(name);
+            const vbo = createVertexBuffer(data);
+            return { loc, vbo, stride };
+        }
+
+        createObject(data: ObjectData): RenderObject {
+            const attrs = this.attrDefs.map(def => {
+                return this.createAttribute(def.name, data[def.dataName], def.stride);
+            });
+            const ibo = createIndexBuffer(data.indices);
+            const lenIndices = data.indices.length;
+            return { attrs, ibo, lenIndices };
+        }
+
+        defineUniforms(...names: string[]): void {
+            for (const name of names) {
+                this.uniforms[name] = gl.getUniformLocation(this.prog, name)!;
+            }
+        }
+
+        uniform(name: string): WebGLUniformLocation {
+            const loc = this.uniforms[name];
+            if (loc === undefined) {
+                throw new Error(`Unknown uniform variable: ${name}`);
+            }
+            return loc;
+        }
     }
 
     interface RenderObject {
-        attrs: Attribute[];
+        attrs: BoundAttribute[];
         ibo: WebGLBuffer;
         lenIndices: number;
     }
@@ -91,28 +155,8 @@
         positions: number[];
         colors: number[];
         normals: number[];
+        texCoords: number[];
         indices: number[];
-    }
-
-    function createObject(prog: WebGLProgram, data: ObjectData): RenderObject {
-        const { positions, colors, normals, indices } = data;
-        return {
-            attrs: [
-                createAttribute('position', positions, 3, prog),
-                createAttribute('color', colors, 4, prog),
-                createAttribute('normal', normals, 3, prog),
-            ],
-            ibo: createIndexBuffer(indices),
-            lenIndices: indices.length,
-        };
-    }
-
-    function createIndexBuffer(data: number[]): WebGLBuffer {
-        const ibo = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-        return ibo;
     }
 
     function bindObjectBuffers(object: RenderObject): void {
@@ -125,10 +169,27 @@
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
     }
 
+    function hsva(h: number, s: number, v: number, a: number): Color {
+        if (s > 1 || v > 1 || a > 1) {
+            throw new Error(`Invalid HSVA color (${h}, ${s}, ${v}, ${a})`);
+        }
+        const th = h % 360;
+        const i = Math.floor(th / 60);
+        const f = th / 60 - i;
+        const m = v * (1 - s);
+        const n = v * (1 - s * f);
+        const k = v * (1 - s * (1 - f));
+        const r = [v, n, m, m, k, v][i];
+        const g = [k, v, v, n, m, m][i];
+        const b = [m, m, k, v, v, n][i];
+        return [r, g, b, a];
+    }
+
     function torus(row: number, col: number, innerRadius: number, outerRadius: number, color: Color): ObjectData {
         const positions = [];
         const normals = [];
         const colors = [];
+        const texCoords = [];
         const indices = [];
 
         for (let i = 0; i <= row; i++) {
@@ -147,6 +208,14 @@
                 const rz = rr * Math.sin(rad);
                 normals.push(rx, ry, rz);
 
+                const s = j / col;
+                let t = i / row + 0.5;
+                if (t > 1) {
+                    t -= 1;
+                }
+                t = 1 - t;
+                texCoords.push(s, t);
+
                 colors.push(...color);
             }
         }
@@ -159,31 +228,83 @@
             }
         }
 
-        return { positions, normals, colors, indices };
+        return { positions, normals, colors, texCoords, indices };
     }
 
     function rect(size: number, color: Color): ObjectData {
         // prettier-ignore
         const positions = [
-            -size, 0.0, -size,
-            size,  0.0, -size,
-            -size, 0.0,  size,
-            size,  0.0,  size,
+            -size,  size, 0.0,
+             size,  size, 0.0,
+            -size, -size, 0.0,
+             size, -size, 0.0,
         ];
         // prettier-ignore
         const normals = [
-            0.0, 1.0, 0.0,
-            0.0, 1.0, 0.0,
-            0.0, 1.0, 0.0,
-            0.0, 1.0, 0.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
         ];
         const colors = [...color, ...color, ...color, ...color];
         // prettier-ignore
+        const texCoords = [
+            0.0, 0.0,
+            1.0, 0.0,
+            0.0, 1.0,
+            1.0, 1.0
+        ];
+        // prettier-ignore
         const indices = [
             0, 2, 1,
-            3, 1, 2,
+            2, 3, 1,
         ];
-        return { positions, normals, colors, indices };
+        return { positions, normals, colors, texCoords, indices };
+    }
+
+    class Camera {
+        pos: Vec3;
+        upDir: Vec3;
+        q: Float32Array;
+
+        constructor(canvas: HTMLCanvasElement) {
+            this.pos = [0, 0, 0];
+            this.upDir = [0, 0, 0];
+            this.q = q.identity(q.create());
+
+            canvas.addEventListener(
+                'mousemove',
+                event => {
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    const x = event.clientX - canvas.offsetLeft - w / 2;
+                    const y = event.clientY - canvas.offsetTop - h / 2;
+                    const len = Math.sqrt(x * x + y * y);
+
+                    // Normalize position
+                    const normX = x / len;
+                    const normY = y / len;
+
+                    // Use distance from the center of canvas to calculate the angle
+                    const diag = Math.sqrt(w * w + h * h);
+                    const rad = 2 * Math.PI * (len / diag);
+
+                    // Calculate quaternion to rotate the model
+                    q.rotate(rad, [normY, normX, 0], this.q);
+                },
+                { passive: true },
+            );
+        }
+
+        position(): Vec3 {
+            q.toVecIII([0, 20, 0], this.q, this.pos);
+            return this.pos;
+        }
+
+        up(): Vec3 {
+            q.toVecIII([0, 0, -1], this.q, this.upDir);
+            return this.upDir;
+        }
     }
 
     interface OfflineFrameBuffer {
@@ -238,180 +359,122 @@
     }
 
     async function main(): Promise<void> {
-        const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
+        const [vs, fs, filterVs, filterFs] = await Promise.all([
+            loadShader('shader.vert'),
+            loadShader('shader.frag'),
+            loadShader('filter.vert'),
+            loadShader('filter.frag'),
+        ]);
 
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
         gl.enable(gl.CULL_FACE);
 
-        const prog = createProgram(vs, fs);
+        const prog = new Program(vs, fs);
+        prog.defineUniforms('mvpMat', 'invMat', 'lightDirection', 'eyePosition', 'ambientColor');
+        prog.defineAttr('position', 'positions', 3);
+        prog.defineAttr('color', 'colors', 4);
+        prog.defineAttr('normal', 'normals', 3);
 
-        const torusObject = createObject(prog, torus(64, 64, 1, 2, [1, 1, 1, 1]));
-        const rectObject = createObject(prog, rect(1, [0.7, 0.7, 0.7, 1]));
+        const torusObject = prog.createObject(torus(64, 64, 1, 2, [1, 1, 1, 1]));
 
+        const filterProg = new Program(filterVs, filterFs);
+        filterProg.defineUniforms('mvpMat', 'texture', 'isGrayScale');
+        filterProg.defineAttr('position', 'positions', 3);
+        filterProg.defineAttr('texCoord', 'texCoords', 2);
+
+        const rectObject = filterProg.createObject(rect(1, [1, 1, 1, 1]));
+
+        const mMat = m.create();
         const vMat = m.identity(m.create());
         const pMat = m.identity(m.create());
         const vpMat = m.identity(m.create());
-        const vLightMat = m.create();
-        const pLightMat = m.create(); // Projection matrix looking from the light position
-
-        m.perspective(
-            /* fov */ 45,
-            /* aspect ratio */ canvas.width / canvas.height,
-            /* near clip */ 0.1,
-            /* far clip */ 150,
-            pMat,
-        );
-        m.perspective(90, 1.0, 0.1, 150, pLightMat);
-
-        const cameraPos: Vec3 = [0, 0, 0];
-        const cameraUp: Vec3 = [0, 0, 0];
-        const qCamera = q.identity(q.create());
-
-        canvas.addEventListener(
-            'mousemove',
-            event => {
-                const w = canvas.width;
-                const h = canvas.height;
-                const x = event.clientX - canvas.offsetLeft - w / 2;
-                const y = event.clientY - canvas.offsetTop - h / 2;
-                const len = Math.sqrt(x * x + y * y);
-
-                // Normalize position
-                const normX = x / len;
-                const normY = y / len;
-
-                // Use distance from the center of canvas to calculate the angle
-                const diag = Math.sqrt(w * w + h * h);
-                const rad = 2 * Math.PI * (len / diag);
-
-                // Calculate quaternion to rotate the model
-                q.rotate(rad, [normY, normX, 0], qCamera);
-            },
-            { passive: true },
-        );
-
-        const uniforms = [
-            'isShadow',
-            'mMat',
-            'mvpMat',
-            'invMat',
-            'tMat',
-            'mvpLightMat',
-            'lightPosition',
-            'texture',
-        ].reduce(
-            (acc, name) => {
-                acc[name] = gl.getUniformLocation(prog, name)!;
-                return acc;
-            },
-            {} as Record<string, WebGLUniformLocation>,
-        );
-
         const mvpMat = m.create();
         const invMat = m.create();
-        const vpLightMat = m.create(); // View projection matrix for light
-        const mvpLightMat = m.create();
-        const lightUpDirection: Vec3 = [0, 0, -1];
+        const camera = new Camera(canvas);
+
         // Use the large canvas size to render shadows in higher resolution
-        const frameBuf = createOfflineFrameBuffer(canvas.width * 4, canvas.height * 4);
+        const frameBuf = createOfflineFrameBuffer(canvas.width, canvas.height);
 
         let count = 0;
         function update() {
             count++;
 
-            // Calculate the view projection matrix
-            q.toVecIII([-24, 62, 19], qCamera, cameraPos);
-            q.toVecIII([0.9, 0.3, 0.3], qCamera, cameraUp);
-            m.lookAt(cameraPos, /* Camera center */ [0, 0, 0], cameraUp, vMat);
-            m.multiply(pMat, vMat, vpMat);
-
-            // Calculate the view projection matrix for light
-            const lightPos: Vec3 = [0, parseFloat(lightScaleInput.value), 0];
-            m.lookAt(lightPos, [0, 0, 0], lightUpDirection, vLightMat);
-            m.multiply(pLightMat, vLightMat, vpLightMat);
-
-            // Prepare model transoformation matrices
-            const torusModelMats = [];
-            for (let i = 0; i < 10; i++) {
-                const rad = (((count + i * 36) % 360) * Math.PI) / 180;
-                const rad2 = ((((i % 5) * 72) % 360) * Math.PI) / 180;
-                const ifl = -Math.floor(i / 5) + 1;
-                const mMat = m.identity(m.create());
-                m.rotate(mMat, rad2, [0.0, 1.0, 0.0], mMat);
-                m.translate(mMat, [0.0, ifl * 10.0 + 10.0, (ifl - 2.0) * 7.0], mMat);
-                m.rotate(mMat, rad, [1.0, 1.0, 0.0], mMat);
-                torusModelMats.push(mMat);
-            }
-            const rectModelMat = m.identity(m.create());
-            m.translate(rectModelMat, [0.0, -10.0, 0.0], rectModelMat);
-            m.scale(rectModelMat, [30.0, 0.0, 30.0], rectModelMat);
-
-            // Render the shadow mapping with depth buffer in an offline frame buffer
+            // Render the scene to the frame buffer
             {
+                prog.use();
                 gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuf.frame);
 
-                clear([1.0, 1.0, 1.0, 1.0]);
-                gl.viewport(0, 0, frameBuf.width, frameBuf.height);
-                gl.uniform1i(uniforms.isShadow, 1);
+                clear(hsva(Math.floor(count / 2) % 360, 0.5, 1, 1));
 
-                function draw(object: RenderObject, mMats: Float32Array[]): void {
-                    bindObjectBuffers(object);
-                    for (const mMat of mMats) {
-                        m.multiply(vpLightMat, mMat, mvpLightMat);
-                        gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
-                        gl.drawElements(gl.TRIANGLES, object.lenIndices, gl.UNSIGNED_SHORT, 0);
-                    }
+                const rad = ((count % 360) * Math.PI) / 180;
+                const eyePos = camera.position();
+
+                m.lookAt(eyePos, /* Camera center */ [0, 0, 0], camera.up(), vMat);
+                m.perspective(
+                    /* fov */ 90,
+                    /* aspect ratio */ canvas.width / canvas.height,
+                    /* near clip */ 0.1,
+                    /* far clip */ 100,
+                    pMat,
+                );
+                m.multiply(pMat, vMat, vpMat);
+
+                bindObjectBuffers(torusObject);
+
+                for (let i = 0; i < 9; i++) {
+                    m.identity(mMat);
+                    m.rotate(mMat, (i * 2 * Math.PI) / 9, [0, 1, 0], mMat);
+                    m.translate(mMat, [0.0, 0.0, 10.0], mMat);
+                    m.rotate(mMat, rad, [1, 1, 0], mMat);
+                    m.multiply(vpMat, mMat, mvpMat);
+                    m.inverse(mMat, invMat);
+
+                    gl.uniformMatrix4fv(prog.uniform('mvpMat'), false, mvpMat);
+                    gl.uniformMatrix4fv(prog.uniform('invMat'), false, invMat);
+                    gl.uniform3fv(prog.uniform('lightDirection'), [-0.577, 0.577, 0.577]);
+                    gl.uniform3fv(prog.uniform('eyePosition'), eyePos);
+                    gl.uniform4fv(prog.uniform('ambientColor'), hsva(i * 40, 1, 1, 1));
+
+                    gl.drawElements(
+                        gl.TRIANGLES,
+                        torusObject.lenIndices,
+                        /* type of index */ gl.UNSIGNED_SHORT,
+                        /* start offset */ 0,
+                    );
                 }
-
-                draw(torusObject, torusModelMats);
-                draw(rectObject, [rectModelMat]);
             }
 
-            // Render the canvas
+            // Render the frame buffer texture to the canvas applying the filter
             {
+                filterProg.use();
                 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-                // Bind the texture rendered on the frame buffer online to TEXTURE0
+                clear([0, 0, 0, 1]);
+
+                // Orthographic projection
+                m.lookAt([0, 0, 0.5], [0, 0, 0], [0, 1, 0], vMat);
+                m.ortho(-1, 1, 1, -1, 0.1, 1, pMat);
+                m.multiply(pMat, vMat, vpMat);
+
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, frameBuf.texture);
-                gl.uniform1i(uniforms.texture, 0);
 
-                clear([0.5, 0.7, 1.0, 1.0]);
-                gl.viewport(0, 0, canvas.width, canvas.height);
-                gl.uniform1i(uniforms.isShadow, 0);
+                bindObjectBuffers(rectObject);
 
-                gl.uniform3fv(uniforms.lightPosition, lightPos);
+                const isGrayScale = !noneButton.checked && grayButton.checked;
 
-                // Calculate the texture projection matrix
-                // prettier-ignore
-                const tMat = new Float32Array([
-                    0.5, 0.0, 0.0, 0.0,
-                    0.0, 0.5, 0.0, 0.0,
-                    0.0, 0.0, 1.0, 0.0,
-                    0.5, 0.5, 0.0, 1.0,
-                ]);
-                m.multiply(tMat, vpLightMat, tMat);
-                gl.uniformMatrix4fv(uniforms.tMat, /* transpose */ false, tMat);
+                gl.uniformMatrix4fv(filterProg.uniform('mvpMat'), false, vpMat);
+                gl.uniform1i(filterProg.uniform('texture'), 0);
+                gl.uniform1i(filterProg.uniform('isGrayScale'), +isGrayScale);
 
-                function draw(object: RenderObject, mMats: Float32Array[]): void {
-                    bindObjectBuffers(object);
-                    for (const mMat of mMats) {
-                        m.multiply(vpMat, mMat, mvpMat);
-                        m.inverse(mMat, invMat);
-                        m.multiply(vpLightMat, mMat, mvpLightMat);
-                        gl.uniformMatrix4fv(uniforms.mMat, false, mMat);
-                        gl.uniformMatrix4fv(uniforms.mvpMat, false, mvpMat);
-                        gl.uniformMatrix4fv(uniforms.invMat, false, invMat);
-                        gl.uniformMatrix4fv(uniforms.mvpLightMat, false, mvpLightMat);
-                        gl.drawElements(gl.TRIANGLES, object.lenIndices, gl.UNSIGNED_SHORT, 0);
-                    }
-                }
+                gl.drawElements(
+                    gl.TRIANGLES,
+                    rectObject.lenIndices,
+                    /* type of index */ gl.UNSIGNED_SHORT,
+                    /* start offset */ 0,
+                );
 
-                draw(torusObject, torusModelMats);
-                draw(rectObject, [rectModelMat]);
-
-                // The frame buffer will be used on the next iteration. Texture in frame buffer cannot be active.
                 gl.bindTexture(gl.TEXTURE_2D, null);
             }
 
