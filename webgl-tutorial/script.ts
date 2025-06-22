@@ -5,8 +5,8 @@
     canvas.width = 512;
     canvas.height = 512;
 
-    const noneButton = document.getElementById('none')! as HTMLInputElement;
     const grayButton = document.getElementById('grayscale')! as HTMLInputElement;
+    const sobelButton = document.getElementById('sobel')! as HTMLInputElement;
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
@@ -379,7 +379,7 @@
         const torusObject = prog.createObject(torus(64, 64, 1, 2, [1, 1, 1, 1]));
 
         const filterProg = new Program(filterVs, filterFs);
-        filterProg.defineUniforms('mvpMat', 'texture', 'isGrayScale');
+        filterProg.defineUniforms('mvpMat', 'texture', 'filter', 'sobelHorizontalKernel', 'sobelVerticalKernel');
         filterProg.defineAttr('position', 'positions', 3);
         filterProg.defineAttr('texCoord', 'texCoords', 2);
 
@@ -462,11 +462,30 @@
 
                 bindObjectBuffers(rectObject);
 
-                const isGrayScale = !noneButton.checked && grayButton.checked;
+                const GRAYSCALE_FILTER = 1;
+                const SOBEL_FILTER = 2;
+                const filter = sobelButton.checked ? SOBEL_FILTER : grayButton.checked ? GRAYSCALE_FILTER : 0;
 
                 gl.uniformMatrix4fv(filterProg.uniform('mvpMat'), false, vpMat);
                 gl.uniform1i(filterProg.uniform('texture'), 0);
-                gl.uniform1i(filterProg.uniform('isGrayScale'), +isGrayScale);
+                gl.uniform1i(filterProg.uniform('filter'), filter);
+
+                if (filter === SOBEL_FILTER) {
+                    // prettier-ignore
+                    const horizontalKernel = [
+                        1.0,  0.0, -1.0,
+                        2.0,  0.0, -2.0,
+                        1.0,  0.0, -1.0
+                    ];
+                    gl.uniform1fv(filterProg.uniform('sobelHorizontalKernel'), horizontalKernel);
+                    // prettier-ignore
+                    const verticalKernel = [
+                         1.0,  2.0,  1.0,
+                         0.0,  0.0,  0.0,
+                        -1.0, -2.0, -1.0
+                    ];
+                    gl.uniform1fv(filterProg.uniform('sobelVerticalKernel'), verticalKernel);
+                }
 
                 gl.drawElements(
                     gl.TRIANGLES,
