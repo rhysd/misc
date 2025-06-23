@@ -76,10 +76,10 @@
     }
 
     class Program {
-        prog: WebGLProgram;
-        attrLocs: Record<string, number>;
-        uniforms: Record<string, WebGLUniformLocation>;
-        attrDefs: AttributeDef[];
+        private prog: WebGLProgram;
+        private attrLocs: Record<string, number>;
+        private uniforms: Record<string, WebGLUniformLocation>;
+        private attrDefs: AttributeDef[];
 
         constructor(vs: WebGLShader, fs: WebGLShader) {
             const p = gl.createProgram();
@@ -102,11 +102,11 @@
             gl.useProgram(this.prog);
         }
 
-        defineAttr(name: string, dataName: keyof ObjectData, stride: number): void {
+        defineAttribute(name: string, dataName: keyof ObjectData, stride: number): void {
             this.attrDefs.push({ name, dataName, stride });
         }
 
-        getAttrLoc(name: string): number {
+        getAttributeLocation(name: string): number {
             let loc = this.attrLocs[name];
             if (loc === undefined) {
                 loc = gl.getAttribLocation(this.prog, name);
@@ -116,7 +116,7 @@
         }
 
         createAttribute(name: string, data: number[], stride: number): BoundAttribute {
-            const loc = this.getAttrLoc(name);
+            const loc = this.getAttributeLocation(name);
             const vbo = createVertexBuffer(data);
             return { loc, vbo, stride };
         }
@@ -130,7 +130,7 @@
             return { attrs, ibo, lenIndices };
         }
 
-        defineUniforms(...names: string[]): void {
+        declareUniforms(...names: string[]): void {
             for (const name of names) {
                 this.uniforms[name] = gl.getUniformLocation(this.prog, name)!;
             }
@@ -371,18 +371,27 @@
         gl.enable(gl.CULL_FACE);
 
         const prog = new Program(vs, fs);
-        prog.defineUniforms('mvpMat', 'invMat', 'lightDirection', 'eyePosition', 'ambientColor');
-        prog.defineAttr('position', 'positions', 3);
-        prog.defineAttr('color', 'colors', 4);
-        prog.defineAttr('normal', 'normals', 3);
-
-        const torusObject = prog.createObject(torus(64, 64, 1, 2, [1, 1, 1, 1]));
+        prog.defineAttribute('position', 'positions', 3);
+        prog.defineAttribute('color', 'colors', 4);
+        prog.defineAttribute('normal', 'normals', 3);
+        prog.declareUniforms('mvpMat', 'invMat', 'lightDirection', 'eyePosition', 'ambientColor');
+        gl.uniform3fv(prog.uniform('lightDirection'), [-0.577, 0.577, 0.577]);
 
         const filterProg = new Program(filterVs, filterFs);
-        filterProg.defineUniforms('mvpMat', 'texture', 'filter', 'sobelHorizontalKernel', 'sobelVerticalKernel');
-        filterProg.defineAttr('position', 'positions', 3);
-        filterProg.defineAttr('texCoord', 'texCoords', 2);
+        filterProg.defineAttribute('position', 'positions', 3);
+        filterProg.defineAttribute('texCoord', 'texCoords', 2);
+        filterProg.declareUniforms(
+            'mvpMat',
+            'texture',
+            'filter',
+            'canvasHeight',
+            'sobelHorizontalKernel',
+            'sobelVerticalKernel',
+        );
+        gl.uniform1i(filterProg.uniform('texture'), 0);
+        gl.uniform1f(filterProg.uniform('canvasHeight'), canvas.height);
 
+        const torusObject = prog.createObject(torus(64, 64, 1, 2, [1, 1, 1, 1]));
         const rectObject = filterProg.createObject(rect(1, [1, 1, 1, 1]));
 
         const mMat = m.create();
@@ -432,7 +441,6 @@
 
                     gl.uniformMatrix4fv(prog.uniform('mvpMat'), false, mvpMat);
                     gl.uniformMatrix4fv(prog.uniform('invMat'), false, invMat);
-                    gl.uniform3fv(prog.uniform('lightDirection'), [-0.577, 0.577, 0.577]);
                     gl.uniform3fv(prog.uniform('eyePosition'), eyePos);
                     gl.uniform4fv(prog.uniform('ambientColor'), hsva(i * 40, 1, 1, 1));
 
@@ -467,7 +475,6 @@
                 const filter = sobelButton.checked ? SOBEL_FILTER : grayButton.checked ? GRAYSCALE_FILTER : 0;
 
                 gl.uniformMatrix4fv(filterProg.uniform('mvpMat'), false, vpMat);
-                gl.uniform1i(filterProg.uniform('texture'), 0);
                 gl.uniform1i(filterProg.uniform('filter'), filter);
 
                 if (filter === SOBEL_FILTER) {
