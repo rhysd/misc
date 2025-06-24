@@ -7,6 +7,7 @@
 
     const grayButton = document.getElementById('grayscale')! as HTMLInputElement;
     const sobelButton = document.getElementById('sobel')! as HTMLInputElement;
+    const laplacianButton = document.getElementById('laplacian')! as HTMLInputElement;
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
@@ -465,19 +466,41 @@
 
                 const GRAYSCALE_FILTER = 1;
                 const SOBEL_FILTER = 2;
-                const filter = sobelButton.checked ? SOBEL_FILTER : grayButton.checked ? GRAYSCALE_FILTER : 0;
+                const LAPLACIAN_FILTER = 3;
+                const filter = laplacianButton.checked
+                    ? LAPLACIAN_FILTER
+                    : sobelButton.checked
+                      ? SOBEL_FILTER
+                      : grayButton.checked
+                        ? GRAYSCALE_FILTER
+                        : 0;
 
                 gl.uniformMatrix4fv(filterProg.uniform('mvpMat'), false, vpMat);
                 gl.uniform1i(filterProg.uniform('filter'), filter);
 
-                if (filter === SOBEL_FILTER) {
-                    // prettier-ignore
-                    const horizontalKernel = [
-                        1.0,  0.0, -1.0,
-                        2.0,  0.0, -2.0,
-                        1.0,  0.0, -1.0
-                    ];
-                    gl.uniform1fv(filterProg.uniform('filterKernel'), horizontalKernel);
+                switch (filter) {
+                    case SOBEL_FILTER: {
+                        // prettier-ignore
+                        const horizontalKernel = [
+                            1.0, 0.0, -1.0,
+                            2.0, 0.0, -2.0,
+                            1.0, 0.0, -1.0
+                        ];
+                        gl.uniform1fv(filterProg.uniform('filterKernel'), horizontalKernel);
+                        break;
+                    }
+                    case SOBEL_FILTER: {
+                        // prettier-ignore
+                        const kernel = [
+                            1.0,  1.0, 1.0,
+                            1.0, -8.0, 1.0,
+                            1.0,  1.0, 1.0
+                        ];
+                        gl.uniform1fv(filterProg.uniform('filterKernel'), kernel);
+                        break;
+                    }
+                    default:
+                        break;
                 }
 
                 gl.drawElements(

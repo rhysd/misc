@@ -3,6 +3,7 @@ precision mediump float;
 #define CANVAS_SIZE 512.0
 #define FILTER_GRAYSCALE 1
 #define FILTER_SOBEL 2
+#define FILTER_LAPLACIAN 3
 
 uniform sampler2D texture;
 uniform int filter;
@@ -43,11 +44,30 @@ vec4 sobelFilter() {
     return vec4(vec3(sqrt(horizontal * horizontal + vertical * vertical)), 1.0);
 }
 
+vec4 laplacianFilter() {
+    const float norm = 1.0 / 512.0;
+    vec2 origin = vec2(gl_FragCoord.s, canvasHeight - gl_FragCoord.t);
+    vec3 color = vec3(0.0);
+
+    for (int j = 0; j <= 2; j++) {
+        for (int i = 0; i <= 2; i++) {
+            float x = float(i - 1);
+            float y = float(j - 1);
+            vec2 pos = (origin + vec2(x, y)) * norm;
+            color += texture2D(texture, pos).rgb * filterKernel[j * 3 + i];
+        }
+    }
+
+    return vec4(color, 1.0);
+}
+
 void main(void){
     if (filter == FILTER_GRAYSCALE) {
         gl_FragColor = grayScaleFilter();
     } else if (filter == FILTER_SOBEL) {
         gl_FragColor = sobelFilter();
+    } else if (filter == FILTER_LAPLACIAN) {
+        gl_FragColor = laplacianFilter();
     } else {
         gl_FragColor = texture2D(texture, vTexCoord);
     }
