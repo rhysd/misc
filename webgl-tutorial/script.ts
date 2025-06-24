@@ -380,14 +380,7 @@
         const filterProg = new Program(filterVs, filterFs);
         filterProg.defineAttribute('position', 'positions', 3);
         filterProg.defineAttribute('texCoord', 'texCoords', 2);
-        filterProg.declareUniforms(
-            'mvpMat',
-            'texture',
-            'filter',
-            'canvasHeight',
-            'sobelHorizontalKernel',
-            'sobelVerticalKernel',
-        );
+        filterProg.declareUniforms('mvpMat', 'texture', 'filter', 'canvasHeight', 'filterKernel');
         gl.uniform1i(filterProg.uniform('texture'), 0);
         gl.uniform1f(filterProg.uniform('canvasHeight'), canvas.height);
 
@@ -484,14 +477,7 @@
                         2.0,  0.0, -2.0,
                         1.0,  0.0, -1.0
                     ];
-                    gl.uniform1fv(filterProg.uniform('sobelHorizontalKernel'), horizontalKernel);
-                    // prettier-ignore
-                    const verticalKernel = [
-                         1.0,  2.0,  1.0,
-                         0.0,  0.0,  0.0,
-                        -1.0, -2.0, -1.0
-                    ];
-                    gl.uniform1fv(filterProg.uniform('sobelVerticalKernel'), verticalKernel);
+                    gl.uniform1fv(filterProg.uniform('filterKernel'), horizontalKernel);
                 }
 
                 gl.drawElements(
