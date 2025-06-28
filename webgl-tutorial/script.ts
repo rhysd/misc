@@ -297,6 +297,14 @@
                 },
                 { passive: true },
             );
+
+            canvas.addEventListener(
+                'mouseleave',
+                () => {
+                    q.identity(this.q);
+                },
+                { passive: true },
+            );
         }
 
         position(): Vec3 {
