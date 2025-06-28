@@ -8,6 +8,8 @@
     const grayButton = document.getElementById('grayscale')! as HTMLInputElement;
     const sobelButton = document.getElementById('sobel')! as HTMLInputElement;
     const laplacianButton = document.getElementById('laplacian')! as HTMLInputElement;
+    const gaussianButton = document.getElementById('gaussian')! as HTMLInputElement;
+    const gaussianWeightInput = document.getElementById('gaussian-weight')! as HTMLInputElement;
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
@@ -359,6 +361,25 @@
         return { frame, depth, texture, width, height };
     }
 
+    function gaussianWeight(strength: number): number[] {
+        const weight = new Array(10);
+        const d = strength * strength;
+        let t = 0.0;
+        for (let i = 0; i < weight.length; i++) {
+            const r = 1.0 + 2.0 * i;
+            let w = Math.exp((-0.5 * (r * r)) / d);
+            weight[i] = w;
+            if (i > 0) {
+                w *= 2.0;
+            }
+            t += w;
+        }
+        for (let i = 0; i < weight.length; i++) {
+            weight[i] /= t;
+        }
+        return weight;
+    }
+
     async function main(): Promise<void> {
         const [vs, fs, filterVs, filterFs] = await Promise.all([
             loadShader('shader.vert'),
@@ -381,7 +402,15 @@
         const filterProg = new Program(filterVs, filterFs);
         filterProg.defineAttribute('position', 'positions', 3);
         filterProg.defineAttribute('texCoord', 'texCoords', 2);
-        filterProg.declareUniforms('mvpMat', 'texture', 'filter', 'canvasHeight', 'filterKernel');
+        filterProg.declareUniforms(
+            'mvpMat',
+            'texture',
+            'filter',
+            'canvasHeight',
+            'filterKernel',
+            'gaussianWeight',
+            'gaussianIsHorizontal',
+        );
         gl.uniform1i(filterProg.uniform('texture'), 0);
         gl.uniform1f(filterProg.uniform('canvasHeight'), canvas.height);
 
@@ -397,16 +426,33 @@
         const camera = new Camera(canvas);
 
         // Use the large canvas size to render shadows in higher resolution
-        const frameBuf = createOfflineFrameBuffer(canvas.width, canvas.height);
+        const frameBufs = [
+            createOfflineFrameBuffer(canvas.width, canvas.height),
+            createOfflineFrameBuffer(canvas.width, canvas.height), // For gaussian filter
+        ] as const;
 
         let count = 0;
         function update() {
             count++;
 
+            const GRAYSCALE_FILTER = 1;
+            const SOBEL_FILTER = 2;
+            const LAPLACIAN_FILTER = 3;
+            const GAUSSIAN_FILTER = 4;
+            const filter = gaussianButton.checked
+                ? GAUSSIAN_FILTER
+                : laplacianButton.checked
+                  ? LAPLACIAN_FILTER
+                  : sobelButton.checked
+                    ? SOBEL_FILTER
+                    : grayButton.checked
+                      ? GRAYSCALE_FILTER
+                      : 0;
+
             // Render the scene to the frame buffer
             {
                 prog.use();
-                gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuf.frame);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufs[0].frame);
 
                 clear(hsva(Math.floor(count / 2) % 360, 0.5, 1, 1));
 
@@ -460,20 +506,9 @@
                 m.multiply(pMat, vMat, vpMat);
 
                 gl.activeTexture(gl.TEXTURE0);
-                gl.bindTexture(gl.TEXTURE_2D, frameBuf.texture);
+                gl.bindTexture(gl.TEXTURE_2D, frameBufs[0].texture);
 
                 bindObjectBuffers(rectObject);
-
-                const GRAYSCALE_FILTER = 1;
-                const SOBEL_FILTER = 2;
-                const LAPLACIAN_FILTER = 3;
-                const filter = laplacianButton.checked
-                    ? LAPLACIAN_FILTER
-                    : sobelButton.checked
-                      ? SOBEL_FILTER
-                      : grayButton.checked
-                        ? GRAYSCALE_FILTER
-                        : 0;
 
                 gl.uniformMatrix4fv(filterProg.uniform('mvpMat'), false, vpMat);
                 gl.uniform1i(filterProg.uniform('filter'), filter);
@@ -487,9 +522,10 @@
                             1.0, 0.0, -1.0
                         ];
                         gl.uniform1fv(filterProg.uniform('filterKernel'), horizontalKernel);
+                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                         break;
                     }
-                    case SOBEL_FILTER: {
+                    case LAPLACIAN_FILTER: {
                         // prettier-ignore
                         const kernel = [
                             1.0,  1.0, 1.0,
@@ -497,18 +533,30 @@
                             1.0,  1.0, 1.0
                         ];
                         gl.uniform1fv(filterProg.uniform('filterKernel'), kernel);
+                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+                        break;
+                    }
+                    case GAUSSIAN_FILTER: {
+                        const w = gaussianWeight(parseFloat(gaussianWeightInput.value));
+                        gl.uniform1fv(filterProg.uniform('gaussianWeight'), w);
+                        gl.uniform1i(filterProg.uniform('gaussianIsHorizontal'), 1);
+
+                        // Apply horizontal gaussian filter (1st pass)
+                        gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufs[1].frame);
+                        clear([0, 0, 0, 1]);
+                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
+
+                        // Apply vertical gaussian filter (2nd pass)
+                        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                        gl.bindTexture(gl.TEXTURE_2D, frameBufs[1].texture);
+                        gl.uniform1i(filterProg.uniform('gaussianIsHorizontal'), 0);
+                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                         break;
                     }
                     default:
+                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                         break;
                 }
-
-                gl.drawElements(
-                    gl.TRIANGLES,
-                    rectObject.lenIndices,
-                    /* type of index */ gl.UNSIGNED_SHORT,
-                    /* start offset */ 0,
-                );
 
                 gl.bindTexture(gl.TEXTURE_2D, null);
             }

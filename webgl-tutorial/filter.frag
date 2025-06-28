@@ -4,11 +4,14 @@ precision mediump float;
 #define FILTER_GRAYSCALE 1
 #define FILTER_SOBEL 2
 #define FILTER_LAPLACIAN 3
+#define FILTER_GAUSSIAN 4
 
 uniform sampler2D texture;
 uniform int filter;
 uniform float canvasHeight;
 uniform float filterKernel[9];
+uniform float gaussianWeight[10];
+uniform bool gaussianIsHorizontal;
 
 varying vec2 vTexCoord;
 
@@ -23,7 +26,7 @@ vec4 grayScaleFilter() {
 }
 
 vec4 sobelFilter() {
-    const float norm = 1.0 / 512.0;
+    float norm = 1.0 / canvasHeight;
     vec2 origin = vec2(gl_FragCoord.s, canvasHeight - gl_FragCoord.t);
     vec3 horizontal = vec3(0.0);
     vec3 vertical = vec3(0.0);
@@ -45,7 +48,7 @@ vec4 sobelFilter() {
 }
 
 vec4 laplacianFilter() {
-    const float norm = 1.0 / 512.0;
+    float norm = 1.0 / canvasHeight;
     vec2 origin = vec2(gl_FragCoord.s, canvasHeight - gl_FragCoord.t);
     vec3 color = vec3(0.0);
 
@@ -61,6 +64,28 @@ vec4 laplacianFilter() {
     return vec4(color, 1.0);
 }
 
+vec4 gaussianFilter() {
+    float norm = 1.0 / canvasHeight;
+    vec3 color = vec3(0.0);
+
+    vec2 origin = vec2(gl_FragCoord.s, canvasHeight - gl_FragCoord.t);
+    if (gaussianIsHorizontal) {
+        for (int i = -9; i <= 9; i++) {
+            vec2 pos = origin + vec2(float(i), 0.0);
+            float weight = gaussianWeight[i >= 0 ? i : -i];
+            color += texture2D(texture, pos * norm).rgb * weight;
+        }
+    } else {
+        for (int i = -9; i <= 9; i++) {
+            vec2 pos = origin + vec2(0.0, float(i));
+            float weight = gaussianWeight[i >= 0 ? i : -i];
+            color += texture2D(texture, pos * norm).rgb * weight;
+        }
+    }
+
+    return vec4(color, 1.0);
+}
+
 void main(void){
     if (filter == FILTER_GRAYSCALE) {
         gl_FragColor = grayScaleFilter();
@@ -68,6 +93,8 @@ void main(void){
         gl_FragColor = sobelFilter();
     } else if (filter == FILTER_LAPLACIAN) {
         gl_FragColor = laplacianFilter();
+    } else if (filter == FILTER_GAUSSIAN) {
+        gl_FragColor = gaussianFilter();
     } else {
         gl_FragColor = texture2D(texture, vTexCoord);
     }
