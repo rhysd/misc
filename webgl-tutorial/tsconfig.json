@@ -28,6 +28,7 @@
     "cubemap/script.ts",
     "toon/script.ts",
     "shadowmap/script.ts",
+    "filter/script.ts",
     "script.ts"
   ]
 }

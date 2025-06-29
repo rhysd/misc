@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Filter examples using frame buffers</title>
+        <style>
+          body {
+            background-color: #ccc;
+          }
+          .gaussian-only {
+            display: none;
+          }
+          #gaussian:checked ~ .gaussian-only {
+            margin: 4px;
+            display: block;
+          }
+        </style>
+        <script src="../minMatrix.js"></script>
+    </head>
+    <body>
+        <canvas id="canvas"></canvas>
+        <div>
+            <input name="mode" type="radio" checked/><label>None</label>
+            <input id="grayscale" name="mode" type="radio"/><label>Grayscale</label>
+            <input id="sobel" name="mode" type="radio"/><label>Sobel filter</label>
+            <input id="laplacian" name="mode" type="radio"/><label>Laplacian filter</label>
+            <input id="gaussian" name="mode" type="radio"/><label>Gaussian filter</label>
+            <div class="gaussian-only">
+                <input id="gaussian-weight" type="range" value="5" min="1" max="10" step="0.1"/>
+            </div>
+        </div>
+        <script src="script.js"></script>
+    </body>
+</html>
