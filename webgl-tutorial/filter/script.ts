@@ -235,12 +235,13 @@
     }
 
     function rect(size: number, color: Color): ObjectData {
+        const half = size / 2;
         // prettier-ignore
         const positions = [
-            -size,  size, 0.0,
-             size,  size, 0.0,
-            -size, -size, 0.0,
-             size, -size, 0.0,
+            -half,  half, 0.0,
+             half,  half, 0.0,
+            -half, -half, 0.0,
+             half, -half, 0.0,
         ];
         // prettier-ignore
         const normals = [
@@ -423,7 +424,7 @@
         gl.uniform1f(filterProg.uniform('canvasHeight'), canvas.height);
 
         const torusObject = prog.createObject(torus(64, 64, 1, 2, [1, 1, 1, 1]));
-        const rectObject = filterProg.createObject(rect(1, [1, 1, 1, 1]));
+        const rectObject = filterProg.createObject(rect(2, [1, 1, 1, 1]));
 
         const mMat = m.create();
         const vMat = m.identity(m.create());
@@ -530,7 +531,6 @@
                             1.0, 0.0, -1.0
                         ];
                         gl.uniform1fv(filterProg.uniform('filterKernel'), horizontalKernel);
-                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                         break;
                     }
                     case LAPLACIAN_FILTER: {
@@ -541,7 +541,6 @@
                             1.0,  1.0, 1.0
                         ];
                         gl.uniform1fv(filterProg.uniform('filterKernel'), kernel);
-                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                         break;
                     }
                     case GAUSSIAN_FILTER: {
@@ -558,14 +557,13 @@
                         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
                         gl.bindTexture(gl.TEXTURE_2D, frameBufs[1].texture);
                         gl.uniform1i(filterProg.uniform('gaussianIsHorizontal'), 0);
-                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                         break;
                     }
                     default:
-                        gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                         break;
                 }
 
+                gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                 gl.bindTexture(gl.TEXTURE_2D, null);
             }
 
