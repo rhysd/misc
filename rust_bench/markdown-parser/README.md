@@ -23,3 +23,17 @@ markdown-rs             time:   [423.35 ms 426.78 ms 430.35 ms]
 Found 3 outliers among 100 measurements (3.00%)
   3 (3.00%) high mild
 ```
+
+How to avoid cmake v4 error on macOS:
+
+```
+brew unlink cmake
+brew install ./formula/cmake3.rb
+```
+
+After running the benchmark, ensure to remove the older version of cmake:
+
+```
+brew uninstall cmake3
+brew link cmake
+```
