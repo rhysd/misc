@@ -5,6 +5,7 @@
 #include <dxgi.h>
 #include <dxgiformat.h>
 #include <dxgitype.h>
+#include <synchapi.h>
 
 namespace {
 const auto ClassName = TEXT("Hello, D3D12");
@@ -269,6 +270,64 @@ bool App::init_d3d() {
     cmd_list_->Close();
 
     return true;
+}
+
+void App::render() {
+    cmd_alloc_[frame_index_]->Reset();
+    cmd_list_->Reset(cmd_alloc_[frame_index_], /*pipeline state*/ nullptr);
+
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrier.Transition.pResource = color_buffer_[frame_index_];
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    // Transition: Present -> Render (write)
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+    cmd_list_->ResourceBarrier(1, &barrier);
+
+    cmd_list_->OMSetRenderTargets(1, &handle_rtv_[frame_index_], FALSE, /*depth stencil view*/ nullptr);
+
+    float const clear_color[] = {0.25f, 0.25f, 0.25f, 1.0f};
+
+    cmd_list_->ClearRenderTargetView(handle_rtv_[frame_index_], clear_color, 0, /*target rect*/ nullptr);
+
+    // TODO: Render polygons
+
+    // Transition: Render (write) -> Present
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+
+    cmd_list_->ResourceBarrier(1, &barrier);
+
+    cmd_list_->Close();
+
+    ID3D12CommandList *cmd_lists[] = {cmd_list_};
+    queue_->ExecuteCommandLists(1, cmd_lists);
+
+    present(1);
+}
+
+void App::present(uint32_t const interval) {
+    // Render the front buffer to the screen and swap frame buffers
+    // Passing `1` to `interval` means sync after the first vsync
+    swap_chain_->Present(interval, 0);
+
+    // Set the `counter` value to the fence when the commands in the command list are completed
+    auto const counter = fence_counter_[frame_index_];
+    queue_->Signal(fence_, counter);
+
+    frame_index_ = swap_chain_->GetCurrentBackBufferIndex();
+
+    // Wait until the next frame is prepared (= the fence value is set to `counter`)
+    if (fence_->GetCompletedValue() < counter) {
+        fence_->SetEventOnCompletion(counter, fence_event_);
+        WaitForSingleObjectEx(fence_event_, INFINITE, FALSE);
+    }
+
+    // Next fence counter
+    fence_counter_[frame_index_] = counter + 1;
 }
 
 LRESULT CALLBACK App::window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
