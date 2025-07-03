@@ -166,7 +166,7 @@ bool App::init_d3d() {
         desc.BufferCount = FRAME_COUNT;
         desc.OutputWindow = hwnd_;
         desc.Windowed = TRUE;
-        desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+        desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH; // Switch display mode with `IDXGISwapChain::ResizeTarget()`
 
         IDXGISwapChain *swap_chain = nullptr;
