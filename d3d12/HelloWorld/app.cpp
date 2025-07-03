@@ -1,5 +1,6 @@
 #include "App.h"
 #include <Windows.h>
+#include <cassert>
 #include <combaseapi.h>
 #include <d3d12.h>
 #include <dxgi.h>
@@ -32,7 +33,7 @@ void App::run() {
 }
 
 bool App::init_app() {
-    return init_window();
+    return init_window() && init_d3d();
 }
 
 bool App::init_window() {
@@ -96,11 +97,14 @@ void App::main_loop() {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) == TRUE) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+        } else {
+            render();
         }
     }
 }
 
 void App::term_app() {
+    term_d3d();
     term_window();
 }
 
@@ -327,7 +331,42 @@ void App::present(uint32_t const interval) {
     }
 
     // Next fence counter
-    fence_counter_[frame_index_] = counter + 1;
+    fence_counter_[frame_index_]++;
+}
+
+void App::wait_gpu() {
+    assert(queue_ != nullptr);
+    assert(fence_ != nullptr);
+    assert(fence_event_ != nullptr);
+
+    auto const counter = fence_counter_[frame_index_];
+    queue_->Signal(fence_, counter);
+    fence_->SetEventOnCompletion(counter, fence_event_);
+    WaitForSingleObjectEx(fence_event_, INFINITE, FALSE);
+
+    fence_counter_[frame_index_]++;
+}
+
+void App::term_d3d() {
+    wait_gpu();
+
+    if (fence_event_ != nullptr) {
+        CloseHandle(fence_event_);
+        fence_event_ = nullptr;
+    }
+
+    Release(fence_);
+    Release(heap_rtv_);
+    for (auto i = 0; i < FRAME_COUNT; i++) {
+        Release(color_buffer_[i]);
+    }
+    Release(cmd_list_);
+    for (auto i = 0; i < FRAME_COUNT; i++) {
+        Release(cmd_alloc_[i]);
+    }
+    Release(swap_chain_);
+    Release(queue_);
+    Release(device_);
 }
 
 LRESULT CALLBACK App::window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
