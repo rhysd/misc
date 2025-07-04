@@ -123,6 +123,18 @@ void App::term_window() {
 }
 
 bool App::init_d3d() {
+#if defined(DEBUG) || defined(_DEBUG)
+    {
+        // Enable debug layer
+        ComPtr<ID3D12Debug> debug;
+        auto const hr = D3D12GetDebugInterface(IID_PPV_ARGS(debug.GetAddressOf()));
+        if (FAILED(hr)) {
+            return false;
+        }
+        debug->EnableDebugLayer();
+    }
+#endif
+
     // Create device
     {
         auto const hr = D3D12CreateDevice(
