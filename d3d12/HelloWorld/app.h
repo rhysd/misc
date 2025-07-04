@@ -6,6 +6,9 @@
 #include <cstdint>
 #include <d3d12.h>
 #include <dxgi1_4.h>
+#include <wrl/client.h>
+
+using Microsoft::WRL::ComPtr;
 
 class App {
   public:
@@ -32,14 +35,14 @@ class App {
     HWND hwnd_;
     uint32_t width_;
     uint32_t height_;
-    ID3D12Device *device_;        // Physical device
-    ID3D12CommandQueue *queue_;   // Command queue to submit draw commands to GPU
-    IDXGISwapChain3 *swap_chain_; // Swap frame buffers (double buffer)
-    ID3D12Resource *color_buffer_[FRAME_COUNT];
-    ID3D12CommandAllocator *cmd_alloc_[FRAME_COUNT];
-    ID3D12GraphicsCommandList *cmd_list_;
-    ID3D12DescriptorHeap *heap_rtv_;
-    ID3D12Fence *fence_; // Fence between CPU and GPU
+    ComPtr<ID3D12Device> device_;        // Physical device
+    ComPtr<ID3D12CommandQueue> queue_;   // Command queue to submit draw commands to GPU
+    ComPtr<IDXGISwapChain3> swap_chain_; // Swap frame buffers (double buffer)
+    ComPtr<ID3D12Resource> color_buffer_[FRAME_COUNT];
+    ComPtr<ID3D12CommandAllocator> cmd_alloc_[FRAME_COUNT];
+    ComPtr<ID3D12GraphicsCommandList> cmd_list_;
+    ComPtr<ID3D12DescriptorHeap> heap_rtv_;
+    ComPtr<ID3D12Fence> fence_; // Fence between CPU and GPU
     HANDLE fence_event_;
     uint64_t fence_counter_[FRAME_COUNT];
     uint32_t frame_index_;

@@ -21,7 +21,13 @@ void Release(T *&p) {
 } // namespace
 
 App::App(uint32_t const width, uint32_t const height)
-    : hinst_(nullptr), hwnd_(nullptr), width_(width), height_(height) {}
+    : hinst_(nullptr), hwnd_(nullptr), width_(width), height_(height), device_(nullptr), queue_(nullptr), swap_chain_(nullptr), cmd_list_(nullptr), heap_rtv_(nullptr), fence_(nullptr), frame_index_(0), fence_event_(nullptr) {
+    for (auto i = 0; i < FRAME_COUNT; i++) {
+        color_buffer_[i] = nullptr;
+        cmd_alloc_[i] = nullptr;
+        fence_counter_[i] = 0;
+    }
+}
 
 App::~App() {}
 
@@ -120,9 +126,9 @@ bool App::init_d3d() {
     // Create device
     {
         auto const hr = D3D12CreateDevice(
-            nullptr,                 // Video adaptor
-            D3D_FEATURE_LEVEL_11_0,  // Minimal feature level
-            IID_PPV_ARGS(&device_)); // Macro equivalent to `__uuidof(&device_), (void **)device_`
+            nullptr,                               // Video adaptor
+            D3D_FEATURE_LEVEL_11_0,                // Minimal feature level
+            IID_PPV_ARGS(device_.GetAddressOf())); // Macro equivalent to `__uuidof(&device_), (void **)device_`
         if (FAILED(hr)) {
             return false;
         }
@@ -136,7 +142,7 @@ bool App::init_d3d() {
         desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
         desc.NodeMask = 0; // Note: Assumes only single GPU is available
 
-        auto const hr = device_->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue_));
+        auto const hr = device_->CreateCommandQueue(&desc, IID_PPV_ARGS(queue_.GetAddressOf()));
         if (FAILED(hr)) {
             return false;
         }
@@ -146,8 +152,8 @@ bool App::init_d3d() {
     {
         // Factory object to access DXGI
         // Note: DXGI = DirectX Graphics Infrastructure
-        IDXGIFactory4 *factory = nullptr;
-        auto hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
+        ComPtr<IDXGIFactory4> factory = nullptr;
+        auto hr = CreateDXGIFactory1(IID_PPV_ARGS(factory.GetAddressOf()));
         if (FAILED(hr)) {
             return false;
         }
@@ -169,24 +175,18 @@ bool App::init_d3d() {
         desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH; // Switch display mode with `IDXGISwapChain::ResizeTarget()`
 
-        IDXGISwapChain *swap_chain = nullptr;
-        hr = factory->CreateSwapChain(queue_, &desc, &swap_chain);
+        ComPtr<IDXGISwapChain> swap_chain = nullptr;
+        hr = factory->CreateSwapChain(queue_.Get(), &desc, swap_chain.GetAddressOf());
         if (FAILED(hr)) {
-            Release(factory);
             return false;
         }
 
-        hr = swap_chain->QueryInterface(IID_PPV_ARGS(&swap_chain_));
+        hr = swap_chain->QueryInterface(IID_PPV_ARGS(swap_chain_.GetAddressOf()));
         if (FAILED(hr)) {
-            Release(factory);
-            Release(swap_chain);
             return false;
         }
 
         frame_index_ = swap_chain_->GetCurrentBackBufferIndex();
-
-        Release(factory);
-        Release(swap_chain);
     }
 
     // Create command allocator
@@ -194,7 +194,7 @@ bool App::init_d3d() {
         for (auto i = 0; i < FRAME_COUNT; i++) {
             auto const hr = device_->CreateCommandAllocator(
                 D3D12_COMMAND_LIST_TYPE_DIRECT,
-                IID_PPV_ARGS(&cmd_alloc_[i]));
+                IID_PPV_ARGS(cmd_alloc_[i].GetAddressOf()));
             if (FAILED(hr)) {
                 return false;
             }
@@ -206,9 +206,9 @@ bool App::init_d3d() {
         auto const hr = device_->CreateCommandList(
             0,
             D3D12_COMMAND_LIST_TYPE_DIRECT,
-            cmd_alloc_[frame_index_],
+            cmd_alloc_[frame_index_].Get(),
             nullptr,
-            IID_PPV_ARGS(&cmd_list_));
+            IID_PPV_ARGS(cmd_list_.GetAddressOf()));
         if (FAILED(hr)) {
             return false;
         }
@@ -222,7 +222,7 @@ bool App::init_d3d() {
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         desc.NodeMask = 0;
 
-        auto const hr = device_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap_rtv_));
+        auto const hr = device_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap_rtv_.GetAddressOf()));
         if (FAILED(hr)) {
             return false;
         }
@@ -231,7 +231,7 @@ bool App::init_d3d() {
         auto const inc_size = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
         for (auto i = 0; i < FRAME_COUNT; i++) {
-            auto const hr = swap_chain_->GetBuffer(i, IID_PPV_ARGS(&color_buffer_[i]));
+            auto const hr = swap_chain_->GetBuffer(i, IID_PPV_ARGS(color_buffer_[i].GetAddressOf()));
             if (FAILED(hr)) {
                 return false;
             }
@@ -242,7 +242,7 @@ bool App::init_d3d() {
             desc.Texture2D.MipSlice = 0; // Mipmap level (0 = one mipmap)
             desc.Texture2D.PlaneSlice = 0;
 
-            device_->CreateRenderTargetView(color_buffer_[i], &desc, handle);
+            device_->CreateRenderTargetView(color_buffer_[i].Get(), &desc, handle);
 
             handle_rtv_[i] = handle;
             handle.ptr += inc_size;
@@ -258,7 +258,7 @@ bool App::init_d3d() {
         auto const hr = device_->CreateFence(
             fence_counter_[frame_index_],
             D3D12_FENCE_FLAG_NONE,
-            IID_PPV_ARGS(&fence_));
+            IID_PPV_ARGS(fence_.GetAddressOf()));
         if (FAILED(hr)) {
             return false;
         }
@@ -278,12 +278,12 @@ bool App::init_d3d() {
 
 void App::render() {
     cmd_alloc_[frame_index_]->Reset();
-    cmd_list_->Reset(cmd_alloc_[frame_index_], /*pipeline state*/ nullptr);
+    cmd_list_->Reset(cmd_alloc_[frame_index_].Get(), /*pipeline state*/ nullptr);
 
     D3D12_RESOURCE_BARRIER barrier{};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = color_buffer_[frame_index_];
+    barrier.Transition.pResource = color_buffer_[frame_index_].Get();
     barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     // Transition: Present -> Render (write)
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
@@ -307,7 +307,7 @@ void App::render() {
 
     cmd_list_->Close();
 
-    ID3D12CommandList *cmd_lists[] = {cmd_list_};
+    ID3D12CommandList *cmd_lists[] = {cmd_list_.Get()};
     queue_->ExecuteCommandLists(1, cmd_lists);
 
     present(1);
@@ -320,7 +320,7 @@ void App::present(uint32_t const interval) {
 
     // Set the `counter` value to the fence when the commands in the command list are completed
     auto const counter = fence_counter_[frame_index_];
-    queue_->Signal(fence_, counter);
+    queue_->Signal(fence_.Get(), counter);
 
     frame_index_ = swap_chain_->GetCurrentBackBufferIndex();
 
@@ -340,7 +340,7 @@ void App::wait_gpu() {
     assert(fence_event_ != nullptr);
 
     auto const counter = fence_counter_[frame_index_];
-    queue_->Signal(fence_, counter);
+    queue_->Signal(fence_.Get(), counter);
     fence_->SetEventOnCompletion(counter, fence_event_);
     WaitForSingleObjectEx(fence_event_, INFINITE, FALSE);
 
@@ -355,18 +355,18 @@ void App::term_d3d() {
         fence_event_ = nullptr;
     }
 
-    Release(fence_);
-    Release(heap_rtv_);
+    fence_.Reset();
+    heap_rtv_.Reset();
     for (auto i = 0; i < FRAME_COUNT; i++) {
-        Release(color_buffer_[i]);
+        color_buffer_[i].Reset();
     }
-    Release(cmd_list_);
+    cmd_list_.Reset();
     for (auto i = 0; i < FRAME_COUNT; i++) {
-        Release(cmd_alloc_[i]);
+        cmd_alloc_[i].Reset();
     }
-    Release(swap_chain_);
-    Release(queue_);
-    Release(device_);
+    swap_chain_.Reset();
+    queue_.Reset();
+    device_.Reset();
 }
 
 LRESULT CALLBACK App::window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
