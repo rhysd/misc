@@ -1,8 +1,11 @@
 #include "App.h"
+#include <DirectXMath.h>
 #include <Windows.h>
 #include <cassert>
 #include <combaseapi.h>
+#include <cstring>
 #include <d3d12.h>
+#include <d3dcommon.h>
 #include <dxgi.h>
 #include <dxgiformat.h>
 #include <dxgitype.h>
@@ -11,17 +14,15 @@
 namespace {
 const auto ClassName = TEXT("Hello, D3D12");
 
-template <class T>
-void Release(T *&p) {
-    if (p != nullptr) {
-        p->Release();
-        p = nullptr;
-    }
-}
+struct VertexInput {
+    DirectX::XMFLOAT3 Position;
+    DirectX::XMFLOAT4 Color;
+};
+
 } // namespace
 
 App::App(uint32_t const width, uint32_t const height)
-    : hinst_(nullptr), hwnd_(nullptr), width_(width), height_(height), device_(nullptr), queue_(nullptr), swap_chain_(nullptr), cmd_list_(nullptr), heap_rtv_(nullptr), fence_(nullptr), frame_index_(0), fence_event_(nullptr) {
+    : hinst_(nullptr), hwnd_(nullptr), width_(width), height_(height), device_(nullptr), queue_(nullptr), swap_chain_(nullptr), cmd_list_(nullptr), heap_rtv_(nullptr), fence_(nullptr), frame_index_(0), fence_event_(nullptr), rotate_angle_(0.0f) {
     for (auto i = 0; i < FRAME_COUNT; i++) {
         color_buffer_[i] = nullptr;
         cmd_alloc_[i] = nullptr;
@@ -39,7 +40,7 @@ void App::run() {
 }
 
 bool App::init_app() {
-    return init_window() && init_d3d();
+    return init_window() && init_d3d() && on_init();
 }
 
 bool App::init_window() {
@@ -110,6 +111,7 @@ void App::main_loop() {
 }
 
 void App::term_app() {
+    on_term();
     term_d3d();
     term_window();
 }
@@ -289,6 +291,13 @@ bool App::init_d3d() {
 }
 
 void App::render() {
+    // Update state
+    {
+        rotate_angle_ += 0.025f;
+        cbv_[frame_index_].buffer->World = DirectX::XMMatrixRotationY(rotate_angle_);
+    }
+
+    // Clear command buffer
     cmd_alloc_[frame_index_]->Reset();
     cmd_list_->Reset(cmd_alloc_[frame_index_].Get(), /*pipeline state*/ nullptr);
 
@@ -309,7 +318,24 @@ void App::render() {
 
     cmd_list_->ClearRenderTargetView(handle_rtv_[frame_index_], clear_color, 0, /*target rect*/ nullptr);
 
-    // TODO: Render polygons
+    // Draw polygons
+    {
+        cmd_list_->SetGraphicsRootSignature(root_signature_.Get());
+        cmd_list_->SetDescriptorHeaps(1, heap_cbv_.GetAddressOf());
+        cmd_list_->SetGraphicsRootConstantBufferView(0, cbv_[frame_index_].desc.BufferLocation);
+        cmd_list_->SetPipelineState(pipeline_state_.Get());
+
+        cmd_list_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        cmd_list_->IASetVertexBuffers(/*slot*/ 0, /*number of buffers*/ 1, &vbv_);
+        cmd_list_->RSSetViewports(1, &viewport_);
+        cmd_list_->RSSetScissorRects(1, &scissor_);
+
+        cmd_list_->DrawInstanced(
+            /*number of vertices per instance*/ 3,
+            /*number of instances*/ 1,
+            /*start index of vertices*/ 0,
+            /*start index of instances*/ 0);
+    }
 
     // Transition: Render (write) -> Present
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -379,6 +405,328 @@ void App::term_d3d() {
     swap_chain_.Reset();
     queue_.Reset();
     device_.Reset();
+}
+
+bool App::on_init() {
+    // Create the vertex buffer
+    {
+        VertexInput vertices[] = {
+            {DirectX::XMFLOAT3(-1.0f, -1.0f, 0.0f), DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f)},
+            {DirectX::XMFLOAT3(1.0f, -1.0f, 0.0f), DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f)},
+            {DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f), DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f)},
+        };
+
+        D3D12_HEAP_PROPERTIES prop{};
+        prop.Type = D3D12_HEAP_TYPE_UPLOAD; // Write once from CPU and read once from GPU
+        prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        prop.CreationNodeMask = 1; // Assume single GPU
+        prop.VisibleNodeMask = 1;
+
+        D3D12_RESOURCE_DESC desc{};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        desc.Alignment = 0;
+        desc.Width = sizeof(vertices);
+        desc.Height = 1;           // Fixed to 1
+        desc.DepthOrArraySize = 1; // Fixed to 1
+        desc.MipLevels = 1;        // Fixed to 1
+        desc.Format = DXGI_FORMAT_UNKNOWN;
+        desc.SampleDesc.Count = 1;
+        desc.SampleDesc.Quality = 0;
+        desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        // Create resource
+        {
+            auto const hr = device_->CreateCommittedResource(
+                &prop,
+                D3D12_HEAP_FLAG_NONE,
+                &desc,
+                D3D12_RESOURCE_STATE_GENERIC_READ, // For D3D12_HEAP_TYPE_UPLOAD
+                nullptr,
+                IID_PPV_ARGS(vb_.GetAddressOf()));
+            if (FAILED(hr)) {
+                return false;
+            }
+        }
+
+        // Map vertex data
+        {
+            void *dest = nullptr;
+            auto const hr = vb_->Map(/*first subresource*/ 0, /*entire buffer*/ nullptr, &dest);
+            if (FAILED(hr)) {
+                return false;
+            }
+            memcpy(dest, vertices, sizeof(vertices));
+            vb_->Unmap(0, nullptr);
+        }
+
+        vbv_.BufferLocation = vb_->GetGPUVirtualAddress();
+        vbv_.SizeInBytes = static_cast<UINT>(sizeof(vertices));
+        vbv_.StrideInBytes = static_cast<UINT>(sizeof(VertexInput));
+    }
+
+    // Create descriptor heap for constant buffer
+    {
+        D3D12_DESCRIPTOR_HEAP_DESC desc{};
+        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        desc.NumDescriptors = 1 * FRAME_COUNT;
+        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // Vertex shader refers the constant buffers
+        desc.NodeMask = 0;
+
+        auto const hr = device_->CreateDescriptorHeap(
+            &desc,
+            IID_PPV_ARGS(heap_cbv_.GetAddressOf()));
+        if (FAILED(hr)) {
+            return false;
+        }
+    }
+
+    // Create constant buffer for `Transform` constant
+    {
+        D3D12_HEAP_PROPERTIES prop{};
+        prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+        prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        prop.CreationNodeMask = 1;
+        prop.VisibleNodeMask = 1;
+
+        D3D12_RESOURCE_DESC desc{};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        desc.Alignment = 0;
+        desc.Width = sizeof(Transform);
+        desc.Height = 1;
+        desc.DepthOrArraySize = 1;
+        desc.MipLevels = 1;
+        desc.Format = DXGI_FORMAT_UNKNOWN;
+        desc.SampleDesc.Count = 1;
+        desc.SampleDesc.Quality = 0;
+        desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        auto const increment_size = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+        // We use double buffers for constants because constants are updated by CPU. While GPU is processing
+        // the constants, CPU should not modify them. Ensure this constraint
+        for (auto i = 0; i < FRAME_COUNT; i++) {
+            auto const hr = device_->CreateCommittedResource(
+                &prop,
+                D3D12_HEAP_FLAG_NONE,
+                &desc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(cb_[i].GetAddressOf()));
+            if (FAILED(hr)) {
+                return false;
+            }
+
+            auto handle_cpu = heap_cbv_->GetCPUDescriptorHandleForHeapStart();
+            auto handle_gpu = heap_cbv_->GetGPUDescriptorHandleForHeapStart();
+            handle_cpu.ptr += increment_size * i;
+            handle_gpu.ptr += increment_size * i;
+
+            cbv_[i].handle_cpu = handle_cpu;
+            cbv_[i].handle_gpu = handle_gpu;
+            cbv_[i].desc.BufferLocation = cb_[i]->GetGPUVirtualAddress();
+            cbv_[i].desc.SizeInBytes = sizeof(Transform);
+
+            device_->CreateConstantBufferView(&cbv_[i].desc, handle_cpu);
+
+            // Create mapping
+            {
+                auto const hr = cb_[i]->Map(0, nullptr, reinterpret_cast<void **>(&cbv_[i].buffer));
+                if (FAILED(hr)) {
+                    return false;
+                }
+            }
+
+            auto const eye_pos = DirectX::XMVectorSet(0.0f, 0.0f, 5.0f, 0.0f);
+            auto const target_pos = DirectX::XMVectorZero();
+            auto const upward = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+            auto const fov_y = DirectX::XMConvertToRadians(37.5f);
+            auto const aspect = static_cast<float>(width_) / static_cast<float>(height_);
+
+            // Set constant value
+            cbv_[i].buffer->World = DirectX::XMMatrixIdentity();
+            cbv_[i].buffer->View = DirectX::XMMatrixLookAtRH(eye_pos, target_pos, upward);
+            cbv_[i].buffer->Proj = DirectX::XMMatrixPerspectiveFovRH(fov_y, aspect, 1.0f, 1000.0f);
+
+            // Note: `Unmap` is called at `App::on_term`
+        }
+    }
+
+    // Create root signature. Root signature is an object to determine layout of resources
+    {
+        D3D12_ROOT_PARAMETER param{};
+        param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+        param.Descriptor.ShaderRegister = 0;                     // Specify b0
+        param.Descriptor.RegisterSpace = 0;                      // Unused
+        param.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX; // Accessed by the vertex shader only
+
+        D3D12_ROOT_SIGNATURE_DESC desc{};
+        desc.NumParameters = 1;
+        desc.NumStaticSamplers = 0;
+        desc.pParameters = &param;
+        desc.pStaticSamplers = nullptr;
+        desc.Flags =
+            // Only vertex shader accesses the root signature
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+        ComPtr<ID3DBlob> blob = nullptr;
+        ComPtr<ID3DBlob> error_blob = nullptr;
+
+        {
+            auto const hr = D3D12SerializeRootSignature(
+                &desc,
+                D3D_ROOT_SIGNATURE_VERSION_1_0,
+                blob.GetAddressOf(),
+                error_blob.GetAddressOf());
+            if (FAILED(hr)) {
+                return false;
+            }
+        }
+
+        {
+            auto const hr = device_->CreateRootSignature(
+                /*nodeMask*/ 0, // Use single GPU
+                blob->GetBufferPointer(),
+                blob->GetBufferSize(),
+                IID_PPV_ARGS(root_signature_.GetAddressOf()));
+            if (FAILED(hr)) {
+                return false;
+            }
+        }
+    }
+
+    // Create graphics pipeline state
+    {
+        D3D12_INPUT_ELEMENT_DESC elems[2];
+
+        // Layout for POSITION vertex input
+        elems[0].SemanticName = "POSITION";
+        elems[0].SemanticIndex = 0;
+        elems[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+        elems[0].InputSlot = 0;                                    // We use single vertex buffer
+        elems[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // Elements are contiguous and no padding between them
+        elems[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+        elems[0].InstanceDataStepRate = 0; // Fixed to 0 because of D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA
+
+        // Layout for COLOR vertex input
+        elems[1].SemanticName = "COLOR";
+        elems[1].SemanticIndex = 0;
+        elems[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+        elems[1].InputSlot = 0;
+        elems[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+        elems[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+        elems[1].InstanceDataStepRate = 0;
+
+        D3D12_RASTERIZER_DESC rasterizer_state;
+        rasterizer_state.FillMode = D3D12_FILL_MODE_SOLID;
+        rasterizer_state.CullMode = D3D12_CULL_MODE_NONE;
+        rasterizer_state.FrontCounterClockwise = FALSE;
+        rasterizer_state.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+        rasterizer_state.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+        rasterizer_state.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+        rasterizer_state.DepthClipEnable = FALSE;
+        rasterizer_state.MultisampleEnable = FALSE;
+        rasterizer_state.AntialiasedLineEnable = FALSE;
+        rasterizer_state.ForcedSampleCount = 0;
+        rasterizer_state.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+        // Configuration of blending for render target. We don't use blending
+        D3D12_RENDER_TARGET_BLEND_DESC rt_blend{
+            /*blend enable*/ FALSE,
+            /*logic op enable*/ FALSE,
+            // Blend. Simply src overwrites dest (src * 1 + dest * 0)
+            /*src*/ D3D12_BLEND_ONE, /*dest*/ D3D12_BLEND_ZERO, /*op*/ D3D12_BLEND_OP_ADD,
+            // Blend alpha. Simply src overwrites dest (src * 1 + dest * 0)
+            /*src*/ D3D12_BLEND_ONE, /*dest*/ D3D12_BLEND_ZERO, /*op*/ D3D12_BLEND_OP_ADD,
+            /*logic op*/ D3D12_LOGIC_OP_NOOP,
+            D3D12_COLOR_WRITE_ENABLE_ALL};
+
+        // Configure blend state
+        D3D12_BLEND_DESC blend_state;
+        blend_state.AlphaToCoverageEnable = FALSE;
+        blend_state.IndependentBlendEnable = FALSE;
+        for (auto i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; i++) {
+            blend_state.RenderTarget[i] = rt_blend;
+        }
+
+        // Read shader files
+        ComPtr<ID3DBlob> vs_blob = nullptr;
+        {
+            auto const hr = D3DReadFileToBlob(L"vs.cso", vs_blob.GetAddressOf());
+            if (FAILED(hr)) {
+                return false;
+            }
+        }
+        ComPtr<ID3DBlob> ps_blob = nullptr;
+        {
+            auto const hr = D3DReadFileToBlob(L"ps.cso", ps_blob.GetAddressOf());
+            if (FAILED(hr)) {
+                return false;
+            }
+        }
+
+        // Configure pipeline state
+        {
+            D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
+            desc.InputLayout = {elems, _countof(elems)};
+            desc.pRootSignature = root_signature_.Get();
+            desc.VS = {vs_blob->GetBufferPointer(), vs_blob->GetBufferSize()};
+            desc.PS = {ps_blob->GetBufferPointer(), ps_blob->GetBufferSize()};
+            desc.RasterizerState = rasterizer_state;
+            desc.BlendState = blend_state;
+            desc.DepthStencilState.DepthEnable = FALSE;
+            desc.DepthStencilState.StencilEnable = FALSE;
+            desc.SampleMask = UINT_MAX;
+            desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+            desc.NumRenderTargets = 1;
+            desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+            desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+            desc.SampleDesc.Count = 1;
+            desc.SampleDesc.Quality = 0;
+
+            auto const hr = device_->CreateGraphicsPipelineState(
+                &desc,
+                IID_PPV_ARGS(pipeline_state_.GetAddressOf()));
+            if (FAILED(hr)) {
+                return false;
+            }
+        }
+    }
+
+    // Configure viewport and scissor rect
+    {
+        viewport_.TopLeftX = 0;
+        viewport_.TopLeftY = 0;
+        viewport_.Width = static_cast<float>(width_);
+        viewport_.Height = static_cast<float>(height_);
+        viewport_.MinDepth = 0.0f;
+        viewport_.MaxDepth = 1.0f;
+
+        scissor_.top = 0;
+        scissor_.right = width_;
+        scissor_.bottom = height_;
+        scissor_.left = 0;
+    }
+
+    return true;
+}
+
+void App::on_term() {
+    for (auto i = 0; i < FRAME_COUNT; i++) {
+        if (cb_[i].Get() != nullptr) {
+            cb_[i]->Unmap(0, nullptr);
+            std::memset(&cbv_[i], 0, sizeof(cbv_[i]));
+        }
+        cb_[i].Reset();
+    }
+    vb_.Reset();
+    pipeline_state_.Reset();
 }
 
 LRESULT CALLBACK App::window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
