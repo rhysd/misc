@@ -65,6 +65,7 @@ class App {
     ComPtr<ID3D12Fence> fence_; // Fence between CPU and GPU
     ComPtr<ID3D12DescriptorHeap> heap_cbv_;
     ComPtr<ID3D12Resource> vb_;              // Vertex buffer
+    ComPtr<ID3D12Resource> ib_;              // Index buffer
     ComPtr<ID3D12Resource> cb_[FRAME_COUNT]; // Constant buffers
     ComPtr<ID3D12RootSignature> root_signature_;
     ComPtr<ID3D12PipelineState> pipeline_state_;
@@ -73,6 +74,7 @@ class App {
     uint32_t frame_index_;
     D3D12_CPU_DESCRIPTOR_HANDLE handle_rtv_[FRAME_COUNT];
     D3D12_VERTEX_BUFFER_VIEW vbv_;
+    D3D12_INDEX_BUFFER_VIEW ibv_;
     D3D12_VIEWPORT viewport_;
     D3D12_RECT scissor_;
     ConstantBufferView<Transform> cbv_[FRAME_COUNT]; // View of constant buffer for World-View-Projection transform

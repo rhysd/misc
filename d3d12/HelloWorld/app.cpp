@@ -22,7 +22,7 @@ struct VertexInput {
 } // namespace
 
 App::App(uint32_t const width, uint32_t const height)
-    : hinst_(nullptr), hwnd_(nullptr), width_(width), height_(height), device_(nullptr), queue_(nullptr), swap_chain_(nullptr), cmd_list_(nullptr), heap_rtv_(nullptr), fence_(nullptr), frame_index_(0), fence_event_(nullptr), rotate_angle_(0.0f) {
+    : hinst_(nullptr), hwnd_(nullptr), width_(width), height_(height), device_(nullptr), queue_(nullptr), swap_chain_(nullptr), cmd_list_(nullptr), heap_rtv_(nullptr), fence_(nullptr), heap_cbv_(nullptr), vb_(nullptr), ib_(nullptr), root_signature_(nullptr), pipeline_state_(nullptr), frame_index_(0), fence_event_(nullptr), rotate_angle_(0.0f) {
     for (auto i = 0; i < FRAME_COUNT; i++) {
         color_buffer_[i] = nullptr;
         cmd_alloc_[i] = nullptr;
@@ -327,12 +327,14 @@ void App::render() {
 
         cmd_list_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmd_list_->IASetVertexBuffers(/*slot*/ 0, /*number of buffers*/ 1, &vbv_);
+        cmd_list_->IASetIndexBuffer(&ibv_);
         cmd_list_->RSSetViewports(1, &viewport_);
         cmd_list_->RSSetScissorRects(1, &scissor_);
 
-        cmd_list_->DrawInstanced(
-            /*number of vertices per instance*/ 3,
+        cmd_list_->DrawIndexedInstanced(
+            /*number of vertices per instance*/ 6,
             /*number of instances*/ 1,
+            /*start index of indices*/ 0,
             /*start index of vertices*/ 0,
             /*start index of instances*/ 0);
     }
@@ -411,9 +413,10 @@ bool App::on_init() {
     // Create the vertex buffer
     {
         VertexInput vertices[] = {
-            {DirectX::XMFLOAT3(-1.0f, -1.0f, 0.0f), DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f)},
-            {DirectX::XMFLOAT3(1.0f, -1.0f, 0.0f), DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f)},
-            {DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f), DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f)},
+            {DirectX::XMFLOAT3(-1.0f, 1.0f, 0.0f), DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f)},
+            {DirectX::XMFLOAT3(1.0f, 1.0f, 0.0f), DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f)},
+            {DirectX::XMFLOAT3(1.0f, -1.0f, 0.0f), DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f)},
+            {DirectX::XMFLOAT3(-1.0f, -1.0f, 0.0f), DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f)},
         };
 
         D3D12_HEAP_PROPERTIES prop{};
@@ -464,6 +467,65 @@ bool App::on_init() {
         vbv_.BufferLocation = vb_->GetGPUVirtualAddress();
         vbv_.SizeInBytes = static_cast<UINT>(sizeof(vertices));
         vbv_.StrideInBytes = static_cast<UINT>(sizeof(VertexInput));
+    }
+
+    // Create the index buffer
+    {
+        // 0   1
+        // ┌───┐
+        // │   │
+        // └───┘
+        // 3   2
+        uint32_t const indices[] = {0, 1, 2, 0, 2, 3};
+
+        D3D12_HEAP_PROPERTIES prop{};
+        prop.Type = D3D12_HEAP_TYPE_UPLOAD;
+        prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        prop.CreationNodeMask = 1;
+        prop.VisibleNodeMask = 1;
+
+        D3D12_RESOURCE_DESC desc{};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        desc.Alignment = 0;
+        desc.Width = sizeof(indices);
+        desc.Height = 1;
+        desc.DepthOrArraySize = 1;
+        desc.MipLevels = 1;
+        desc.Format = DXGI_FORMAT_UNKNOWN;
+        desc.SampleDesc.Count = 1;
+        desc.SampleDesc.Quality = 0;
+        desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+        // Create resource
+        {
+            auto const hr = device_->CreateCommittedResource(
+                &prop,
+                D3D12_HEAP_FLAG_NONE,
+                &desc,
+                D3D12_RESOURCE_STATE_GENERIC_READ, // For D3D12_HEAP_TYPE_UPLOAD
+                nullptr,
+                IID_PPV_ARGS(ib_.GetAddressOf()));
+            if (FAILED(hr)) {
+                return false;
+            }
+        }
+
+        // Map index data
+        {
+            void *dest = nullptr;
+            auto const hr = ib_->Map(0, nullptr, &dest);
+            if (FAILED(hr)) {
+                return false;
+            }
+            memcpy(dest, indices, sizeof(indices));
+            ib_->Unmap(0, nullptr);
+        }
+
+        ibv_.BufferLocation = ib_->GetGPUVirtualAddress();
+        ibv_.Format = DXGI_FORMAT_R32_UINT;
+        ibv_.SizeInBytes = sizeof(indices);
     }
 
     // Create descriptor heap for constant buffer
