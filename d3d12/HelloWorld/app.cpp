@@ -22,7 +22,7 @@ struct VertexInput {
 } // namespace
 
 App::App(uint32_t const width, uint32_t const height)
-    : hinst_(nullptr), hwnd_(nullptr), width_(width), height_(height), device_(nullptr), queue_(nullptr), swap_chain_(nullptr), cmd_list_(nullptr), heap_rtv_(nullptr), fence_(nullptr), heap_cbv_(nullptr), vb_(nullptr), ib_(nullptr), root_signature_(nullptr), pipeline_state_(nullptr), frame_index_(0), fence_event_(nullptr), rotate_angle_(0.0f) {
+    : hinst_(nullptr), hwnd_(nullptr), width_(width), height_(height), device_(nullptr), queue_(nullptr), swap_chain_(nullptr), depth_buffer_(nullptr), cmd_list_(nullptr), heap_rtv_(nullptr), fence_(nullptr), heap_cbv_(nullptr), heap_dsv_(nullptr), vb_(nullptr), ib_(nullptr), root_signature_(nullptr), pipeline_state_(nullptr), frame_index_(0), fence_event_(nullptr), rotate_angle_(0.0f) {
     for (auto i = 0; i < FRAME_COUNT; i++) {
         color_buffer_[i] = nullptr;
         cmd_alloc_[i] = nullptr;
@@ -263,6 +263,79 @@ bool App::init_d3d() {
         }
     }
 
+    // Create depth stencil buffer
+    {
+        D3D12_HEAP_PROPERTIES prop{};
+        prop.Type = D3D12_HEAP_TYPE_DEFAULT;
+        prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        prop.CreationNodeMask = 1;
+        prop.VisibleNodeMask = 1;
+
+        D3D12_RESOURCE_DESC desc{};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        desc.Alignment = 0;
+        desc.Width = width_;
+        desc.Height = height_;
+        desc.DepthOrArraySize = 1;
+        desc.MipLevels = 1;
+        desc.Format = DXGI_FORMAT_D32_FLOAT; // 'D' of 'D32' means depth
+        desc.SampleDesc.Count = 1;
+        desc.SampleDesc.Quality = 0;
+        desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+        // The value set when the depth stencil buffer is cleared
+        D3D12_CLEAR_VALUE clear_value;
+        clear_value.Format = DXGI_FORMAT_D32_FLOAT;
+        clear_value.DepthStencil.Depth = 1.0;
+        clear_value.DepthStencil.Stencil = 0;
+
+        // Create resource
+        {
+            auto const hr = device_->CreateCommittedResource(
+                &prop,
+                D3D12_HEAP_FLAG_NONE,
+                &desc,
+                D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                &clear_value,
+                IID_PPV_ARGS(depth_buffer_.GetAddressOf()));
+            if (FAILED(hr)) {
+                return false;
+            }
+        }
+
+        // Create descriptor heap
+        {
+            D3D12_DESCRIPTOR_HEAP_DESC desc{};
+            desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+            desc.NumDescriptors = 1;
+            desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // Vertex shader refers the constant buffers
+            desc.NodeMask = 0;
+
+            auto const hr = device_->CreateDescriptorHeap(
+                &desc,
+                IID_PPV_ARGS(heap_dsv_.GetAddressOf()));
+            if (FAILED(hr)) {
+                return false;
+            }
+        }
+
+        // Assign the CPU descriptor handle to the depth stencil view
+        {
+            auto const handle = heap_dsv_->GetCPUDescriptorHandleForHeapStart();
+
+            D3D12_DEPTH_STENCIL_VIEW_DESC desc{};
+            desc.Format = DXGI_FORMAT_D32_FLOAT;
+            desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+            desc.Texture2D.MipSlice = 0;
+            desc.Flags = D3D12_DSV_FLAG_NONE;
+
+            device_->CreateDepthStencilView(depth_buffer_.Get(), &desc, handle);
+            handle_dsv_ = handle;
+        }
+    }
+
     // Create fence
     {
         for (auto i = 0; i < FRAME_COUNT; i++) {
@@ -294,7 +367,12 @@ void App::render() {
     // Update state
     {
         rotate_angle_ += 0.025f;
-        cbv_[frame_index_].buffer->World = DirectX::XMMatrixRotationY(rotate_angle_);
+        // Constants for first instance
+        cbv_[NUM_INSTANCES * frame_index_ + 0].buffer->World =
+            DirectX::XMMatrixRotationZ(rotate_angle_ + DirectX::XMConvertToRadians(45.0f));
+        // Constants for second instance
+        cbv_[NUM_INSTANCES * frame_index_ + 1].buffer->World =
+            DirectX::XMMatrixRotationY(rotate_angle_) * DirectX::XMMatrixScaling(2.0f, 0.5f, 1.0f);
     }
 
     // Clear command buffer
@@ -312,17 +390,17 @@ void App::render() {
 
     cmd_list_->ResourceBarrier(1, &barrier);
 
-    cmd_list_->OMSetRenderTargets(1, &handle_rtv_[frame_index_], FALSE, /*depth stencil view*/ nullptr);
+    cmd_list_->OMSetRenderTargets(1, &handle_rtv_[frame_index_], FALSE, &handle_dsv_);
 
     float const clear_color[] = {0.25f, 0.25f, 0.25f, 1.0f};
 
     cmd_list_->ClearRenderTargetView(handle_rtv_[frame_index_], clear_color, 0, /*target rect*/ nullptr);
+    cmd_list_->ClearDepthStencilView(handle_dsv_, D3D12_CLEAR_FLAG_DEPTH, /*depth*/ 1.0f, /*stencil*/ 0, /*number of rects*/ 0, /*rects*/ nullptr);
 
     // Draw polygons
     {
         cmd_list_->SetGraphicsRootSignature(root_signature_.Get());
         cmd_list_->SetDescriptorHeaps(1, heap_cbv_.GetAddressOf());
-        cmd_list_->SetGraphicsRootConstantBufferView(0, cbv_[frame_index_].desc.BufferLocation);
         cmd_list_->SetPipelineState(pipeline_state_.Get());
 
         cmd_list_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -331,12 +409,15 @@ void App::render() {
         cmd_list_->RSSetViewports(1, &viewport_);
         cmd_list_->RSSetScissorRects(1, &scissor_);
 
-        cmd_list_->DrawIndexedInstanced(
-            /*number of vertices per instance*/ 6,
-            /*number of instances*/ 1,
-            /*start index of indices*/ 0,
-            /*start index of vertices*/ 0,
-            /*start index of instances*/ 0);
+        for (auto i = 0; i < NUM_INSTANCES; i++) {
+            cmd_list_->SetGraphicsRootConstantBufferView(0, cbv_[NUM_INSTANCES * frame_index_ + i].desc.BufferLocation);
+            cmd_list_->DrawIndexedInstanced(
+                /*number of vertices per instance*/ 6,
+                /*number of instances*/ 1,
+                /*start index of indices*/ 0,
+                /*start index of vertices*/ 0,
+                /*start index of instances*/ 0);
+        }
     }
 
     // Transition: Render (write) -> Present
@@ -532,7 +613,7 @@ bool App::on_init() {
     {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        desc.NumDescriptors = 1 * FRAME_COUNT;
+        desc.NumDescriptors = NUM_INSTANCES * FRAME_COUNT;
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // Vertex shader refers the constant buffers
         desc.NodeMask = 0;
 
@@ -570,7 +651,7 @@ bool App::on_init() {
 
         // We use double buffers for constants because constants are updated by CPU. While GPU is processing
         // the constants, CPU should not modify them. Ensure this constraint
-        for (auto i = 0; i < FRAME_COUNT; i++) {
+        for (auto i = 0; i < NUM_INSTANCES * FRAME_COUNT; i++) {
             auto const hr = device_->CreateCommittedResource(
                 &prop,
                 D3D12_HEAP_FLAG_NONE,
@@ -717,6 +798,12 @@ bool App::on_init() {
             blend_state.RenderTarget[i] = rt_blend;
         }
 
+        D3D12_DEPTH_STENCIL_DESC depth_stencil_state{};
+        depth_stencil_state.DepthEnable = TRUE;
+        depth_stencil_state.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        depth_stencil_state.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        depth_stencil_state.StencilEnable = FALSE;
+
         // Read shader files
         ComPtr<ID3DBlob> vs_blob = nullptr;
         {
@@ -742,13 +829,12 @@ bool App::on_init() {
             desc.PS = {ps_blob->GetBufferPointer(), ps_blob->GetBufferSize()};
             desc.RasterizerState = rasterizer_state;
             desc.BlendState = blend_state;
-            desc.DepthStencilState.DepthEnable = FALSE;
-            desc.DepthStencilState.StencilEnable = FALSE;
+            desc.DepthStencilState = depth_stencil_state;
             desc.SampleMask = UINT_MAX;
             desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
             desc.NumRenderTargets = 1;
             desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-            desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+            desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
             desc.SampleDesc.Count = 1;
             desc.SampleDesc.Quality = 0;
 
@@ -780,7 +866,7 @@ bool App::on_init() {
 }
 
 void App::on_term() {
-    for (auto i = 0; i < FRAME_COUNT; i++) {
+    for (auto i = 0; i < NUM_INSTANCES * FRAME_COUNT; i++) {
         if (cb_[i].Get() != nullptr) {
             cb_[i]->Unmap(0, nullptr);
             std::memset(&cbv_[i], 0, sizeof(cbv_[i]));
