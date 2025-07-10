@@ -35,4 +35,7 @@
       <Filter>リソース ファイル</Filter>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
 </Project>
