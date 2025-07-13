@@ -367,12 +367,8 @@ void App::render() {
     // Update state
     {
         rotate_angle_ += 0.025f;
-        // Constants for first instance
         cbv_[NUM_INSTANCES * frame_index_ + 0].buffer->World =
             DirectX::XMMatrixRotationZ(rotate_angle_ + DirectX::XMConvertToRadians(45.0f));
-        // Constants for second instance
-        cbv_[NUM_INSTANCES * frame_index_ + 1].buffer->World =
-            DirectX::XMMatrixRotationY(rotate_angle_) * DirectX::XMMatrixScaling(2.0f, 0.5f, 1.0f);
     }
 
     // Clear command buffer

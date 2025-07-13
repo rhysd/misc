@@ -50,7 +50,7 @@ class App {
 
     static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
     static const uint32_t FRAME_COUNT = 2;   // Number of frame buffers
-    static const uint32_t NUM_INSTANCES = 2; // Render two instances (= two draw calls)
+    static const uint32_t NUM_INSTANCES = 1; // Render two instances (= two draw calls)
 
     HINSTANCE hinst_;
     HWND hwnd_;
