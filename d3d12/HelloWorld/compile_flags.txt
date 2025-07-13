@@ -1,0 +1,2 @@
+-I
+packages/directxtk12_desktop_2019.2025.3.21.3/include/
