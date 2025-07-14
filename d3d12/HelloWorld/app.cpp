@@ -1,28 +1,17 @@
 #include "App.h"
-#include <DirectXMath.h>
-#include <Windows.h>
+#include <DDSTextureLoader.h>
+#include <ResourceUploadBatch.h>
+#include <VertexTypes.h>
 #include <cassert>
-#include <combaseapi.h>
 #include <cstring>
 #include <d3d12.h>
-#include <d3dcommon.h>
-#include <dxgi.h>
-#include <dxgiformat.h>
-#include <dxgitype.h>
-#include <synchapi.h>
 
 namespace {
 const auto ClassName = TEXT("Hello, D3D12");
-
-struct VertexInput {
-    DirectX::XMFLOAT3 Position;
-    DirectX::XMFLOAT4 Color;
-};
-
 } // namespace
 
 App::App(uint32_t const width, uint32_t const height)
-    : hinst_(nullptr), hwnd_(nullptr), width_(width), height_(height), device_(nullptr), queue_(nullptr), swap_chain_(nullptr), depth_buffer_(nullptr), cmd_list_(nullptr), heap_rtv_(nullptr), fence_(nullptr), heap_cbv_(nullptr), heap_dsv_(nullptr), vb_(nullptr), ib_(nullptr), root_signature_(nullptr), pipeline_state_(nullptr), frame_index_(0), fence_event_(nullptr), rotate_angle_(0.0f) {
+    : hinst_(nullptr), hwnd_(nullptr), width_(width), height_(height), device_(nullptr), queue_(nullptr), swap_chain_(nullptr), depth_buffer_(nullptr), cmd_list_(nullptr), heap_rtv_(nullptr), fence_(nullptr), heap_cbv_srv_uav_(nullptr), heap_dsv_(nullptr), vb_(nullptr), ib_(nullptr), root_signature_(nullptr), pipeline_state_(nullptr), frame_index_(0), fence_event_(nullptr), rotate_angle_(0.0f) {
     for (auto i = 0; i < FRAME_COUNT; i++) {
         color_buffer_[i] = nullptr;
         cmd_alloc_[i] = nullptr;
@@ -396,7 +385,8 @@ void App::render() {
     // Draw polygons
     {
         cmd_list_->SetGraphicsRootSignature(root_signature_.Get());
-        cmd_list_->SetDescriptorHeaps(1, heap_cbv_.GetAddressOf());
+        cmd_list_->SetDescriptorHeaps(1, heap_cbv_srv_uav_.GetAddressOf());
+        cmd_list_->SetGraphicsRootDescriptorTable(1, texture_.handle_gpu);
         cmd_list_->SetPipelineState(pipeline_state_.Get());
 
         cmd_list_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -489,11 +479,11 @@ void App::term_d3d() {
 bool App::on_init() {
     // Create the vertex buffer
     {
-        VertexInput vertices[] = {
-            {DirectX::XMFLOAT3(-1.0f, 1.0f, 0.0f), DirectX::XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f)},
-            {DirectX::XMFLOAT3(1.0f, 1.0f, 0.0f), DirectX::XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f)},
-            {DirectX::XMFLOAT3(1.0f, -1.0f, 0.0f), DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f)},
-            {DirectX::XMFLOAT3(-1.0f, -1.0f, 0.0f), DirectX::XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f)},
+        DirectX::VertexPositionTexture vertices[] = {
+            DirectX::VertexPositionTexture(DirectX::XMFLOAT3(-1.0f, 1.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 0.0f)),
+            DirectX::VertexPositionTexture(DirectX::XMFLOAT3(1.0f, 1.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 0.0f)),
+            DirectX::VertexPositionTexture(DirectX::XMFLOAT3(1.0f, -1.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 1.0f)),
+            DirectX::VertexPositionTexture(DirectX::XMFLOAT3(-1.0f, -1.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 1.0f)),
         };
 
         D3D12_HEAP_PROPERTIES prop{};
@@ -541,9 +531,10 @@ bool App::on_init() {
             vb_->Unmap(0, nullptr);
         }
 
+        // Configure vertex buffer view
         vbv_.BufferLocation = vb_->GetGPUVirtualAddress();
         vbv_.SizeInBytes = static_cast<UINT>(sizeof(vertices));
-        vbv_.StrideInBytes = static_cast<UINT>(sizeof(VertexInput));
+        vbv_.StrideInBytes = static_cast<UINT>(sizeof(DirectX::VertexPositionTexture));
     }
 
     // Create the index buffer
@@ -605,7 +596,7 @@ bool App::on_init() {
         ibv_.SizeInBytes = sizeof(indices);
     }
 
-    // Create descriptor heap for constant buffer
+    // Create descriptor heap for constant buffer and shader resource
     {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -615,7 +606,7 @@ bool App::on_init() {
 
         auto const hr = device_->CreateDescriptorHeap(
             &desc,
-            IID_PPV_ARGS(heap_cbv_.GetAddressOf()));
+            IID_PPV_ARGS(heap_cbv_srv_uav_.GetAddressOf()));
         if (FAILED(hr)) {
             return false;
         }
@@ -659,8 +650,8 @@ bool App::on_init() {
                 return false;
             }
 
-            auto handle_cpu = heap_cbv_->GetCPUDescriptorHandleForHeapStart();
-            auto handle_gpu = heap_cbv_->GetGPUDescriptorHandleForHeapStart();
+            auto handle_cpu = heap_cbv_srv_uav_->GetCPUDescriptorHandleForHeapStart();
+            auto handle_gpu = heap_cbv_srv_uav_->GetGPUDescriptorHandleForHeapStart();
             handle_cpu.ptr += increment_size * i;
             handle_gpu.ptr += increment_size * i;
 
@@ -696,19 +687,47 @@ bool App::on_init() {
 
     // Create root signature. Root signature is an object to determine layout of resources
     {
-        D3D12_ROOT_PARAMETER param{};
-        param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-        param.Descriptor.ShaderRegister = 0;                     // Specify b0
-        param.Descriptor.RegisterSpace = 0;                      // Unused
-        param.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX; // Accessed by the vertex shader only
+        D3D12_ROOT_PARAMETER params[2];
+
+        // Parameter for constant buffer view
+        params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+        params[0].Descriptor.ShaderRegister = 0;                     // Specify b0
+        params[0].Descriptor.RegisterSpace = 0;                      // Unused
+        params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX; // Accessed by the vertex shader only
+
+        // Parameter for textures. Textures are registered with descriptors table. In this case only one texture is used.
+        D3D12_DESCRIPTOR_RANGE range{};
+        range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        range.NumDescriptors = 1;
+        range.BaseShaderRegister = 0;
+        range.RegisterSpace = 0;
+        range.OffsetInDescriptorsFromTableStart = 0;
+        params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        params[1].DescriptorTable.NumDescriptorRanges = 1;
+        params[1].DescriptorTable.pDescriptorRanges = &range;
+        params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+        // Static texture sampler that configures texture addressing mode, texture filtering, etc.
+        D3D12_STATIC_SAMPLER_DESC sampler{};
+        sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;     // Filtering method
+        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;  // Texture addressing mode for U coord
+        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;  // Texture addressing mode for V coord
+        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;  // Texture addressing mode for W coord
+        sampler.MipLODBias = D3D12_DEFAULT_MIP_LOD_BIAS;      // Offset from the calculated mip map level
+        sampler.MaxAnisotropy = 1;                            // Unused
+        sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER; // Unused
+        sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+        sampler.MinLOD = 0;        // Minimum level of mip map
+        sampler.RegisterSpace = 0; // Indicates s0
+        sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
         D3D12_ROOT_SIGNATURE_DESC desc{};
-        desc.NumParameters = 1;
-        desc.NumStaticSamplers = 0;
-        desc.pParameters = &param;
-        desc.pStaticSamplers = nullptr;
+        desc.NumParameters = 2;
+        desc.NumStaticSamplers = 1;
+        desc.pParameters = params;
+        desc.pStaticSamplers = &sampler;
         desc.Flags =
-            // Only vertex shader accesses the root signature
+            // Only vertex/pixel shaders access the root signature
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
             D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
             D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
@@ -747,16 +766,16 @@ bool App::on_init() {
         // Layout for POSITION vertex input
         elems[0].SemanticName = "POSITION";
         elems[0].SemanticIndex = 0;
-        elems[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+        elems[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;             // float3
         elems[0].InputSlot = 0;                                    // We use single vertex buffer
         elems[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // Elements are contiguous and no padding between them
         elems[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
         elems[0].InstanceDataStepRate = 0; // Fixed to 0 because of D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA
 
-        // Layout for COLOR vertex input
-        elems[1].SemanticName = "COLOR";
+        // Layout for TEXCOORD vertex input
+        elems[1].SemanticName = "TEXCOORD";
         elems[1].SemanticIndex = 0;
-        elems[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+        elems[1].Format = DXGI_FORMAT_R32G32_FLOAT;
         elems[1].InputSlot = 0;
         elems[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
         elems[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
@@ -841,6 +860,37 @@ bool App::on_init() {
                 return false;
             }
         }
+    }
+
+    // Load texture
+    {
+        // Create batch to upload the texture data to GPU
+        DirectX::ResourceUploadBatch batch(device_.Get());
+        batch.Begin();
+        auto const hr = DirectX::CreateDDSTextureFromFile(device_.Get(), batch, L"ferris.dds", texture_.resource.GetAddressOf(), /* generate mipmap*/ true);
+        if (FAILED(hr)) {
+            return false;
+        }
+        batch.End(queue_.Get()).wait(); // `End` returns a future. Wait the command batch finishes
+
+        auto const increment_size = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        texture_.handle_cpu = heap_cbv_srv_uav_->GetCPUDescriptorHandleForHeapStart();
+        texture_.handle_gpu = heap_cbv_srv_uav_->GetGPUDescriptorHandleForHeapStart();
+        texture_.handle_cpu.ptr += increment_size * 2;
+        texture_.handle_gpu.ptr += increment_size * 2;
+
+        auto tex_desc = texture_.resource->GetDesc();
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+        desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        desc.Format = tex_desc.Format;
+        desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; // RGBA
+        desc.Texture2D.MostDetailedMip = 0;
+        desc.Texture2D.MipLevels = tex_desc.MipLevels;
+        desc.Texture2D.PlaneSlice = 0;
+        desc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+        device_->CreateShaderResourceView(texture_.resource.Get(), &desc, texture_.handle_cpu);
     }
 
     // Configure viewport and scissor rect

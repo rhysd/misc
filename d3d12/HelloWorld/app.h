@@ -2,6 +2,7 @@
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "dxguid.lib")
 
 #include <DirectXMath.h>
 #include <Windows.h>
@@ -26,6 +27,12 @@ struct ConstantBufferView {
     D3D12_CPU_DESCRIPTOR_HANDLE handle_cpu;
     D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu;
     T *buffer;
+};
+
+struct Texture {
+    ComPtr<ID3D12Resource> resource;
+    D3D12_CPU_DESCRIPTOR_HANDLE handle_cpu;
+    D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu;
 };
 
 class App {
@@ -65,7 +72,7 @@ class App {
     ComPtr<ID3D12GraphicsCommandList> cmd_list_;
     ComPtr<ID3D12DescriptorHeap> heap_rtv_;                  // Heap descriptor for render target view
     ComPtr<ID3D12Fence> fence_;                              // Fence between CPU and GPU
-    ComPtr<ID3D12DescriptorHeap> heap_cbv_;                  // Heap descriptor for constant buffer view
+    ComPtr<ID3D12DescriptorHeap> heap_cbv_srv_uav_;          // Heap descriptor for constant buffer view and shader resource view
     ComPtr<ID3D12DescriptorHeap> heap_dsv_;                  // Heap descriptor for depth stencil buffer
     ComPtr<ID3D12Resource> vb_;                              // Vertex buffer
     ComPtr<ID3D12Resource> ib_;                              // Index buffer
@@ -83,4 +90,5 @@ class App {
     D3D12_RECT scissor_;
     ConstantBufferView<Transform> cbv_[NUM_INSTANCES * FRAME_COUNT]; // View of constant buffer for World-View-Projection transform
     float rotate_angle_;
+    Texture texture_;
 };
