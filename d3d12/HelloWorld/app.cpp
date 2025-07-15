@@ -22,7 +22,8 @@ App::App(uint32_t const width, uint32_t const height)
 App::~App() {}
 
 void App::run() {
-    if (init_app()) {
+    assert(init_app());
+    if (true) {
         main_loop();
     }
     term_app();
@@ -356,8 +357,7 @@ void App::render() {
     // Update state
     {
         rotate_angle_ += 0.025f;
-        cbv_[NUM_INSTANCES * frame_index_ + 0].buffer->World =
-            DirectX::XMMatrixRotationZ(rotate_angle_ + DirectX::XMConvertToRadians(45.0f));
+        cbv_[NUM_INSTANCES * frame_index_ + 0].buffer->World = DirectX::XMMatrixRotationY(rotate_angle_);
     }
 
     // Clear command buffer
@@ -600,7 +600,7 @@ bool App::on_init() {
     {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        desc.NumDescriptors = NUM_INSTANCES * FRAME_COUNT;
+        desc.NumDescriptors = NUM_INSTANCES * FRAME_COUNT + 1;  // `+ 1` for shader resource (texture)
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // Vertex shader refers the constant buffers
         desc.NodeMask = 0;
 
@@ -723,8 +723,8 @@ bool App::on_init() {
 
         D3D12_ROOT_SIGNATURE_DESC desc{};
         desc.NumParameters = 2;
-        desc.NumStaticSamplers = 1;
         desc.pParameters = params;
+        desc.NumStaticSamplers = 1;
         desc.pStaticSamplers = &sampler;
         desc.Flags =
             // Only vertex/pixel shaders access the root signature
@@ -775,7 +775,7 @@ bool App::on_init() {
         // Layout for TEXCOORD vertex input
         elems[1].SemanticName = "TEXCOORD";
         elems[1].SemanticIndex = 0;
-        elems[1].Format = DXGI_FORMAT_R32G32_FLOAT;
+        elems[1].Format = DXGI_FORMAT_R32G32_FLOAT; // float2
         elems[1].InputSlot = 0;
         elems[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
         elems[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
@@ -822,14 +822,14 @@ bool App::on_init() {
         // Read shader files
         ComPtr<ID3DBlob> vs_blob = nullptr;
         {
-            auto const hr = D3DReadFileToBlob(L"vs.cso", vs_blob.GetAddressOf());
+            auto const hr = D3DReadFileToBlob(L"tex_vs.cso", vs_blob.GetAddressOf());
             if (FAILED(hr)) {
                 return false;
             }
         }
         ComPtr<ID3DBlob> ps_blob = nullptr;
         {
-            auto const hr = D3DReadFileToBlob(L"ps.cso", ps_blob.GetAddressOf());
+            auto const hr = D3DReadFileToBlob(L"tex_ps.cso", ps_blob.GetAddressOf());
             if (FAILED(hr)) {
                 return false;
             }
@@ -862,12 +862,17 @@ bool App::on_init() {
         }
     }
 
-    // Load texture
+    // Load texture. We create a single shader resource used by both frames because it is read-only.
     {
         // Create batch to upload the texture data to GPU
         DirectX::ResourceUploadBatch batch(device_.Get());
         batch.Begin();
-        auto const hr = DirectX::CreateDDSTextureFromFile(device_.Get(), batch, L"ferris.dds", texture_.resource.GetAddressOf(), /* generate mipmap*/ true);
+        auto const hr = DirectX::CreateDDSTextureFromFile(
+            device_.Get(),
+            batch,
+            L"ferris.dds",
+            texture_.resource.GetAddressOf(),
+            /* generate mipmap*/ true);
         if (FAILED(hr)) {
             return false;
         }
@@ -879,7 +884,7 @@ bool App::on_init() {
         texture_.handle_cpu.ptr += increment_size * 2;
         texture_.handle_gpu.ptr += increment_size * 2;
 
-        auto tex_desc = texture_.resource->GetDesc();
+        auto const tex_desc = texture_.resource->GetDesc();
 
         D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
         desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
