@@ -12,6 +12,8 @@ int wmain(int argc, wchar_t **argv, wchar_t **envp) {
     // _CtrSetBreakAlloc(148);
 #endif
     App app(960, 540);
-    app.run();
+    if (!app.run()) {
+        return 1;
+    }
     return 0;
 }

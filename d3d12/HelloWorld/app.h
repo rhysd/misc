@@ -39,19 +39,19 @@ class App {
   public:
     App(uint32_t const width, uint32_t const height);
     ~App();
-    void run();
+    bool run();
 
   private:
     bool init_app();
     void term_app();
     bool init_window();
     void term_window();
-    void main_loop();
+    bool main_loop();
     bool init_d3d();
     void term_d3d();
-    void render();
+    bool render();
     void wait_gpu();
-    void present(uint32_t const interval);
+    bool present(uint32_t const interval);
     bool on_init();
     void on_term();
 

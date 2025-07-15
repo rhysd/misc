@@ -21,12 +21,10 @@ App::App(uint32_t const width, uint32_t const height)
 
 App::~App() {}
 
-void App::run() {
-    assert(init_app());
-    if (true) {
-        main_loop();
-    }
+bool App::run() {
+    auto const success = init_app() && main_loop();
     term_app();
+    return success;
 }
 
 bool App::init_app() {
@@ -88,16 +86,19 @@ bool App::init_window() {
     return true;
 }
 
-void App::main_loop() {
+bool App::main_loop() {
     MSG msg = {};
     while (msg.message != WM_QUIT) {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) == TRUE) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         } else {
-            render();
+            if (!render()) {
+                return false;
+            }
         }
     }
+    return true;
 }
 
 void App::term_app() {
@@ -353,7 +354,7 @@ bool App::init_d3d() {
     return true;
 }
 
-void App::render() {
+bool App::render() {
     // Update state
     {
         rotate_angle_ += 0.025f;
@@ -361,8 +362,14 @@ void App::render() {
     }
 
     // Clear command buffer
-    cmd_alloc_[frame_index_]->Reset();
-    cmd_list_->Reset(cmd_alloc_[frame_index_].Get(), /*pipeline state*/ nullptr);
+    auto hr = cmd_alloc_[frame_index_]->Reset();
+    if (FAILED(hr)) {
+        return false;
+    }
+    hr = cmd_list_->Reset(cmd_alloc_[frame_index_].Get(), /*pipeline state*/ nullptr);
+    if (FAILED(hr)) {
+        return false;
+    }
 
     D3D12_RESOURCE_BARRIER barrier{};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -412,33 +419,50 @@ void App::render() {
 
     cmd_list_->ResourceBarrier(1, &barrier);
 
-    cmd_list_->Close();
+    hr = cmd_list_->Close();
+    if (FAILED(hr)) {
+        return false;
+    }
 
     ID3D12CommandList *cmd_lists[] = {cmd_list_.Get()};
     queue_->ExecuteCommandLists(1, cmd_lists);
 
-    present(1);
+    return present(1);
 }
 
-void App::present(uint32_t const interval) {
+bool App::present(uint32_t const interval) {
     // Render the front buffer to the screen and swap frame buffers
     // Passing `1` to `interval` means sync after the first vsync
-    swap_chain_->Present(interval, 0);
+    auto hr = swap_chain_->Present(interval, 0);
+    if (FAILED(hr)) {
+        return false;
+    }
 
     // Set the `counter` value to the fence when the commands in the command list are completed
     auto const counter = fence_counter_[frame_index_];
-    queue_->Signal(fence_.Get(), counter);
+    hr = queue_->Signal(fence_.Get(), counter);
+    if (FAILED(hr)) {
+        return false;
+    }
 
     frame_index_ = swap_chain_->GetCurrentBackBufferIndex();
 
     // Wait until the next frame is prepared (= the fence value is set to `counter`)
     if (fence_->GetCompletedValue() < counter) {
-        fence_->SetEventOnCompletion(counter, fence_event_);
-        WaitForSingleObjectEx(fence_event_, INFINITE, FALSE);
+        hr = fence_->SetEventOnCompletion(counter, fence_event_);
+        if (FAILED(hr)) {
+            return false;
+        }
+        auto const res = WaitForSingleObjectEx(fence_event_, INFINITE, FALSE);
+        if (res == WAIT_FAILED) {
+            return false;
+        }
     }
 
     // Next fence counter
     fence_counter_[frame_index_]++;
+
+    return true;
 }
 
 void App::wait_gpu() {
