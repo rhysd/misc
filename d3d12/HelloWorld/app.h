@@ -4,6 +4,9 @@
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "dxguid.lib")
 
+#define NOMINMAX
+
+#include "mesh.h"
 #include <DirectXMath.h>
 #include <Windows.h>
 #include <cstdint>
@@ -91,4 +94,6 @@ class App {
     ConstantBufferView<Transform> cbv_[NUM_INSTANCES * FRAME_COUNT]; // View of constant buffer for World-View-Projection transform
     float rotate_angle_;
     Texture texture_;
+    std::vector<Mesh> meshes_;
+    std::vector<Material> materials_;
 };

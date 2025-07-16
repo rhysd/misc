@@ -1,4 +1,5 @@
 #include "App.h"
+#include "mesh.h"
 #include <DDSTextureLoader.h>
 #include <ResourceUploadBatch.h>
 #include <VertexTypes.h>
@@ -64,7 +65,7 @@ bool App::init_window() {
     hwnd_ = CreateWindowEx(
         0,
         ClassName,
-        TEXT("Sample"),
+        TEXT("Hello, D3D12"),
         style,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -357,8 +358,8 @@ bool App::init_d3d() {
 bool App::render() {
     // Update state
     {
-        rotate_angle_ += 0.025f;
-        cbv_[NUM_INSTANCES * frame_index_ + 0].buffer->World = DirectX::XMMatrixRotationY(rotate_angle_);
+        rotate_angle_ += 0.01f;
+        cbv_[NUM_INSTANCES * frame_index_ + 0].buffer->World = DirectX::XMMatrixRotationY(rotate_angle_) * DirectX::XMMatrixRotationZ(0.25) * DirectX::XMMatrixRotationX(0.25);
     }
 
     // Clear command buffer
@@ -405,7 +406,7 @@ bool App::render() {
         for (auto i = 0; i < NUM_INSTANCES; i++) {
             cmd_list_->SetGraphicsRootConstantBufferView(0, cbv_[NUM_INSTANCES * frame_index_ + i].desc.BufferLocation);
             cmd_list_->DrawIndexedInstanced(
-                /*number of vertices per instance*/ 6,
+                /*number of vertices per instance*/ static_cast<UINT>(meshes_[0].indices.size()),
                 /*number of instances*/ 1,
                 /*start index of indices*/ 0,
                 /*start index of vertices*/ 0,
@@ -501,14 +502,15 @@ void App::term_d3d() {
 }
 
 bool App::on_init() {
+    if (!load_mesh(L"teapot.obj", meshes_, materials_)) {
+        return false;
+    }
+    assert(meshes_.size() == 1);
+
     // Create the vertex buffer
     {
-        DirectX::VertexPositionTexture vertices[] = {
-            DirectX::VertexPositionTexture(DirectX::XMFLOAT3(-1.0f, 1.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 0.0f)),
-            DirectX::VertexPositionTexture(DirectX::XMFLOAT3(1.0f, 1.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 0.0f)),
-            DirectX::VertexPositionTexture(DirectX::XMFLOAT3(1.0f, -1.0f, 0.0f), DirectX::XMFLOAT2(1.0f, 1.0f)),
-            DirectX::VertexPositionTexture(DirectX::XMFLOAT3(-1.0f, -1.0f, 0.0f), DirectX::XMFLOAT2(0.0f, 1.0f)),
-        };
+        auto const size = sizeof(MeshVertex) * meshes_[0].vertices.size();
+        auto const vertices = meshes_[0].vertices.data();
 
         D3D12_HEAP_PROPERTIES prop{};
         prop.Type = D3D12_HEAP_TYPE_UPLOAD; // Write once from CPU and read once from GPU
@@ -520,7 +522,7 @@ bool App::on_init() {
         D3D12_RESOURCE_DESC desc{};
         desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
         desc.Alignment = 0;
-        desc.Width = sizeof(vertices);
+        desc.Width = size;
         desc.Height = 1;           // Fixed to 1
         desc.DepthOrArraySize = 1; // Fixed to 1
         desc.MipLevels = 1;        // Fixed to 1
@@ -551,24 +553,20 @@ bool App::on_init() {
             if (FAILED(hr)) {
                 return false;
             }
-            memcpy(dest, vertices, sizeof(vertices));
+            memcpy(dest, vertices, size);
             vb_->Unmap(0, nullptr);
         }
 
         // Configure vertex buffer view
         vbv_.BufferLocation = vb_->GetGPUVirtualAddress();
-        vbv_.SizeInBytes = static_cast<UINT>(sizeof(vertices));
-        vbv_.StrideInBytes = static_cast<UINT>(sizeof(DirectX::VertexPositionTexture));
+        vbv_.SizeInBytes = static_cast<UINT>(size);
+        vbv_.StrideInBytes = static_cast<UINT>(sizeof(MeshVertex));
     }
 
     // Create the index buffer
     {
-        // 0   1
-        // ┌───┐
-        // │   │
-        // └───┘
-        // 3   2
-        uint32_t const indices[] = {0, 1, 2, 0, 2, 3};
+        auto const size = sizeof(uint32_t) * meshes_[0].indices.size();
+        auto const indices = meshes_[0].indices.data();
 
         D3D12_HEAP_PROPERTIES prop{};
         prop.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -580,7 +578,7 @@ bool App::on_init() {
         D3D12_RESOURCE_DESC desc{};
         desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
         desc.Alignment = 0;
-        desc.Width = sizeof(indices);
+        desc.Width = size;
         desc.Height = 1;
         desc.DepthOrArraySize = 1;
         desc.MipLevels = 1;
@@ -611,13 +609,13 @@ bool App::on_init() {
             if (FAILED(hr)) {
                 return false;
             }
-            memcpy(dest, indices, sizeof(indices));
+            memcpy(dest, indices, size);
             ib_->Unmap(0, nullptr);
         }
 
         ibv_.BufferLocation = ib_->GetGPUVirtualAddress();
         ibv_.Format = DXGI_FORMAT_R32_UINT;
-        ibv_.SizeInBytes = sizeof(indices);
+        ibv_.SizeInBytes = static_cast<UINT>(size);
     }
 
     // Create descriptor heap for constant buffer and shader resource
@@ -785,26 +783,6 @@ bool App::on_init() {
 
     // Create graphics pipeline state
     {
-        D3D12_INPUT_ELEMENT_DESC elems[2];
-
-        // Layout for POSITION vertex input
-        elems[0].SemanticName = "POSITION";
-        elems[0].SemanticIndex = 0;
-        elems[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;             // float3
-        elems[0].InputSlot = 0;                                    // We use single vertex buffer
-        elems[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // Elements are contiguous and no padding between them
-        elems[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-        elems[0].InstanceDataStepRate = 0; // Fixed to 0 because of D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA
-
-        // Layout for TEXCOORD vertex input
-        elems[1].SemanticName = "TEXCOORD";
-        elems[1].SemanticIndex = 0;
-        elems[1].Format = DXGI_FORMAT_R32G32_FLOAT; // float2
-        elems[1].InputSlot = 0;
-        elems[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-        elems[1].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-        elems[1].InstanceDataStepRate = 0;
-
         D3D12_RASTERIZER_DESC rasterizer_state;
         rasterizer_state.FillMode = D3D12_FILL_MODE_SOLID;
         rasterizer_state.CullMode = D3D12_CULL_MODE_NONE;
@@ -862,7 +840,7 @@ bool App::on_init() {
         // Configure pipeline state
         {
             D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
-            desc.InputLayout = {elems, _countof(elems)};
+            desc.InputLayout = MeshVertex::INPUT_LAYOUT;
             desc.pRootSignature = root_signature_.Get();
             desc.VS = {vs_blob->GetBufferPointer(), vs_blob->GetBufferSize()};
             desc.PS = {ps_blob->GetBufferPointer(), ps_blob->GetBufferSize()};
@@ -894,7 +872,7 @@ bool App::on_init() {
         auto const hr = DirectX::CreateDDSTextureFromFile(
             device_.Get(),
             batch,
-            L"ferris.dds",
+            L"default.DDS",
             texture_.resource.GetAddressOf(),
             /* generate mipmap*/ true);
         if (FAILED(hr)) {

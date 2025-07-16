@@ -16,6 +16,12 @@
     <Filter Include="リソース ファイル\res">
       <UniqueIdentifier>{3494dd36-10d1-45cb-ae24-34def9e69018}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\res\teapot">
+      <UniqueIdentifier>{d62ef734-9c1a-4fac-b5ff-972c165f5d9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\dll">
+      <UniqueIdentifier>{a61a5d8d-aebf-478b-9432-480a0a22e5b7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -24,9 +30,15 @@
     <ClCompile Include="app.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="mesh.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h">
+      <Filter>ソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="mesh.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
   </ItemGroup>
@@ -45,11 +57,29 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
     <CopyFileToFolders Include="res\ferris.dds">
       <Filter>リソース ファイル\res</Filter>
     </CopyFileToFolders>
+    <CopyFileToFolders Include="res\teapot\default.DDS">
+      <Filter>リソース ファイル\res\teapot</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="res\teapot\normal.dds">
+      <Filter>リソース ファイル\res\teapot</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="res\teapot\teapot.mtl">
+      <Filter>リソース ファイル\res\teapot</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="res\teapot\teapot.obj">
+      <Filter>リソース ファイル\res\teapot</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="packages\Assimp_native_4.1_v142.4.1.0\build\native\lib\x64-Release\assimp-vc142-mt.dll">
+      <Filter>リソース ファイル\dll</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="packages\Assimp_native_4.1_v142.4.1.0\build\native\lib\x64-Debug\assimp-vc142-mtd.dll">
+      <Filter>リソース ファイル\dll</Filter>
+    </CopyFileToFolders>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
