@@ -22,19 +22,80 @@ std::optional<std::string> to_utf8(wchar_t const *src) {
     return std::string{buf.data(), buf.size()};
 }
 
-class MeshLoader {
-  public:
-    MeshLoader() = default;
-    ~MeshLoader() = default;
+Mesh parse_mesh(aiMesh const *src) {
+    Mesh ret;
+    aiVector3D const zero(0.0f, 0.0f, 0.0f);
 
-    bool load(wchar_t const *filepath, std::vector<Mesh> &meshes, std::vector<Material> &materials);
+    ret.material_id = src->mMaterialIndex;
 
-  private:
-    void parse_mesh(Mesh &dst, aiMesh const *src);
-    void parse_material(Material &dst, aiMaterial const *src);
-};
+    auto const has_texture_coords = src->HasTextureCoords(0);
+    auto const has_tangents = src->HasTangentsAndBitangents();
 
-bool MeshLoader::load(wchar_t const *filepath, std::vector<Mesh> &meshes, std::vector<Material> &materials) {
+    ret.vertices.reserve(src->mNumVertices);
+    for (auto i = 0u; i < src->mNumVertices; i++) {
+        auto const position = &src->mVertices[i];
+        auto const normal = &src->mNormals[i];
+        auto const tex_coord = has_texture_coords ? &src->mTextureCoords[0][i] : &zero;
+        auto const tangent = has_tangents ? &src->mTangents[i] : &zero;
+
+        MeshVertex vert;
+        vert.position = DirectX::XMFLOAT3(position->x, position->y, position->z);
+        vert.normal = DirectX::XMFLOAT3(normal->x, normal->y, normal->z);
+        vert.tex_coord = DirectX::XMFLOAT2(tex_coord->x, tex_coord->y);
+        vert.tangent = DirectX::XMFLOAT3(tangent->x, tangent->y, tangent->z);
+
+        ret.vertices.push_back(vert);
+    }
+
+    ret.indices.reserve(src->mNumFaces * 3);
+    for (auto i = 0u; i < src->mNumFaces; i++) {
+        auto const &face = src->mFaces[i];
+        assert(face.mNumIndices == 3); // This must pass because of `aiProcess_Triangulate`
+        for (auto i = 0; i < 3; i++) {
+            ret.indices.push_back(face.mIndices[i]);
+        }
+    }
+
+    return ret;
+}
+
+Material parse_material(aiMaterial const *src) {
+    Material ret;
+    aiColor3D color;
+
+    if (src->Get(AI_MATKEY_COLOR_DIFFUSE, color) == AI_SUCCESS) {
+        ret.diffuse.x = color.r;
+        ret.diffuse.y = color.g;
+        ret.diffuse.z = color.b;
+    } else {
+        ret.diffuse = DirectX::XMFLOAT3(0.5f, 0.5f, 0.5f);
+    }
+
+    if (src->Get(AI_MATKEY_COLOR_SPECULAR, color) == AI_SUCCESS) {
+        ret.specular.x = color.r;
+        ret.specular.y = color.g;
+        ret.specular.z = color.b;
+    } else {
+        ret.specular = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+    }
+
+    if (src->Get(AI_MATKEY_SHININESS, ret.shininess) != AI_SUCCESS) {
+        ret.shininess = 0.0f;
+    }
+
+    aiString path;
+    if (src->Get(AI_MATKEY_TEXTURE_DIFFUSE(0), path) == AI_SUCCESS) {
+        ret.diffuse_map = std::string(path.C_Str());
+    } else {
+        ret.diffuse_map.clear();
+    }
+
+    return ret;
+}
+
+} // namespace
+
+bool load_mesh(wchar_t const *filepath, std::vector<Mesh> &meshes, std::vector<Material> &materials) {
     auto const path = to_utf8(filepath);
     if (!path) {
         return false;
@@ -56,86 +117,18 @@ bool MeshLoader::load(wchar_t const *filepath, std::vector<Mesh> &meshes, std::v
     }
 
     meshes.clear();
-    meshes.resize(scene->mNumMeshes);
-    for (auto i = 0; i < meshes.size(); i++) {
-        parse_mesh(meshes[i], scene->mMeshes[i]);
+    meshes.reserve(scene->mNumMeshes);
+    for (auto i = 0u; i < scene->mNumMeshes; i++) {
+        meshes.push_back(parse_mesh(scene->mMeshes[i]));
     }
 
     materials.clear();
-    materials.resize(scene->mNumMaterials);
-    for (auto i = 0; i < materials.size(); i++) {
-        parse_material(materials[i], scene->mMaterials[i]);
+    materials.reserve(scene->mNumMaterials);
+    for (auto i = 0u; i < scene->mNumMaterials; i++) {
+        materials.push_back(parse_material(scene->mMaterials[i]));
     }
 
     return true;
-}
-
-void MeshLoader::parse_mesh(Mesh &dst, aiMesh const *src) {
-    aiVector3D zero(0.0f, 0.0f, 0.0f);
-
-    dst.material_id = src->mMaterialIndex;
-
-    dst.vertices.resize(src->mNumVertices);
-    for (auto i = 0u; i < src->mNumVertices; i++) {
-        auto const position = &src->mVertices[i];
-        auto const normal = &src->mNormals[i];
-        auto const tex_coord = src->HasTextureCoords(0) ? &src->mTextureCoords[0][i] : &zero;
-        auto const tangent = src->HasTangentsAndBitangents() ? &src->mTangents[i] : &zero;
-
-        MeshVertex vert;
-        vert.position = DirectX::XMFLOAT3(position->x, position->y, position->z);
-        vert.normal = DirectX::XMFLOAT3(normal->x, normal->y, normal->z);
-        vert.tex_coord = DirectX::XMFLOAT2(tex_coord->x, tex_coord->y);
-        vert.tangent = DirectX::XMFLOAT3(tangent->x, tangent->y, tangent->z);
-
-        dst.vertices[i] = vert;
-    }
-
-    dst.indices.resize(src->mNumFaces * 3);
-    for (auto i = 0u; i < src->mNumFaces; i++) {
-        auto const &face = src->mFaces[i];
-        assert(face.mNumIndices == 3); // This must pass because of `aiProcess_Triangulate`
-        dst.indices[i * 3 + 0] = face.mIndices[0];
-        dst.indices[i * 3 + 1] = face.mIndices[1];
-        dst.indices[i * 3 + 2] = face.mIndices[2];
-    }
-}
-
-void MeshLoader::parse_material(Material &dst, aiMaterial const *src) {
-    aiColor3D color;
-
-    if (src->Get(AI_MATKEY_COLOR_DIFFUSE, color) == AI_SUCCESS) {
-        dst.diffuse.x = color.r;
-        dst.diffuse.y = color.g;
-        dst.diffuse.z = color.b;
-    } else {
-        dst.diffuse = DirectX::XMFLOAT3(0.5f, 0.5f, 0.5f);
-    }
-
-    if (src->Get(AI_MATKEY_COLOR_SPECULAR, color) == AI_SUCCESS) {
-        dst.specular.x = color.r;
-        dst.specular.y = color.g;
-        dst.specular.z = color.b;
-    } else {
-        dst.specular = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
-    }
-
-    if (src->Get(AI_MATKEY_SHININESS, dst.shininess) != AI_SUCCESS) {
-        dst.shininess = 0.0f;
-    }
-
-    aiString path;
-    if (src->Get(AI_MATKEY_TEXTURE_DIFFUSE(0), path) == AI_SUCCESS) {
-        dst.diffuse_map = std::string(path.C_Str());
-    } else {
-        dst.diffuse_map.clear();
-    }
-}
-
-} // namespace
-
-bool load_mesh(wchar_t const *filepath, std::vector<Mesh> &meshes, std::vector<Material> &materials) {
-    return MeshLoader{}.load(filepath, meshes, materials);
 }
 
 const D3D12_INPUT_ELEMENT_DESC MeshVertex::INPUT_ELEMENTS[] = {

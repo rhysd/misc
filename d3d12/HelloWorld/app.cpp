@@ -1,4 +1,4 @@
-#include "App.h"
+#include "app.h"
 #include "mesh.h"
 #include <DDSTextureLoader.h>
 #include <ResourceUploadBatch.h>
@@ -358,8 +358,10 @@ bool App::init_d3d() {
 bool App::render() {
     // Update state
     {
+        auto const scaling = DirectX::XMMatrixScaling(1.5f, 1.5f, 1.5f);
+        auto const tilt = DirectX::XMMatrixRotationZ(0.25) * DirectX::XMMatrixRotationX(0.25);
         rotate_angle_ += 0.01f;
-        cbv_[NUM_INSTANCES * frame_index_ + 0].buffer->World = DirectX::XMMatrixRotationY(rotate_angle_) * DirectX::XMMatrixRotationZ(0.25) * DirectX::XMMatrixRotationX(0.25);
+        cbv_[NUM_INSTANCES * frame_index_].buffer->World = scaling * DirectX::XMMatrixRotationY(rotate_angle_) * tilt;
     }
 
     // Clear command buffer
@@ -506,11 +508,12 @@ bool App::on_init() {
         return false;
     }
     assert(meshes_.size() == 1);
+    auto const &mesh = meshes_[0];
 
     // Create the vertex buffer
     {
-        auto const size = sizeof(MeshVertex) * meshes_[0].vertices.size();
-        auto const vertices = meshes_[0].vertices.data();
+        auto const size = sizeof(MeshVertex) * mesh.vertices.size();
+        auto const vertices = mesh.vertices.data();
 
         D3D12_HEAP_PROPERTIES prop{};
         prop.Type = D3D12_HEAP_TYPE_UPLOAD; // Write once from CPU and read once from GPU
@@ -565,8 +568,8 @@ bool App::on_init() {
 
     // Create the index buffer
     {
-        auto const size = sizeof(uint32_t) * meshes_[0].indices.size();
-        auto const indices = meshes_[0].indices.data();
+        auto const size = sizeof(uint32_t) * mesh.indices.size();
+        auto const indices = mesh.indices.data();
 
         D3D12_HEAP_PROPERTIES prop{};
         prop.Type = D3D12_HEAP_TYPE_UPLOAD;
