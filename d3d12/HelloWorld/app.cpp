@@ -1,5 +1,6 @@
 #include "app.h"
 #include "mesh.h"
+#include "pool.h"
 #include <DDSTextureLoader.h>
 #include <ResourceUploadBatch.h>
 #include <VertexTypes.h>

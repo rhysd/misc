@@ -41,6 +41,9 @@
     <ClInclude Include="mesh.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="pool.h">
+      <Filter>ソース ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="vs.hlsl">
