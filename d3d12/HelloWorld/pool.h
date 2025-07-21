@@ -17,6 +17,7 @@ class Pool {
     explicit Pool(size_t const count) : buf_(count, T{}), active_(), cur_(0) {
         assert(count > 0);
     }
+    Pool(Pool &&) = default;
     ~Pool() {}
 
     T *alloc() {
@@ -53,7 +54,7 @@ class Pool {
     std::pair<T *, size_t> alloc_impl() {
         auto const prev = cur_;
         while (true) {
-            auto const *ptr = &buf_[cur_];
+            auto const ptr = &buf_[cur_];
             auto const it = active_.find(ptr);
             if (it == active_.end()) {
                 auto const idx = cur_++;
