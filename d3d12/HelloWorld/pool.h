@@ -38,15 +38,15 @@ class Pool {
         active_.erase(ptr);
     }
 
-    size_t capacity() {
+    size_t capacity() const {
         return buf_.size();
     }
 
-    size_t size() {
+    size_t size() const {
         return active_.size();
     }
 
-    size_t available() {
+    size_t available_size() const {
         return capacity() - size();
     }
 
