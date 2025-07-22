@@ -32,7 +32,7 @@ struct ConstantBufferView {
     T *buffer;
 };
 
-struct Texture {
+struct TextureResource {
     ComPtr<ID3D12Resource> resource;
     D3D12_CPU_DESCRIPTOR_HANDLE handle_cpu;
     D3D12_GPU_DESCRIPTOR_HANDLE handle_gpu;
@@ -93,7 +93,7 @@ class App {
     D3D12_RECT scissor_;
     ConstantBufferView<Transform> cbv_[NUM_INSTANCES * FRAME_COUNT]; // View of constant buffer for World-View-Projection transform
     float rotate_angle_;
-    Texture texture_;
+    TextureResource texture_;
     std::vector<Mesh> meshes_;
     std::vector<Material> materials_;
 };
