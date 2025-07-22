@@ -23,12 +23,14 @@
     <ClCompile Include="descriptor.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mesh.cpp" />
+    <ClCompile Include="texture.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="descriptor.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="pool.h" />
+    <ClInclude Include="texture.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="ps.hlsl">
