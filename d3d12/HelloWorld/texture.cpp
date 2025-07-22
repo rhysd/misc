@@ -95,6 +95,20 @@ D3D12_SHADER_RESOURCE_VIEW_DESC Texture::view_desc(bool const is_cube) {
     return view_desc;
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE Texture::get_handle_cpu() const {
+    if (handle_ != nullptr) {
+        return handle_->handle_cpu;
+    }
+    return D3D12_CPU_DESCRIPTOR_HANDLE();
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Texture::get_handle_gpu() const {
+    if (handle_ != nullptr) {
+        return handle_->handle_gpu;
+    }
+    return D3D12_GPU_DESCRIPTOR_HANDLE();
+}
+
 Texture::~Texture() {
     tex_.Reset();
     if (handle_ != nullptr && pool_ != nullptr) {
