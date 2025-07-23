@@ -111,7 +111,10 @@ D3D12_GPU_DESCRIPTOR_HANDLE Texture::get_handle_gpu() const {
 
 Texture::~Texture() {
     tex_.Reset();
-    if (handle_ != nullptr && pool_ != nullptr) {
-        pool_->dealloc(handle_);
+    if (pool_ != nullptr) {
+        if (handle_ != nullptr) {
+            pool_->dealloc(handle_);
+        }
+        pool_.reset();
     }
 }

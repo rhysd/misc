@@ -68,7 +68,7 @@ ConstantBuffer::~ConstantBuffer() {
     if (pool_ != nullptr) {
         pool_->dealloc(handle_);
         handle_ = nullptr;
-        pool_ = nullptr;
+        pool_.reset();
     }
     mapped_ = nullptr;
 }
