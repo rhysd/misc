@@ -39,6 +39,9 @@
     <ClCompile Include="texture.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="constantbuffer.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h">
@@ -54,6 +57,9 @@
       <Filter>ソース ファイル</Filter>
     </ClInclude>
     <ClInclude Include="texture.h">
+      <Filter>ソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="constantbuffer.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
   </ItemGroup>

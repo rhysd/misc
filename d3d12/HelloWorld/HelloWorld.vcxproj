@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="app.cpp" />
+    <ClCompile Include="constantbuffer.cpp" />
     <ClCompile Include="descriptor.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mesh.cpp" />
@@ -27,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h" />
+    <ClInclude Include="constantbuffer.h" />
     <ClInclude Include="descriptor.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="pool.h" />
