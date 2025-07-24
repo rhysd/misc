@@ -26,10 +26,10 @@ struct Material {
     std::string diffuse_map;
 };
 
-struct Mesh {
+struct MeshAsset {
     std::vector<MeshVertex> vertices;
     std::vector<uint32_t> indices;
     uint32_t material_id;
 };
 
-bool load_mesh(wchar_t const *filepath, std::vector<Mesh> &meshes, std::vector<Material> &materials);
+bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<Material> &materials);

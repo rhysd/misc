@@ -22,17 +22,21 @@
     <ClCompile Include="app.cpp" />
     <ClCompile Include="constantbuffer.cpp" />
     <ClCompile Include="descriptor.cpp" />
+    <ClCompile Include="ib.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="texture.cpp" />
+    <ClCompile Include="vb.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="constantbuffer.h" />
     <ClInclude Include="descriptor.h" />
+    <ClInclude Include="ib.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="pool.h" />
     <ClInclude Include="texture.h" />
+    <ClInclude Include="vb.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="ps.hlsl">

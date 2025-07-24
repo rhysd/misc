@@ -22,8 +22,8 @@ std::optional<std::string> to_utf8(wchar_t const *src) {
     return std::string{buf.data(), buf.size()};
 }
 
-Mesh parse_mesh(aiMesh const *src) {
-    Mesh ret;
+MeshAsset parse_mesh(aiMesh const *src) {
+    MeshAsset ret;
     aiVector3D const zero(0.0f, 0.0f, 0.0f);
 
     ret.material_id = src->mMaterialIndex;
@@ -95,7 +95,7 @@ Material parse_material(aiMaterial const *src) {
 
 } // namespace
 
-bool load_mesh(wchar_t const *filepath, std::vector<Mesh> &meshes, std::vector<Material> &materials) {
+bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<Material> &materials) {
     auto const path = to_utf8(filepath);
     if (!path) {
         return false;

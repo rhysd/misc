@@ -42,6 +42,12 @@
     <ClCompile Include="constantbuffer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="vb.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="ib.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h">
@@ -60,6 +66,12 @@
       <Filter>ソース ファイル</Filter>
     </ClInclude>
     <ClInclude Include="constantbuffer.h">
+      <Filter>ソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="vb.h">
+      <Filter>ソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="ib.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
   </ItemGroup>

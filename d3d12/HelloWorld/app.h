@@ -94,6 +94,6 @@ class App {
     ConstantBufferView<Transform> cbv_[NUM_INSTANCES * FRAME_COUNT]; // View of constant buffer for World-View-Projection transform
     float rotate_angle_;
     TextureResource texture_;
-    std::vector<Mesh> meshes_;
+    std::vector<MeshAsset> meshes_;
     std::vector<Material> materials_;
 };
