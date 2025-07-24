@@ -39,7 +39,7 @@
     <ClCompile Include="texture.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="constantbuffer.cpp">
+    <ClCompile Include="cb.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="vb.cpp">
@@ -65,7 +65,7 @@
     <ClInclude Include="texture.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="constantbuffer.h">
+    <ClInclude Include="cb.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
     <ClInclude Include="vb.h">

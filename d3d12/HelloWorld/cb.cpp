@@ -1,4 +1,4 @@
-#include "constantbuffer.h"
+#include "cb.h"
 #include <cassert>
 
 std::optional<ConstantBuffer> ConstantBuffer::create(
