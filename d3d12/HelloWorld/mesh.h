@@ -1,7 +1,10 @@
 #pragma once
 
+#include "ib.h"
+#include "vb.h"
 #include <DirectXMath.h>
 #include <d3d12.h>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -33,3 +36,17 @@ struct MeshAsset {
 };
 
 bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<Material> &materials);
+
+class Mesh {
+    VertexBuffer vb_;
+    IndexBuffer ib_;
+    uint32_t material_id_;
+    uint32_t index_count_;
+
+    Mesh(VertexBuffer vb, IndexBuffer ib) : vb_(vb), ib_(ib), material_id_(), index_count_() {}
+
+  public:
+    static std::optional<Mesh> create(ID3D12Device *device, MeshAsset const &asset);
+    uint32_t material_id() const;
+    void draw(ID3D12GraphicsCommandList *const cmd_list);
+};

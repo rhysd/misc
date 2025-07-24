@@ -1,4 +1,5 @@
 #include "assimp/material.h"
+#include "ib.h"
 #include <DirectXMath.h>
 #define NOMINMAX
 
@@ -149,3 +150,41 @@ const D3D12_INPUT_ELEMENT_DESC MeshVertex::INPUT_ELEMENTS[] = {
 const D3D12_INPUT_LAYOUT_DESC MeshVertex::INPUT_LAYOUT{MeshVertex::INPUT_ELEMENTS, MeshVertex::INPUT_ELEMENT_COUNT};
 
 static_assert(sizeof(MeshVertex) == 44);
+
+std::optional<Mesh> Mesh::create(ID3D12Device *device, MeshAsset const &asset) {
+    assert(device != nullptr);
+
+    auto const vb = VertexBuffer::create(device, asset.vertices.size(), asset.vertices.data());
+    if (!vb) {
+        return std::nullopt;
+    }
+    auto const ib = IndexBuffer::create(device, asset.indices.size(), asset.indices.data());
+    if (!ib) {
+        return std::nullopt;
+    }
+
+    Mesh mesh(std::move(*vb), std::move(*ib));
+    mesh.material_id_ = asset.material_id;
+    mesh.index_count_ = static_cast<UINT>(asset.indices.size());
+
+    return mesh;
+}
+
+uint32_t Mesh::material_id() const {
+    return material_id_;
+}
+
+void Mesh::draw(ID3D12GraphicsCommandList *const cmd_list) {
+    auto vbv = vb_.view();
+    auto ibv = ib_.view();
+
+    cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmd_list->IASetVertexBuffers(/*slot*/ 0, /*number of buffers*/ 1, &vbv);
+    cmd_list->IASetIndexBuffer(&ibv);
+    cmd_list->DrawIndexedInstanced(
+        /*number of vertices per instance*/ index_count_,
+        /*number of instances*/ 1,
+        /*start index of indices*/ 0,
+        /*start index of vertices*/ 0,
+        /*start index of instances*/ 0);
+}

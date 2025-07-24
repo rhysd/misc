@@ -17,7 +17,7 @@ class VertexBuffer {
 
     static std::optional<VertexBuffer> create_impl(
         ID3D12Device *device,
-        size_t const size,
+        size_t const bytes,
         size_t const stride,
         void const *init);
 
@@ -27,7 +27,11 @@ class VertexBuffer {
         ID3D12Device *device,
         size_t const size,
         T const *init = nullptr) {
-        return VertexBuffer::create_impl(device, size, sizeof(T), reinterpret_cast<void const *>(init));
+        return VertexBuffer::create_impl(
+            device,
+            sizeof(T) * size,
+            sizeof(T),
+            reinterpret_cast<void const *>(init));
     }
     ~VertexBuffer();
     template <class T>

@@ -1,8 +1,8 @@
 #include "vb.h"
 #include <cassert>
 
-std::optional<VertexBuffer> VertexBuffer::create_impl(ID3D12Device *device, size_t const size, size_t const stride, void const *init) {
-    assert(device != nullptr && size > 0);
+std::optional<VertexBuffer> VertexBuffer::create_impl(ID3D12Device *device, size_t const bytes, size_t const stride, void const *init) {
+    assert(device != nullptr && bytes > 0);
 
     VertexBuffer vb;
 
@@ -16,7 +16,7 @@ std::optional<VertexBuffer> VertexBuffer::create_impl(ID3D12Device *device, size
     D3D12_RESOURCE_DESC desc{};
     desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
     desc.Alignment = 0;
-    desc.Width = size;
+    desc.Width = bytes;
     desc.Height = 1;           // Fixed to 1
     desc.DepthOrArraySize = 1; // Fixed to 1
     desc.MipLevels = 1;        // Fixed to 1
@@ -39,8 +39,8 @@ std::optional<VertexBuffer> VertexBuffer::create_impl(ID3D12Device *device, size
 
     // Configure vertex buffer view
     vb.view_.BufferLocation = vb.res_->GetGPUVirtualAddress();
-    vb.view_.SizeInBytes = size;
-    vb.view_.StrideInBytes = stride;
+    vb.view_.SizeInBytes = static_cast<UINT>(bytes);
+    vb.view_.StrideInBytes = static_cast<UINT>(stride);
 
     // Write the initial data to the buffer
     if (init != nullptr) {
@@ -48,7 +48,7 @@ std::optional<VertexBuffer> VertexBuffer::create_impl(ID3D12Device *device, size
         if (ptr == nullptr) {
             return std::nullopt;
         }
-        memcpy(ptr, init, size);
+        memcpy(ptr, init, bytes);
         vb.unmap();
     }
 
