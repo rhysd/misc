@@ -25,5 +25,6 @@ class Texture {
         DirectX::ResourceUploadBatch &batch);
     D3D12_CPU_DESCRIPTOR_HANDLE get_handle_cpu() const;
     D3D12_GPU_DESCRIPTOR_HANDLE get_handle_gpu() const;
+    Texture(Texture &&other) = default;
     ~Texture();
 };

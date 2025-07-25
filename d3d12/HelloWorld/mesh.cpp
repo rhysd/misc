@@ -60,8 +60,8 @@ MeshAsset parse_mesh(aiMesh const *src) {
     return ret;
 }
 
-Material parse_material(aiMaterial const *src) {
-    Material ret;
+MaterialAsset parse_material(aiMaterial const *src) {
+    MaterialAsset ret;
     aiColor3D color;
 
     if (src->Get(AI_MATKEY_COLOR_DIFFUSE, color) == AI_SUCCESS) {
@@ -96,7 +96,7 @@ Material parse_material(aiMaterial const *src) {
 
 } // namespace
 
-bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<Material> &materials) {
+bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<MaterialAsset> &materials) {
     auto const path = to_utf8(filepath);
     if (!path) {
         return false;

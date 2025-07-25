@@ -95,5 +95,5 @@ class App {
     float rotate_angle_;
     TextureResource texture_;
     std::vector<MeshAsset> meshes_;
-    std::vector<Material> materials_;
+    std::vector<MaterialAsset> materials_;
 };

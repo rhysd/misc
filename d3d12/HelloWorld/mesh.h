@@ -21,7 +21,7 @@ struct MeshVertex {
     static const D3D12_INPUT_ELEMENT_DESC INPUT_ELEMENTS[INPUT_ELEMENT_COUNT];
 };
 
-struct Material {
+struct MaterialAsset {
     DirectX::XMFLOAT3 diffuse;
     DirectX::XMFLOAT3 specular;
     float alpha;
@@ -35,7 +35,7 @@ struct MeshAsset {
     uint32_t material_id;
 };
 
-bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<Material> &materials);
+bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<MaterialAsset> &materials);
 
 class Mesh {
     VertexBuffer vb_;
