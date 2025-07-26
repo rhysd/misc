@@ -15,26 +15,24 @@ std::optional<Material> Material::create(ID3D12Device *device, std::shared_ptr<D
             if (!cb) {
                 return std::nullopt;
             }
-            D3D12_GPU_DESCRIPTOR_HANDLE handle;
-            handle.ptr = 0;
-            mat.res_.emplace_back(cb, handle, TextureUsage::Unknown);
+            mat.res_.emplace_back(std::move(cb));
         }
     } else {
         for (size_t i = 0; i < count; i++) {
-            D3D12_GPU_DESCRIPTOR_HANDLE handle;
-            mat.res_.emplace_back(std::nullopt, handle, TextureUsage::Unknown);
+            mat.res_.emplace_back();
         }
     }
 
     return mat;
 }
 
-bool Material::set_texture_at(size_t const index, TextureUsage usage, std::wstring const &path, DirectX::ResourceUploadBatch &batch) {
+bool Material::set_texture_at(size_t const index, TextureUsage const usage, std::wstring const &path, DirectX::ResourceUploadBatch &batch) {
     assert(index < count());
 
-    if (cache_.find(path) != cache_.end()) {
-        assert(res_[index].usage == TextureUsage::Unknown);
-        res_[index].usage = usage;
+    auto const usage_idx = static_cast<size_t>(usage);
+    auto const it = cache_.find(path);
+    if (it != cache_.end()) {
+        res_[index].handle[usage_idx] = it->second.get_handle_gpu();
         return true;
     }
 
@@ -43,7 +41,7 @@ bool Material::set_texture_at(size_t const index, TextureUsage usage, std::wstri
         return false;
     }
 
-    res_[index].handle = tex->get_handle_gpu();
+    res_[index].handle[usage_idx] = tex->get_handle_gpu();
     cache_.emplace(path, std::move(*tex));
     return true;
 }
@@ -62,7 +60,7 @@ D3D12_GPU_VIRTUAL_ADDRESS Material::buffer_address_at(size_t const index) const 
     return res_[index].cb->get_address();
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE Material::texture_handle_at(size_t const index) const {
+D3D12_GPU_DESCRIPTOR_HANDLE Material::texture_handle_at(size_t const index, TextureUsage const usage) const {
     assert(index < count());
-    return res_[index].handle;
+    return res_[index].handle[static_cast<size_t>(usage)];
 }
