@@ -21,6 +21,8 @@
   <ItemGroup>
     <ClCompile Include="app.cpp" />
     <ClCompile Include="cb.cpp" />
+    <ClCompile Include="color_target.cpp" />
+    <ClCompile Include="depth_target.cpp" />
     <ClCompile Include="descriptor.cpp" />
     <ClCompile Include="ib.cpp" />
     <ClCompile Include="main.cpp" />
@@ -32,6 +34,8 @@
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="cb.h" />
+    <ClInclude Include="color_target.h" />
+    <ClInclude Include="depth_target.h" />
     <ClInclude Include="descriptor.h" />
     <ClInclude Include="ib.h" />
     <ClInclude Include="material.h" />

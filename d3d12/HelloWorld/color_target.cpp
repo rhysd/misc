@@ -6,6 +6,11 @@ std::optional<ColorTarget> ColorTarget::create(ID3D12Device *device, std::shared
 
     ColorTarget target(std::move(pool_rtv));
 
+    target.handle_rtv_ = target.pool_->alloc();
+    if (target.handle_rtv_ == nullptr) {
+        return std::nullopt;
+    }
+
     D3D12_HEAP_PROPERTIES prop{};
     prop.Type = D3D12_HEAP_TYPE_DEFAULT;
     prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -61,6 +66,11 @@ std::optional<ColorTarget> ColorTarget::create_from_back_buffer(ID3D12Device *de
     assert(device != nullptr && pool_rtv != nullptr && swap_chain != nullptr);
 
     ColorTarget target(std::move(pool_rtv));
+
+    target.handle_rtv_ = target.pool_->alloc();
+    if (target.handle_rtv_ == nullptr) {
+        return std::nullopt;
+    }
 
     auto const hr = swap_chain->GetBuffer(index, IID_PPV_ARGS(target.res_.GetAddressOf()));
     if (FAILED(hr)) {
