@@ -26,6 +26,7 @@ Descriptor *DescriptorPool::alloc() {
 }
 
 void DescriptorPool::dealloc(Descriptor *const ptr) {
-    assert(ptr != nullptr);
-    pool_.dealloc(ptr);
+    if (ptr != nullptr) {
+        pool_.dealloc(ptr);
+    }
 }
