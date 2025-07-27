@@ -1,10 +1,21 @@
 #include "color_target.h"
 #include <cassert>
 
+ColorTarget::ColorTarget(std::shared_ptr<DescriptorPool> pool, DXGI_FORMAT const format)
+    : res_(nullptr),
+      handle_rtv_(nullptr),
+      pool_(pool),
+      view_desc_() {
+    view_desc_.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    view_desc_.Format = format;
+    view_desc_.Texture2D.MipSlice = 0; // Mipmap level (0 = one mipmap)
+    view_desc_.Texture2D.PlaneSlice = 0;
+}
+
 std::optional<ColorTarget> ColorTarget::create(ID3D12Device *device, std::shared_ptr<DescriptorPool> pool_rtv, uint32_t const width, uint32_t const height, DXGI_FORMAT format) {
     assert(device != nullptr && pool_rtv != nullptr && width > 0 && height > 0);
 
-    ColorTarget target(std::move(pool_rtv));
+    ColorTarget target(std::move(pool_rtv), format);
 
     target.handle_rtv_ = target.pool_->alloc();
     if (target.handle_rtv_ == nullptr) {
@@ -49,11 +60,6 @@ std::optional<ColorTarget> ColorTarget::create(ID3D12Device *device, std::shared
         return std::nullopt;
     }
 
-    target.view_desc_.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    target.view_desc_.Format = format;
-    target.view_desc_.Texture2D.MipSlice = 0; // Mipmap level (0 = one mipmap)
-    target.view_desc_.Texture2D.PlaneSlice = 0;
-
     device->CreateRenderTargetView(
         target.res_.Get(),
         &target.view_desc_,
@@ -65,25 +71,23 @@ std::optional<ColorTarget> ColorTarget::create(ID3D12Device *device, std::shared
 std::optional<ColorTarget> ColorTarget::create_from_back_buffer(ID3D12Device *device, std::shared_ptr<DescriptorPool> pool_rtv, uint32_t const index, IDXGISwapChain *swap_chain) {
     assert(device != nullptr && pool_rtv != nullptr && swap_chain != nullptr);
 
-    ColorTarget target(std::move(pool_rtv));
+    DXGI_SWAP_CHAIN_DESC desc;
+    auto hr = swap_chain->GetDesc(&desc);
+    if (FAILED(hr)) {
+        return std::nullopt;
+    }
+
+    ColorTarget target(std::move(pool_rtv), desc.BufferDesc.Format);
 
     target.handle_rtv_ = target.pool_->alloc();
     if (target.handle_rtv_ == nullptr) {
         return std::nullopt;
     }
 
-    auto const hr = swap_chain->GetBuffer(index, IID_PPV_ARGS(target.res_.GetAddressOf()));
+    hr = swap_chain->GetBuffer(index, IID_PPV_ARGS(target.res_.GetAddressOf()));
     if (FAILED(hr)) {
         return std::nullopt;
     }
-
-    DXGI_SWAP_CHAIN_DESC desc;
-    swap_chain->GetDesc(&desc);
-
-    target.view_desc_.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    target.view_desc_.Format = desc.BufferDesc.Format;
-    target.view_desc_.Texture2D.MipSlice = 0; // Mipmap level (0 = one mipmap)
-    target.view_desc_.Texture2D.PlaneSlice = 0;
 
     device->CreateRenderTargetView(
         target.res_.Get(),

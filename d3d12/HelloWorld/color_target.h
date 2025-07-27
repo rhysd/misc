@@ -14,7 +14,7 @@ class ColorTarget {
     std::shared_ptr<DescriptorPool> pool_;
     D3D12_RENDER_TARGET_VIEW_DESC view_desc_;
 
-    explicit ColorTarget(std::shared_ptr<DescriptorPool> pool) : res_(nullptr), handle_rtv_(nullptr), pool_(pool), view_desc_() {}
+    ColorTarget(std::shared_ptr<DescriptorPool> pool, DXGI_FORMAT const format);
 
   public:
     static std::optional<ColorTarget> create(
