@@ -4,6 +4,7 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <memory>
+#include <optional>
 #include <wrl/client.h>
 
 using Microsoft::WRL::ComPtr;
