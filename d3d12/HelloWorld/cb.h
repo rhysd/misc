@@ -8,7 +8,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-class ConstantBuffer {
+class ConstantBuffer final {
     ComPtr<ID3D12Resource> cb_;
     Descriptor *handle_;
     std::shared_ptr<DescriptorPool> pool_;
@@ -27,4 +27,7 @@ class ConstantBuffer {
     D3D12_GPU_VIRTUAL_ADDRESS get_address() const;
     void *get_mapped_ptr() const;
     ~ConstantBuffer();
+    ConstantBuffer(ConstantBuffer &&other) = default;
+    ConstantBuffer(ConstantBuffer &other) = delete;
+    ConstantBuffer &operator=(ConstantBuffer &other) = delete;
 };

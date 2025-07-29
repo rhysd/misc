@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-class Material {
+class Material final {
   public:
     enum class TextureUsage : uint8_t {
         Diffuse = 0,
@@ -21,6 +21,9 @@ class Material {
     };
 
     static std::optional<Material> create(ID3D12Device *device, std::shared_ptr<DescriptorPool> pool, size_t const buf_size, size_t const count);
+    Material(Material &&other) = default;
+    Material(Material &other) = delete;
+    Material &operator=(Material &other) = delete;
     bool set_texture_at(size_t const index, TextureUsage const usage, std::wstring const &path, DirectX::ResourceUploadBatch &batch);
     size_t count() const;
     template <class T>
@@ -36,7 +39,7 @@ class Material {
     struct TextureResource {
         std::optional<ConstantBuffer> cb;
         D3D12_GPU_DESCRIPTOR_HANDLE handle[NUM_USAGES];
-        explicit TextureResource(std::optional<ConstantBuffer> cb) : cb(cb) {
+        explicit TextureResource(std::optional<ConstantBuffer> cb) : cb(std::move(cb)) {
             for (int i = 0; i < NUM_USAGES; i++) {
                 handle[i].ptr = 0;
             }

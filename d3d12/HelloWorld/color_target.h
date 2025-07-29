@@ -9,7 +9,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-class ColorTarget {
+class ColorTarget final {
     ComPtr<ID3D12Resource> res_;
     Descriptor *handle_rtv_;
     std::shared_ptr<DescriptorPool> pool_;
@@ -30,6 +30,9 @@ class ColorTarget {
         uint32_t const index,
         IDXGISwapChain *swap_chain);
     ~ColorTarget();
+    ColorTarget(ColorTarget &&other) = default;
+    ColorTarget(ColorTarget &other) = delete;
+    ColorTarget &operator=(ColorTarget &other) = delete;
     Descriptor *handle_rtv() const;
     ID3D12Resource *resource() const;
     D3D12_RESOURCE_DESC resource_desc() const;

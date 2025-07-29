@@ -6,7 +6,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-class VertexBuffer {
+class VertexBuffer final {
     ComPtr<ID3D12Resource> res_;
     D3D12_VERTEX_BUFFER_VIEW view_;
 
@@ -33,6 +33,9 @@ class VertexBuffer {
             sizeof(T),
             reinterpret_cast<void const *>(init));
     }
+    VertexBuffer(VertexBuffer &&other) = default;
+    VertexBuffer(VertexBuffer &other) = delete;
+    VertexBuffer &operator=(VertexBuffer &other) = delete;
     ~VertexBuffer();
     template <class T>
     T *map() {

@@ -19,7 +19,7 @@ struct Descriptor {
     }
 };
 
-class DescriptorPool {
+class DescriptorPool final {
     Pool<Descriptor> pool_;
     ComPtr<ID3D12DescriptorHeap> heap_;
     uint32_t descriptor_size_;
@@ -28,6 +28,8 @@ class DescriptorPool {
 
   public:
     DescriptorPool(DescriptorPool &&other) = default;
+    DescriptorPool(DescriptorPool &other) = delete;
+    DescriptorPool &operator=(DescriptorPool &other) = delete;
 
     static std::optional<DescriptorPool> create(
         ID3D12Device *device,

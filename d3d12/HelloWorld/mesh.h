@@ -37,16 +37,23 @@ struct MeshAsset {
 
 bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<MaterialAsset> &materials);
 
-class Mesh {
+class Mesh final {
     VertexBuffer vb_;
     IndexBuffer ib_;
     uint32_t material_id_;
     uint32_t index_count_;
 
-    Mesh(VertexBuffer vb, IndexBuffer ib) : vb_(vb), ib_(ib), material_id_(), index_count_() {}
+    Mesh(VertexBuffer vb, IndexBuffer ib)
+        : vb_(std::move(vb)),
+          ib_(std::move(ib)),
+          material_id_(),
+          index_count_() {}
 
   public:
     static std::optional<Mesh> create(ID3D12Device *device, MeshAsset const &asset);
+    Mesh(Mesh &&other) = default;
+    Mesh(Mesh &other) = delete;
+    Mesh &operator=(Mesh &other) = delete;
     uint32_t material_id() const;
     void draw(ID3D12GraphicsCommandList *const cmd_list);
 };

@@ -24,6 +24,7 @@
     <ClCompile Include="color_target.cpp" />
     <ClCompile Include="depth_target.cpp" />
     <ClCompile Include="descriptor.cpp" />
+    <ClCompile Include="fence.cpp" />
     <ClCompile Include="ib.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="material.cpp" />
@@ -37,6 +38,7 @@
     <ClInclude Include="color_target.h" />
     <ClInclude Include="depth_target.h" />
     <ClInclude Include="descriptor.h" />
+    <ClInclude Include="fence.h" />
     <ClInclude Include="ib.h" />
     <ClInclude Include="material.h" />
     <ClInclude Include="mesh.h" />

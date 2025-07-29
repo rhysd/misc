@@ -6,7 +6,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-class IndexBuffer {
+class IndexBuffer final {
     ComPtr<ID3D12Resource> res_;
     D3D12_INDEX_BUFFER_VIEW view_;
 
@@ -20,6 +20,9 @@ class IndexBuffer {
         size_t const size,
         uint32_t const *init = nullptr);
     ~IndexBuffer();
+    IndexBuffer(IndexBuffer &&other) = default;
+    IndexBuffer(IndexBuffer &other) = delete;
+    IndexBuffer &operator=(IndexBuffer &other) = delete;
     uint32_t *map();
     void unmap();
     D3D12_INDEX_BUFFER_VIEW view() const;

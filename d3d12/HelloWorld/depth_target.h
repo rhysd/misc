@@ -7,7 +7,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-class DepthTarget {
+class DepthTarget final {
     ComPtr<ID3D12Resource> res_;
     Descriptor *handle_dsv_;
     std::shared_ptr<DescriptorPool> pool_;
@@ -23,6 +23,9 @@ class DepthTarget {
         uint32_t const height,
         DXGI_FORMAT format);
     ~DepthTarget();
+    DepthTarget(DepthTarget &&other) = default;
+    DepthTarget(DepthTarget &other) = delete;
+    DepthTarget &operator=(DepthTarget &other) = delete;
     Descriptor *handle_dsv() const;
     ID3D12Resource *resource() const;
     D3D12_RESOURCE_DESC resource_desc() const;

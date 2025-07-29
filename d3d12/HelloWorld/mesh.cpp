@@ -154,11 +154,11 @@ static_assert(sizeof(MeshVertex) == 44);
 std::optional<Mesh> Mesh::create(ID3D12Device *device, MeshAsset const &asset) {
     assert(device != nullptr);
 
-    auto const vb = VertexBuffer::create(device, asset.vertices.size(), asset.vertices.data());
+    auto vb = VertexBuffer::create(device, asset.vertices.size(), asset.vertices.data());
     if (!vb) {
         return std::nullopt;
     }
-    auto const ib = IndexBuffer::create(device, asset.indices.size(), asset.indices.data());
+    auto ib = IndexBuffer::create(device, asset.indices.size(), asset.indices.data());
     if (!ib) {
         return std::nullopt;
     }

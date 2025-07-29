@@ -5,20 +5,18 @@
 #include <vector>
 
 template <class T>
-class Pool {
+class Pool final {
     std::vector<T> buf_; // Ensure this vector will never reallocate memory
     std::unordered_map<T *, size_t> active_;
     size_t cur_;
-
-    Pool(Pool const &) = delete;
-    Pool &operator=(Pool &) = delete;
 
   public:
     explicit Pool(size_t const count) : buf_(count, T{}), active_(), cur_(0) {
         assert(count > 0);
     }
     Pool(Pool &&) = default;
-    ~Pool() {}
+    Pool(Pool const &) = delete;
+    Pool &operator=(Pool &) = delete;
 
     T *alloc() {
         return alloc_impl().first;

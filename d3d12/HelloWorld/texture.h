@@ -9,7 +9,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-class Texture {
+class Texture final {
     ComPtr<ID3D12Resource> tex_;
     Descriptor *handle_;
     std::shared_ptr<DescriptorPool> pool_;
@@ -26,5 +26,7 @@ class Texture {
     D3D12_CPU_DESCRIPTOR_HANDLE get_handle_cpu() const;
     D3D12_GPU_DESCRIPTOR_HANDLE get_handle_gpu() const;
     Texture(Texture &&other) = default;
+    Texture(Texture const &) = delete;
+    Texture &operator=(Texture &) = delete;
     ~Texture();
 };
