@@ -22,6 +22,7 @@
     <ClCompile Include="app.cpp" />
     <ClCompile Include="cb.cpp" />
     <ClCompile Include="color_target.cpp" />
+    <ClCompile Include="command_list.cpp" />
     <ClCompile Include="depth_target.cpp" />
     <ClCompile Include="descriptor.cpp" />
     <ClCompile Include="fence.cpp" />
@@ -36,6 +37,7 @@
     <ClInclude Include="app.h" />
     <ClInclude Include="cb.h" />
     <ClInclude Include="color_target.h" />
+    <ClInclude Include="command_list.h" />
     <ClInclude Include="depth_target.h" />
     <ClInclude Include="descriptor.h" />
     <ClInclude Include="fence.h" />

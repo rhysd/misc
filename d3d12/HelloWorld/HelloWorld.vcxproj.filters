@@ -60,6 +60,9 @@
     <ClCompile Include="fence.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="command_list.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h">
@@ -96,6 +99,9 @@
       <Filter>ソース ファイル</Filter>
     </ClInclude>
     <ClInclude Include="fence.h">
+      <Filter>ソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="command_list.h">
       <Filter>ソース ファイル</Filter>
     </ClInclude>
   </ItemGroup>
