@@ -33,6 +33,7 @@ rm -rf ${basedir}
 mkdir -p ${basedir}
 cp -R assets ${basedir}/
 cp minMatrix.js ${basedir}/
+cp cover.html ${basedir}/index.html
 
 for project in "${projects[@]}"; do
     echo "Copying project: ${project}"
