@@ -21,6 +21,7 @@ class CommandList {
         D3D12_COMMAND_LIST_TYPE const type,
         uint32_t const count);
     CommandList(CommandList &&other) = default;
+    CommandList &operator=(CommandList &&other) = default;
     CommandList(CommandList &other) = delete;
     CommandList &operator=(CommandList &other) = delete;
     ID3D12GraphicsCommandList *start();

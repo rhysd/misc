@@ -34,6 +34,7 @@ class VertexBuffer final {
             reinterpret_cast<void const *>(init));
     }
     VertexBuffer(VertexBuffer &&other) = default;
+    VertexBuffer &operator=(VertexBuffer &&other) = default;
     VertexBuffer(VertexBuffer &other) = delete;
     VertexBuffer &operator=(VertexBuffer &other) = delete;
     ~VertexBuffer();

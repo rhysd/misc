@@ -37,6 +37,7 @@ std::optional<CommandList> CommandList::create(ID3D12Device *device, D3D12_COMMA
 }
 
 ID3D12GraphicsCommandList *CommandList::start() {
+    // Clear command buffer
     auto hr = current_alloc()->Reset();
     if (FAILED(hr)) {
         return nullptr;

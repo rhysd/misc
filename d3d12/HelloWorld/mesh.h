@@ -52,6 +52,7 @@ class Mesh final {
   public:
     static std::optional<Mesh> create(ID3D12Device *device, MeshAsset const &asset);
     Mesh(Mesh &&other) = default;
+    Mesh &operator=(Mesh &&other) = default;
     Mesh(Mesh &other) = delete;
     Mesh &operator=(Mesh &other) = delete;
     uint32_t material_id() const;

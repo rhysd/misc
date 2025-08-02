@@ -21,6 +21,7 @@ class IndexBuffer final {
         uint32_t const *init = nullptr);
     ~IndexBuffer();
     IndexBuffer(IndexBuffer &&other) = default;
+    IndexBuffer &operator=(IndexBuffer &&other) = default;
     IndexBuffer(IndexBuffer &other) = delete;
     IndexBuffer &operator=(IndexBuffer &other) = delete;
     uint32_t *map();

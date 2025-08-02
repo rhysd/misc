@@ -18,6 +18,7 @@ class Fence final {
     static std::optional<Fence> create(ID3D12Device *device);
     ~Fence();
     Fence(Fence &&other) = default;
+    Fence &operator=(Fence &&other) = default;
     Fence(Fence &other) = delete;
     Fence &operator=(Fence &other) = delete;
     bool wait(ID3D12CommandQueue *queue, UINT const timeout = INFINITE);

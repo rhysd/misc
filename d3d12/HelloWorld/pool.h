@@ -15,6 +15,7 @@ class Pool final {
         assert(count > 0);
     }
     Pool(Pool &&) = default;
+    Pool &operator=(Pool &&) = default;
     Pool(Pool const &) = delete;
     Pool &operator=(Pool &) = delete;
 

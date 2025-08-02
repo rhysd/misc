@@ -28,6 +28,7 @@ class DescriptorPool final {
 
   public:
     DescriptorPool(DescriptorPool &&other) = default;
+    DescriptorPool &operator=(DescriptorPool &&other) = default;
     DescriptorPool(DescriptorPool &other) = delete;
     DescriptorPool &operator=(DescriptorPool &other) = delete;
 

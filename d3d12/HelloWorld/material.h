@@ -22,6 +22,7 @@ class Material final {
 
     static std::optional<Material> create(ID3D12Device *device, std::shared_ptr<DescriptorPool> pool, size_t const buf_size, size_t const count);
     Material(Material &&other) = default;
+    Material &operator=(Material &&other) = default;
     Material(Material &other) = delete;
     Material &operator=(Material &other) = delete;
     bool set_texture_at(size_t const index, TextureUsage const usage, std::wstring const &path, DirectX::ResourceUploadBatch &batch);

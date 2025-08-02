@@ -31,6 +31,7 @@ class ColorTarget final {
         IDXGISwapChain *swap_chain);
     ~ColorTarget();
     ColorTarget(ColorTarget &&other) = default;
+    ColorTarget &operator=(ColorTarget &&other) = default;
     ColorTarget(ColorTarget &other) = delete;
     ColorTarget &operator=(ColorTarget &other) = delete;
     Descriptor *handle_rtv() const;

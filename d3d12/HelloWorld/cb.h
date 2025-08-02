@@ -28,6 +28,7 @@ class ConstantBuffer final {
     void *get_mapped_ptr() const;
     ~ConstantBuffer();
     ConstantBuffer(ConstantBuffer &&other) = default;
+    ConstantBuffer &operator=(ConstantBuffer &&other) = default;
     ConstantBuffer(ConstantBuffer &other) = delete;
     ConstantBuffer &operator=(ConstantBuffer &other) = delete;
 };

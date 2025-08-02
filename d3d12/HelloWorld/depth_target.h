@@ -24,6 +24,7 @@ class DepthTarget final {
         DXGI_FORMAT format);
     ~DepthTarget();
     DepthTarget(DepthTarget &&other) = default;
+    DepthTarget &operator=(DepthTarget &&other) = default;
     DepthTarget(DepthTarget &other) = delete;
     DepthTarget &operator=(DepthTarget &other) = delete;
     Descriptor *handle_dsv() const;
