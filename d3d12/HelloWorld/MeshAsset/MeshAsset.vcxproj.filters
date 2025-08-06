@@ -120,29 +120,29 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="res\ferris.dds">
+    <CopyFileToFolders Include="..\res\ferris.dds">
       <Filter>リソース ファイル\res</Filter>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="res\teapot\default.DDS">
+    <CopyFileToFolders Include="..\res\teapot\default.DDS">
       <Filter>リソース ファイル\res\teapot</Filter>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="res\teapot\normal.dds">
+    <CopyFileToFolders Include="..\res\teapot\normal.dds">
       <Filter>リソース ファイル\res\teapot</Filter>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="res\teapot\teapot.mtl">
+    <CopyFileToFolders Include="..\res\teapot\teapot.mtl">
       <Filter>リソース ファイル\res\teapot</Filter>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="res\teapot\teapot.obj">
+    <CopyFileToFolders Include="..\res\teapot\teapot.obj">
       <Filter>リソース ファイル\res\teapot</Filter>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="packages\Assimp_native_4.1_v142.4.1.0\build\native\lib\x64-Release\assimp-vc142-mt.dll">
+    <CopyFileToFolders Include="..\packages\Assimp_native_4.1_v142.4.1.0\build\native\lib\x64-Release\assimp-vc142-mt.dll">
       <Filter>リソース ファイル\dll</Filter>
     </CopyFileToFolders>
-    <CopyFileToFolders Include="packages\Assimp_native_4.1_v142.4.1.0\build\native\lib\x64-Debug\assimp-vc142-mtd.dll">
+    <CopyFileToFolders Include="..\packages\Assimp_native_4.1_v142.4.1.0\build\native\lib\x64-Debug\assimp-vc142-mtd.dll">
       <Filter>リソース ファイル\dll</Filter>
     </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="..\packages.config" />
   </ItemGroup>
 </Project>
