@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Texture", "Texture\Texture.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DepthBuffer", "DepthBuffer\DepthBuffer.vcxproj", "{D2D18684-9529-4269-A387-92C078524CAB}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Triangle", "Triangle\Triangle.vcxproj", "{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -41,6 +43,14 @@ Global
 		{D2D18684-9529-4269-A387-92C078524CAB}.Release|x64.Build.0 = Release|x64
 		{D2D18684-9529-4269-A387-92C078524CAB}.Release|x86.ActiveCfg = Release|Win32
 		{D2D18684-9529-4269-A387-92C078524CAB}.Release|x86.Build.0 = Release|Win32
+		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Debug|x64.ActiveCfg = Debug|x64
+		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Debug|x64.Build.0 = Debug|x64
+		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Debug|x86.ActiveCfg = Debug|Win32
+		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Debug|x86.Build.0 = Debug|Win32
+		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Release|x64.ActiveCfg = Release|x64
+		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Release|x64.Build.0 = Release|x64
+		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Release|x86.ActiveCfg = Release|Win32
+		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
