@@ -48,7 +48,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\packages.config" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\res\ferris.dds">

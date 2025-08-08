@@ -143,6 +143,6 @@
     </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\packages.config" />
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

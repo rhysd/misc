@@ -96,7 +96,6 @@
     </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\packages.config" />
     <CopyFileToFolders Include="..\res\teapot\teapot.mtl">
       <DeploymentContent>true</DeploymentContent>
       <FileType>Document</FileType>
@@ -107,6 +106,7 @@
     <CopyFileToFolders Include="..\packages\Assimp_native_4.1_v142.4.1.0\build\native\lib\x64-Release\assimp-vc142-mt.dll">
       <FileType>Document</FileType>
     </CopyFileToFolders>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\res\teapot\default.DDS">
