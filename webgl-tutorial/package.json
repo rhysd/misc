@@ -8,13 +8,20 @@
     "serve": "http-server . -p 1234",
     "watch": "tsc --pretty -p . --watch",
     "build": "tsc --pretty -p .",
-    "fmt": "prettier -w '**/*.ts'"
+    "fmt": "prettier -w '**/*.ts'",
+    "lint": "npm run lint:prettier && npm run lint:eslint && npm run lint:tsc",
+    "lint:prettier": "prettier -c '**/*.ts'",
+    "lint:tsc": "tsc --pretty -p . --noEmit",
+    "lint:eslint": "eslint '**/*.ts'"
   },
   "author": "rhysd <lin90162@yahoo.co.jp> (https://rhysd.github.io/)",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "eslint": "^9.33.0",
     "http-server": "^14.1.1",
     "prettier": "^3.6.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.0"
   }
 }
