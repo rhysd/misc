@@ -240,7 +240,7 @@
         const mvpMat = m.create();
         const qCamera = q.identity(q.create());
         const mouseMat = m.create();
-        const [pointSizeMin, pointSizeMax] = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE);
+        const [pointSizeMin, pointSizeMax] = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) as [number, number];
 
         canvas.addEventListener(
             'mousemove',
@@ -266,7 +266,7 @@
         );
 
         let count = 0;
-        function update() {
+        function update(): void {
             clear();
 
             count++;

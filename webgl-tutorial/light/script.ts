@@ -258,7 +258,7 @@
         const ambientColor = [0.1, 0.1, 0.1, 1.0];
 
         let count = 0;
-        function update() {
+        function update(): void {
             clear();
 
             count++;

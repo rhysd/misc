@@ -317,7 +317,7 @@
         const frameBuf = createOfflineFrameBuffer(canvas.width * 4, canvas.height * 4);
 
         let count = 0;
-        function update() {
+        function update(): void {
             count++;
 
             // Calculate the view projection matrix

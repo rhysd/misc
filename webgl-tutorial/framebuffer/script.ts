@@ -330,7 +330,7 @@
         gl.uniform1f(blurUniforms.textureLength, 512.0);
 
         let count = 0;
-        function update() {
+        function update(): void {
             count++;
             const rad = ((count % 360) * Math.PI) / 180;
 

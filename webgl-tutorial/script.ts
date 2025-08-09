@@ -371,7 +371,7 @@
     }
 
     function gaussianWeight(strength: number): number[] {
-        const weight = new Array(10);
+        const weight = new Array(10) as number[];
         const d = strength * strength;
         let t = 0.0;
         for (let i = 0; i < weight.length; i++) {
@@ -441,7 +441,7 @@
         ] as const;
 
         let count = 0;
-        function update() {
+        function update(): void {
             count++;
 
             const GRAYSCALE_FILTER = 1;

@@ -211,7 +211,7 @@
         m.multiply(pMat, vMat, vpMat);
 
         let count = 0;
-        function update() {
+        function update(): void {
             clear();
 
             count++;

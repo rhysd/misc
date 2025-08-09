@@ -211,7 +211,7 @@
         const mvpMat = m.create();
 
         let count = 0;
-        function update() {
+        function update(): void {
             clear();
 
             count++;

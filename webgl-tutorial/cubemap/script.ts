@@ -344,7 +344,7 @@
         const SURFACE_REFRACTION = 2;
 
         let count = 0;
-        function update() {
+        function update(): void {
             clear();
 
             count++;

@@ -222,7 +222,7 @@
             { passive: true },
         );
 
-        function update() {
+        function update(): void {
             clear();
 
             q.toMatIV(qCamera, mouseMat);
