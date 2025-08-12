@@ -11,6 +11,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DepthBuffer", "DepthBuffer\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Triangle", "Triangle\Triangle.vcxproj", "{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Light", "Light\Light.vcxproj", "{64A3C67F-3866-4F17-A587-946DE78D53FC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -51,6 +53,14 @@ Global
 		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Release|x64.Build.0 = Release|x64
 		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Release|x86.ActiveCfg = Release|Win32
 		{C5DDD55B-6FE0-4BFA-9845-C8159F27531C}.Release|x86.Build.0 = Release|Win32
+		{64A3C67F-3866-4F17-A587-946DE78D53FC}.Debug|x64.ActiveCfg = Debug|x64
+		{64A3C67F-3866-4F17-A587-946DE78D53FC}.Debug|x64.Build.0 = Debug|x64
+		{64A3C67F-3866-4F17-A587-946DE78D53FC}.Debug|x86.ActiveCfg = Debug|Win32
+		{64A3C67F-3866-4F17-A587-946DE78D53FC}.Debug|x86.Build.0 = Debug|Win32
+		{64A3C67F-3866-4F17-A587-946DE78D53FC}.Release|x64.ActiveCfg = Release|x64
+		{64A3C67F-3866-4F17-A587-946DE78D53FC}.Release|x64.Build.0 = Release|x64
+		{64A3C67F-3866-4F17-A587-946DE78D53FC}.Release|x86.ActiveCfg = Release|Win32
+		{64A3C67F-3866-4F17-A587-946DE78D53FC}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

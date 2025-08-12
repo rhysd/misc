@@ -1,0 +1,36 @@
+#pragma once
+
+#include <DirectXMath.h>
+#include <d3d12.h>
+#include <optional>
+#include <string>
+#include <vector>
+
+struct MeshVertex {
+    DirectX::XMFLOAT3 position;
+    DirectX::XMFLOAT3 normal;
+    DirectX::XMFLOAT2 tex_coord;
+    DirectX::XMFLOAT3 tangent;
+
+    static const D3D12_INPUT_LAYOUT_DESC INPUT_LAYOUT;
+
+  private:
+    static const int INPUT_ELEMENT_COUNT = 4;
+    static const D3D12_INPUT_ELEMENT_DESC INPUT_ELEMENTS[INPUT_ELEMENT_COUNT];
+};
+
+struct MaterialAsset {
+    DirectX::XMFLOAT3 diffuse;
+    DirectX::XMFLOAT3 specular;
+    float alpha;
+    float shininess;
+    std::string diffuse_map;
+};
+
+struct MeshAsset {
+    std::vector<MeshVertex> vertices;
+    std::vector<uint32_t> indices;
+    uint32_t material_id;
+};
+
+bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<MaterialAsset> &materials);
