@@ -828,14 +828,14 @@ bool App::on_init() {
         // Read shader files
         ComPtr<ID3DBlob> vs_blob = nullptr;
         {
-            auto const hr = D3DReadFileToBlob(L"tex_vs.cso", vs_blob.GetAddressOf());
+            auto const hr = D3DReadFileToBlob(L"vs.cso", vs_blob.GetAddressOf());
             if (FAILED(hr)) {
                 return false;
             }
         }
         ComPtr<ID3DBlob> ps_blob = nullptr;
         {
-            auto const hr = D3DReadFileToBlob(L"tex_ps.cso", ps_blob.GetAddressOf());
+            auto const hr = D3DReadFileToBlob(L"ps.cso", ps_blob.GetAddressOf());
             if (FAILED(hr)) {
                 return false;
             }

@@ -49,12 +49,6 @@
     <FxCompile Include="ps.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
-    <FxCompile Include="tex_vs.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
-    <FxCompile Include="tex_ps.hlsl">
-      <Filter>リソース ファイル</Filter>
-    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\res\ferris.dds">

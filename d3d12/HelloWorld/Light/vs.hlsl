@@ -1,17 +1,20 @@
 struct VSInput {
     float3 Position : POSITION;
-    float4 Color : COLOR;
+    float3 Normal : NORMAL;
+    float2 TexCoord : TEXCOORD;
+    float3 Tangent : TANGENT;
 };
 
 struct VSOutput {
     float4 Position : SV_POSITION;
-    float4 Color : COLOR;
+    float2 TexCoord : TEXCOORD;
 };
 
 cbuffer Transform : register(b0) {
     float4x4 World : packoffset(c0);
     float4x4 View : packoffset(c4);
     float4x4 Proj : packoffset(c8);
+
 }
 
 VSOutput main(VSInput input) {
@@ -23,7 +26,7 @@ VSOutput main(VSInput input) {
     float4 proj = mul(Proj, view);
 
     output.Position = proj;
-    output.Color = input.Color;
+    output.TexCoord = input.TexCoord;
 
     return output;
 }
