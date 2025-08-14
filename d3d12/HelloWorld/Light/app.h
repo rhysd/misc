@@ -42,20 +42,20 @@ class App {
   public:
     App(uint32_t const width, uint32_t const height);
     ~App();
-    bool run();
+    void run();
 
   private:
-    bool init_app();
+    void init_app();
     void term_app();
-    bool init_window();
+    void init_window();
     void term_window();
-    bool main_loop();
-    bool init_d3d();
+    void main_loop();
+    void init_d3d();
     void term_d3d();
-    bool render();
+    void render();
     void wait_gpu();
-    bool present(uint32_t const interval);
-    bool on_init();
+    void present(uint32_t const interval);
+    void on_init();
     void on_term();
 
     static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);

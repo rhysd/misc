@@ -97,11 +97,9 @@ MaterialAsset parse_material(aiMaterial const *src) {
 
 } // namespace
 
-bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<MaterialAsset> &materials) {
+void load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<MaterialAsset> &materials) {
     auto const path = to_utf8(filepath);
-    if (!path) {
-        return false;
-    }
+    assert(path);
 
     Assimp::Importer importer;
     int const flags =
@@ -114,9 +112,7 @@ bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vec
         aiProcess_OptimizeMeshes;
 
     auto const scene = importer.ReadFile(*path, flags);
-    if (scene == nullptr) {
-        return false;
-    }
+    assert(scene != nullptr);
 
     meshes.clear();
     meshes.reserve(scene->mNumMeshes);
@@ -129,8 +125,6 @@ bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vec
     for (auto i = 0u; i < scene->mNumMaterials; i++) {
         materials.push_back(parse_material(scene->mMaterials[i]));
     }
-
-    return true;
 }
 
 const D3D12_INPUT_ELEMENT_DESC MeshVertex::INPUT_ELEMENTS[] = {

@@ -11,9 +11,6 @@ int wmain(int argc, wchar_t **argv, wchar_t **envp) {
     // For example, when runtime reports the 148th allocation leaked, the following line sets the break point on the allocation
     // _CtrSetBreakAlloc(148);
 #endif
-    App app(960, 540);
-    if (!app.run()) {
-        return 1;
-    }
+    App(960, 540).run();
     return 0;
 }

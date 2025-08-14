@@ -22,21 +22,21 @@ App::App(uint32_t const width, uint32_t const height)
 
 App::~App() {}
 
-bool App::run() {
-    auto const success = init_app() && main_loop();
+void App::run() {
+    init_app();
+    main_loop();
     term_app();
-    return success;
 }
 
-bool App::init_app() {
-    return init_window() && init_d3d() && on_init();
+void App::init_app() {
+    init_window();
+    init_d3d();
+    on_init();
 }
 
-bool App::init_window() {
+void App::init_window() {
     auto const hinst = GetModuleHandle(nullptr);
-    if (hinst == nullptr) {
-        return false;
-    }
+    assert(hinst != nullptr);
 
     WNDCLASSEX wc = {};
     wc.cbSize = sizeof(WNDCLASSEX);
@@ -48,10 +48,7 @@ bool App::init_window() {
     wc.lpszMenuName = nullptr;
     wc.lpszClassName = ClassName;
     wc.hIconSm = LoadIcon(hinst, IDI_APPLICATION);
-
-    if (!RegisterClassEx(&wc)) {
-        return false;
-    }
+    assert(RegisterClassEx(&wc));
 
     hinst_ = hinst;
 
@@ -75,31 +72,22 @@ bool App::init_window() {
         nullptr,
         hinst_,
         nullptr);
-
-    if (hwnd_ == nullptr) {
-        return false;
-    }
+    assert(hwnd_ != nullptr);
 
     ShowWindow(hwnd_, SW_SHOWNORMAL);
-
     UpdateWindow(hwnd_);
-
-    return true;
 }
 
-bool App::main_loop() {
+void App::main_loop() {
     MSG msg = {};
     while (msg.message != WM_QUIT) {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) == TRUE) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         } else {
-            if (!render()) {
-                return false;
-            }
+            render();
         }
     }
-    return true;
 }
 
 void App::term_app() {
@@ -116,15 +104,13 @@ void App::term_window() {
     hwnd_ = nullptr;
 }
 
-bool App::init_d3d() {
+void App::init_d3d() {
 #if defined(DEBUG) || defined(_DEBUG)
     {
         // Enable debug layer
         ComPtr<ID3D12Debug> debug;
         auto const hr = D3D12GetDebugInterface(IID_PPV_ARGS(debug.GetAddressOf()));
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
         debug->EnableDebugLayer();
     }
 #endif
@@ -135,9 +121,7 @@ bool App::init_d3d() {
             nullptr,                               // Video adaptor
             D3D_FEATURE_LEVEL_11_0,                // Minimal feature level
             IID_PPV_ARGS(device_.GetAddressOf())); // Macro equivalent to `__uuidof(&device_), (void **)device_`
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
     }
 
     // Create command queue to submit draw commands to GPU
@@ -149,9 +133,7 @@ bool App::init_d3d() {
         desc.NodeMask = 0; // Note: Assumes only single GPU is available
 
         auto const hr = device_->CreateCommandQueue(&desc, IID_PPV_ARGS(queue_.GetAddressOf()));
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
     }
 
     // Create swap chain to swap frame buffers (double buffer)
@@ -160,9 +142,7 @@ bool App::init_d3d() {
         // Note: DXGI = DirectX Graphics Infrastructure
         ComPtr<IDXGIFactory4> factory = nullptr;
         auto hr = CreateDXGIFactory1(IID_PPV_ARGS(factory.GetAddressOf()));
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
 
         DXGI_SWAP_CHAIN_DESC desc{};
         desc.BufferDesc.Width = width_;
@@ -183,14 +163,10 @@ bool App::init_d3d() {
 
         ComPtr<IDXGISwapChain> swap_chain = nullptr;
         hr = factory->CreateSwapChain(queue_.Get(), &desc, swap_chain.GetAddressOf());
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
 
         hr = swap_chain->QueryInterface(IID_PPV_ARGS(swap_chain_.GetAddressOf()));
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
 
         frame_index_ = swap_chain_->GetCurrentBackBufferIndex();
     }
@@ -201,9 +177,7 @@ bool App::init_d3d() {
             auto const hr = device_->CreateCommandAllocator(
                 D3D12_COMMAND_LIST_TYPE_DIRECT,
                 IID_PPV_ARGS(cmd_alloc_[i].GetAddressOf()));
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
         }
     }
 
@@ -215,9 +189,7 @@ bool App::init_d3d() {
             cmd_alloc_[frame_index_].Get(),
             nullptr,
             IID_PPV_ARGS(cmd_list_.GetAddressOf()));
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
     }
 
     // Create render target view (resource view object)
@@ -229,18 +201,14 @@ bool App::init_d3d() {
         desc.NodeMask = 0;
 
         auto const hr = device_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap_rtv_.GetAddressOf()));
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
 
         auto handle = heap_rtv_->GetCPUDescriptorHandleForHeapStart();
         auto const inc_size = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
         for (auto i = 0; i < FRAME_COUNT; i++) {
             auto const hr = swap_chain_->GetBuffer(i, IID_PPV_ARGS(color_buffer_[i].GetAddressOf()));
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
 
             D3D12_RENDER_TARGET_VIEW_DESC desc{};
             desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -292,9 +260,7 @@ bool App::init_d3d() {
                 D3D12_RESOURCE_STATE_DEPTH_WRITE,
                 &clear_value,
                 IID_PPV_ARGS(depth_buffer_.GetAddressOf()));
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
         }
 
         // Create descriptor heap
@@ -308,9 +274,7 @@ bool App::init_d3d() {
             auto const hr = device_->CreateDescriptorHeap(
                 &desc,
                 IID_PPV_ARGS(heap_dsv_.GetAddressOf()));
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
         }
 
         // Assign the CPU descriptor handle to the depth stencil view
@@ -338,24 +302,18 @@ bool App::init_d3d() {
             fence_counter_[frame_index_],
             D3D12_FENCE_FLAG_NONE,
             IID_PPV_ARGS(fence_.GetAddressOf()));
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
 
         fence_counter_[frame_index_]++;
 
         fence_event_ = CreateEvent(/* attributes */ nullptr, /* manual reset */ FALSE, /* initial state */ FALSE, /* name */ nullptr);
-        if (fence_event_ == nullptr) {
-            return false;
-        }
+        assert(fence_event_ != nullptr);
     }
 
     cmd_list_->Close();
-
-    return true;
 }
 
-bool App::render() {
+void App::render() {
     // Update state
     {
         auto const scaling = DirectX::XMMatrixScaling(1.5f, 1.5f, 1.5f);
@@ -366,13 +324,9 @@ bool App::render() {
 
     // Clear command buffer
     auto hr = cmd_alloc_[frame_index_]->Reset();
-    if (FAILED(hr)) {
-        return false;
-    }
+    assert(SUCCEEDED(hr));
     hr = cmd_list_->Reset(cmd_alloc_[frame_index_].Get(), /*pipeline state*/ nullptr);
-    if (FAILED(hr)) {
-        return false;
-    }
+    assert(SUCCEEDED(hr));
 
     D3D12_RESOURCE_BARRIER barrier{};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -423,49 +377,37 @@ bool App::render() {
     cmd_list_->ResourceBarrier(1, &barrier);
 
     hr = cmd_list_->Close();
-    if (FAILED(hr)) {
-        return false;
-    }
+    assert(SUCCEEDED(hr));
 
     ID3D12CommandList *cmd_lists[] = {cmd_list_.Get()};
     queue_->ExecuteCommandLists(1, cmd_lists);
 
-    return present(1);
+    present(1);
 }
 
-bool App::present(uint32_t const interval) {
+void App::present(uint32_t const interval) {
     // Render the front buffer to the screen and swap frame buffers
     // Passing `1` to `interval` means sync after the first vsync
     auto hr = swap_chain_->Present(interval, 0);
-    if (FAILED(hr)) {
-        return false;
-    }
+    assert(SUCCEEDED(hr));
 
     // Set the `counter` value to the fence when the commands in the command list are completed
     auto const counter = fence_counter_[frame_index_];
     hr = queue_->Signal(fence_.Get(), counter);
-    if (FAILED(hr)) {
-        return false;
-    }
+    assert(SUCCEEDED(hr));
 
     frame_index_ = swap_chain_->GetCurrentBackBufferIndex();
 
     // Wait until the next frame is prepared (= the fence value is set to `counter`)
     if (fence_->GetCompletedValue() < counter) {
-        hr = fence_->SetEventOnCompletion(counter, fence_event_);
-        if (FAILED(hr)) {
-            return false;
-        }
+        auto const hr = fence_->SetEventOnCompletion(counter, fence_event_);
+        assert(SUCCEEDED(hr));
         auto const res = WaitForSingleObjectEx(fence_event_, INFINITE, FALSE);
-        if (res == WAIT_FAILED) {
-            return false;
-        }
+        assert(res != WAIT_FAILED);
     }
 
     // Next fence counter
     fence_counter_[frame_index_]++;
-
-    return true;
 }
 
 void App::wait_gpu() {
@@ -503,10 +445,8 @@ void App::term_d3d() {
     device_.Reset();
 }
 
-bool App::on_init() {
-    if (!load_mesh(L"teapot.obj", meshes_, materials_)) {
-        return false;
-    }
+void App::on_init() {
+    load_mesh(L"teapot.obj", meshes_, materials_);
     assert(meshes_.size() == 1);
     auto const &mesh = meshes_[0];
 
@@ -544,18 +484,14 @@ bool App::on_init() {
                 D3D12_RESOURCE_STATE_GENERIC_READ, // For D3D12_HEAP_TYPE_UPLOAD
                 nullptr,
                 IID_PPV_ARGS(vb_.GetAddressOf()));
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
         }
 
         // Map vertex data
         {
             void *dest = nullptr;
             auto const hr = vb_->Map(/*first subresource*/ 0, /*entire buffer*/ nullptr, &dest);
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
             memcpy(dest, vertices, size);
             vb_->Unmap(0, nullptr);
         }
@@ -600,18 +536,14 @@ bool App::on_init() {
                 D3D12_RESOURCE_STATE_GENERIC_READ, // For D3D12_HEAP_TYPE_UPLOAD
                 nullptr,
                 IID_PPV_ARGS(ib_.GetAddressOf()));
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
         }
 
         // Map index data
         {
             void *dest = nullptr;
             auto const hr = ib_->Map(0, nullptr, &dest);
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
             memcpy(dest, indices, size);
             ib_->Unmap(0, nullptr);
         }
@@ -632,9 +564,7 @@ bool App::on_init() {
         auto const hr = device_->CreateDescriptorHeap(
             &desc,
             IID_PPV_ARGS(heap_cbv_srv_uav_.GetAddressOf()));
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
     }
 
     // Create constant buffer for `Transform` constant
@@ -671,9 +601,7 @@ bool App::on_init() {
                 D3D12_RESOURCE_STATE_GENERIC_READ,
                 nullptr,
                 IID_PPV_ARGS(cb_[i].GetAddressOf()));
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
 
             auto handle_cpu = heap_cbv_srv_uav_->GetCPUDescriptorHandleForHeapStart();
             auto handle_gpu = heap_cbv_srv_uav_->GetGPUDescriptorHandleForHeapStart();
@@ -690,9 +618,7 @@ bool App::on_init() {
             // Create mapping
             {
                 auto const hr = cb_[i]->Map(0, nullptr, reinterpret_cast<void **>(&cbv_[i].buffer));
-                if (FAILED(hr)) {
-                    return false;
-                }
+                assert(SUCCEEDED(hr));
             }
 
             auto const eye_pos = DirectX::XMVectorSet(0.0f, 0.0f, 5.0f, 0.0f);
@@ -767,9 +693,7 @@ bool App::on_init() {
                 D3D_ROOT_SIGNATURE_VERSION_1_0,
                 blob.GetAddressOf(),
                 error_blob.GetAddressOf());
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
         }
 
         {
@@ -778,9 +702,7 @@ bool App::on_init() {
                 blob->GetBufferPointer(),
                 blob->GetBufferSize(),
                 IID_PPV_ARGS(root_signature_.GetAddressOf()));
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
         }
     }
 
@@ -828,16 +750,12 @@ bool App::on_init() {
         ComPtr<ID3DBlob> vs_blob = nullptr;
         {
             auto const hr = D3DReadFileToBlob(L"vs.cso", vs_blob.GetAddressOf());
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
         }
         ComPtr<ID3DBlob> ps_blob = nullptr;
         {
             auto const hr = D3DReadFileToBlob(L"ps.cso", ps_blob.GetAddressOf());
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
         }
 
         // Configure pipeline state
@@ -861,9 +779,7 @@ bool App::on_init() {
             auto const hr = device_->CreateGraphicsPipelineState(
                 &desc,
                 IID_PPV_ARGS(pipeline_state_.GetAddressOf()));
-            if (FAILED(hr)) {
-                return false;
-            }
+            assert(SUCCEEDED(hr));
         }
     }
 
@@ -878,9 +794,7 @@ bool App::on_init() {
             L"default.DDS",
             texture_.resource.GetAddressOf(),
             /* generate mipmap*/ true);
-        if (FAILED(hr)) {
-            return false;
-        }
+        assert(SUCCEEDED(hr));
         batch.End(queue_.Get()).wait(); // `End` returns a future. Wait the command batch finishes
 
         auto const increment_size = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -917,8 +831,6 @@ bool App::on_init() {
         scissor_.bottom = height_;
         scissor_.left = 0;
     }
-
-    return true;
 }
 
 void App::on_term() {

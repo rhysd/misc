@@ -33,4 +33,4 @@ struct MeshAsset {
     uint32_t material_id;
 };
 
-bool load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<MaterialAsset> &materials);
+void load_mesh(wchar_t const *filepath, std::vector<MeshAsset> &meshes, std::vector<MaterialAsset> &materials);
