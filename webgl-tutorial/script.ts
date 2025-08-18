@@ -302,7 +302,6 @@
             m.multiply(pMat, vMat, vpMat);
             gl.uniformMatrix4fv(uniforms.vpMat, /* transpose */ false, vpMat);
 
-            q.toVecIII([-0.577, 0.577, 0.577], qCamera, lightDirection);
             gl.uniform3fv(uniforms.lightDirection, lightDirection);
             gl.uniform3fv(uniforms.eyePosition, cameraPos);
 
