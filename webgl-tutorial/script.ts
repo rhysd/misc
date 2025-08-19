@@ -425,13 +425,13 @@
 
         const torusObject = prog.createObject(torus(64, 64, 0.1, 0.4));
         const sphereObject = prog.createObject(sphere(64, 64, 0.25));
-        const rectObject = prog.createObject(rect(2, [0.3, 0.3, 0.3, 1]));
+        const rectObject = prog.createObject(rect(4, [0.3, 0.3, 0.3, 1]));
 
         const mirrorProg = new Program(mvs, mfs);
         mirrorProg.defineAttribute('position', 3);
         mirrorProg.defineAttribute('texCoord', 2);
         mirrorProg.declareUniforms('ortMat', 'texture', 'alpha');
-        const mirrorRect = mirrorProg.createObject(rect(2, [0, 0, 0, 1]));
+        const mirrorRect = mirrorProg.createObject(rect(4, [0, 0, 0, 1]));
 
         const camera = new Camera(canvas);
         const lightDirection: Vec3 = [-0.577, 0.577, 0.577];
@@ -444,8 +444,8 @@
         const invMat = m.create();
         const ortMat = m.create();
 
-        m.lookAt([0.0, 0.0, 0.5], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], vMat);
-        m.ortho(-1.0, 1.0, 1.0, -1.0, 0.1, 1, pMat);
+        m.lookAt(/*cam pos*/ [0, 0, 0.5], /*cam center*/ [0, 0, 0], /*cam up*/ [0, 1, 0], vMat);
+        m.ortho(-2, 2, 2, -2, 0.1, 1, pMat);
         m.multiply(pMat, vMat, ortMat);
         m.perspective(
             /* fov */ 45,
@@ -470,6 +470,21 @@
                     gl.drawElements(gl.TRIANGLES, obj.lenIndices, gl.UNSIGNED_SHORT, 0);
                 }
 
+                function drawTorus(): void {
+                    m.identity(mMat);
+                    m.rotate(mMat, rad, /* axis */ [0, 1, 0], mMat);
+                    m.translate(mMat, [0, 0.75 + upDown, 0], mMat);
+                    m.rotate(mMat, Math.PI * 0.5, [1, 0, 0], mMat);
+                    draw(torusObject);
+                }
+
+                function drawSphere(): void {
+                    m.identity(mMat);
+                    m.rotate(mMat, -rad, /* axis */ [0, 1, 0], mMat);
+                    m.translate(mMat, [0, 0.75, 1], mMat);
+                    draw(sphereObject);
+                }
+
                 prog.use();
                 gl.disable(gl.STENCIL_TEST);
 
@@ -486,63 +501,32 @@
                 gl.bindFramebuffer(gl.FRAMEBUFFER, fbuf.frame);
 
                 clear();
-                gl.cullFace(gl.FRONT);
+                gl.cullFace(gl.FRONT); // We are drawing mirror world from opposite side so culling face should be flipped
                 gl.uniform1i(prog.uniform('isMirror'), 1);
 
-                // Render torus object
-                {
-                    m.identity(mMat);
-                    m.rotate(mMat, rad, /* axis */ [0, 1, 0], mMat);
-                    m.translate(mMat, [0, 0.75 + upDown, 0], mMat);
-                    m.rotate(mMat, Math.PI * 0.5, [1, 0, 0], mMat);
-                    draw(torusObject);
-                }
-
-                // Render sphere object
-                {
-                    m.identity(mMat);
-                    m.rotate(mMat, -rad, /* axis */ [0, 1, 0], mMat);
-                    m.translate(mMat, [0, 0.75, 1], mMat);
-                    draw(sphereObject);
-                }
+                drawTorus();
+                drawSphere();
 
                 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
                 // 2. Render the real world
 
-                gl.enable(gl.STENCIL_TEST);
-                gl.stencilFunc(gl.ALWAYS, 0, ~0);
-                gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
-
                 clear();
-                gl.cullFace(gl.BACK);
+                gl.cullFace(gl.BACK); // Restore the culling face to the default
                 gl.uniform1i(prog.uniform('isMirror'), 0);
 
-                // Render torus object
-                {
-                    m.identity(mMat);
-                    m.rotate(mMat, rad, /* axis */ [0, 1, 0], mMat);
-                    m.translate(mMat, [0, 0.75 + upDown, 0], mMat);
-                    m.rotate(mMat, Math.PI * 0.5, [1, 0, 0], mMat);
-                    draw(torusObject);
-                }
-
-                // Render sphere object
-                {
-                    m.identity(mMat);
-                    m.rotate(mMat, -rad, /* axis */ [0, 1, 0], mMat);
-                    m.translate(mMat, [0, 0.75, 1], mMat);
-                    draw(sphereObject);
-                }
-
-                gl.stencilFunc(gl.ALWAYS, 1, ~0);
-                gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+                drawTorus();
+                drawSphere();
 
                 // Render the board
                 {
+                    // Write `1` to the pixels inside the board to avoid writing mirror world outside the board
+                    gl.enable(gl.STENCIL_TEST);
+                    gl.stencilFunc(gl.ALWAYS, 1, ~0);
+                    gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+
                     m.identity(mMat);
                     m.rotate(mMat, Math.PI * 1.5, [1, 0, 0], mMat);
-                    m.scale(mMat, [2, 2, 1], mMat);
                     draw(rectObject);
                 }
             }
@@ -551,6 +535,7 @@
             {
                 mirrorProg.use();
 
+                // Only write the mirror world where the stencil value is `1`
                 gl.stencilFunc(gl.EQUAL, 1, ~0);
                 gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
 
@@ -565,9 +550,6 @@
 
                 gl.bindTexture(gl.TEXTURE_2D, null);
             }
-
-            // Actual re-rendering happens here
-            gl.flush();
 
             window.requestAnimationFrame(update);
         }
