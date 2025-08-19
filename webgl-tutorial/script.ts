@@ -5,13 +5,14 @@
     canvas.width = 512;
     canvas.height = 512;
 
-    const gl = canvas.getContext('webgl')!;
+    const gl = canvas.getContext('webgl', { stencil: true })!;
     const m = new matIV();
     const q = new qtnIV();
 
     function clear(): void {
         gl.clearColor(0.5, 0.7, 1.0, 1.0);
         gl.clearDepth(1.0);
+        gl.clearStencil(0.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
 
@@ -64,13 +65,6 @@
         lenIndices: number;
     }
 
-    interface ObjectData {
-        positions: number[];
-        colors: number[];
-        normals: number[];
-        indices: number[];
-    }
-
     function createIndexBuffer(data: number[]): WebGLBuffer {
         const ibo = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
@@ -89,6 +83,11 @@
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
     }
 
+    interface ObjectData {
+        indices: number[];
+        [key: string]: number[] | undefined;
+    }
+
     interface BoundAttribute {
         loc: number;
         vbo: WebGLBuffer;
@@ -97,7 +96,6 @@
 
     interface AttributeDef {
         name: string;
-        dataName: keyof ObjectData;
         stride: number;
     }
 
@@ -128,8 +126,8 @@
             gl.useProgram(this.prog);
         }
 
-        defineAttribute(name: string, dataName: keyof ObjectData, stride: number): void {
-            this.attrDefs.push({ name, dataName, stride });
+        defineAttribute(name: string, stride: number): void {
+            this.attrDefs.push({ name, stride });
         }
 
         getAttributeLocation(name: string): number {
@@ -149,7 +147,11 @@
 
         createObject(data: ObjectData): RenderObject {
             const attrs = this.attrDefs.map(def => {
-                return this.createAttribute(def.name, data[def.dataName], def.stride);
+                const v = data[def.name];
+                if (v === undefined) {
+                    throw new Error(`"${def.name}" is not a key of object data: ${JSON.stringify(data)}`);
+                }
+                return this.createAttribute(def.name, v, def.stride);
             });
             const ibo = createIndexBuffer(data.indices);
             const lenIndices = data.indices.length;
@@ -188,9 +190,9 @@
     }
 
     function torus(row: number, col: number, innerRadius: number, outerRadius: number): ObjectData {
-        const positions = [];
-        const normals = [];
-        const colors = [];
+        const position = [];
+        const normal = [];
+        const color = [];
         const indices = [];
 
         for (let i = 0; i <= row; i++) {
@@ -203,13 +205,13 @@
                 const x = (rr * innerRadius + outerRadius) * Math.cos(rad);
                 const y = ry * innerRadius;
                 const z = (rr * innerRadius + outerRadius) * Math.sin(rad);
-                positions.push(x, y, z);
+                position.push(x, y, z);
 
                 const rx = rr * Math.cos(rad);
                 const rz = rr * Math.sin(rad);
-                normals.push(rx, ry, rz);
+                normal.push(rx, ry, rz);
 
-                colors.push(...hsva((360 / col) * j, 1, 1, 1));
+                color.push(...hsva((360 / col) * j, 1, 1, 1));
             }
         }
 
@@ -221,13 +223,13 @@
             }
         }
 
-        return { positions, normals, colors, indices };
+        return { position, normal, color, indices };
     }
 
     function sphere(row: number, col: number, radius: number): ObjectData {
-        const positions = [];
-        const normals = [];
-        const colors = [];
+        const position = [];
+        const normal = [];
+        const color = [];
         const indices = [];
 
         for (let i = 0; i <= row; i++) {
@@ -240,13 +242,13 @@
                 const x = rr * radius * Math.cos(rad);
                 const y = ry * radius;
                 const z = rr * radius * Math.sin(rad);
-                positions.push(x, y, z);
+                position.push(x, y, z);
 
                 const rx = rr * Math.cos(rad);
                 const rz = rr * Math.sin(rad);
-                normals.push(rx, ry, rz);
+                normal.push(rx, ry, rz);
 
-                colors.push(...hsva((360 / row) * i, 1, 1, 1));
+                color.push(...hsva((360 / row) * i, 1, 1, 1));
             }
         }
 
@@ -258,28 +260,28 @@
             }
         }
 
-        return { positions, normals, colors, indices };
+        return { position, normal, color, indices };
     }
 
-    function rect(size: number, color: Color): ObjectData {
+    function rect(size: number, c: Color): ObjectData {
         const half = size / 2;
         // prettier-ignore
-        const positions = [
+        const position = [
             -half,  half, 0.0,
              half,  half, 0.0,
             -half, -half, 0.0,
              half, -half, 0.0,
         ];
         // prettier-ignore
-        const normals = [
+        const normal = [
             0.0, 0.0, 1.0,
             0.0, 0.0, 1.0,
             0.0, 0.0, 1.0,
             0.0, 0.0, 1.0,
         ];
-        const colors = [...color, ...color, ...color, ...color];
+        const color = [...c, ...c, ...c, ...c];
         // prettier-ignore
-        const texCoords = [
+        const texCoord = [
             0.0, 0.0,
             1.0, 0.0,
             0.0, 1.0,
@@ -290,15 +292,13 @@
             0, 2, 1,
             2, 3, 1,
         ];
-        // Use `tmp` variable to ignore `texCoords` for now
-        const tmp = { positions, normals, colors, texCoords, indices };
-        return tmp;
+        return { position, normal, color, texCoord, indices };
     }
 
     class Camera {
-        pos: Vec3;
-        upDir: Vec3;
-        q: Float32Array;
+        private pos: Vec3;
+        private upDir: Vec3;
+        private q: Float32Array;
 
         constructor(canvas: HTMLCanvasElement) {
             this.pos = [0, 0, 0];
@@ -347,34 +347,106 @@
             return this.upDir;
         }
     }
+
+    interface OfflineFrameBuffer {
+        frame: WebGLFramebuffer;
+        depth: WebGLRenderbuffer;
+        texture: WebGLTexture;
+        width: number;
+        height: number;
+    }
+
+    function createOfflineFrameBuffer(width: number, height: number): OfflineFrameBuffer {
+        const frame = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frame);
+
+        // Setup the render buffer as depth buffer
+        const depth = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+
+        // Attach the depth buffer to the frame buffer
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
+
+        // Create texture as the rendering target
+        const mipmapLevel = 0;
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            mipmapLevel,
+            gl.RGBA,
+            width,
+            height,
+            /* width of border */ 0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            /* texture data is unbound*/ null,
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // Attach the texture to the frame buffer
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, mipmapLevel);
+
+        // Ensure all buffers are unbound after creation
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        return { frame, depth, texture, width, height };
+    }
+
     async function main(): Promise<void> {
-        const [vs, fs] = await Promise.all([loadShader('shader.vert'), loadShader('shader.frag')]);
+        const [vs, fs, mvs, mfs] = await Promise.all([
+            loadShader('shader.vert'),
+            loadShader('shader.frag'),
+            loadShader('mirror.vert'),
+            loadShader('mirror.frag'),
+        ]);
 
         // Enable culling
         gl.enable(gl.CULL_FACE);
         // Enable depth test
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
-        // Enable blending
+        // Enable blending because we blend the mirror texture and the board
         gl.enable(gl.BLEND);
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
         gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
 
         const prog = new Program(vs, fs);
-        prog.defineAttribute('position', 'positions', 3);
-        prog.defineAttribute('color', 'colors', 4);
-        prog.defineAttribute('normal', 'normals', 3);
-        prog.declareUniforms('mMat', 'vpMat', 'invMat', 'lightDirection', 'eyePosition');
-        prog.use();
+        prog.defineAttribute('position', 3);
+        prog.defineAttribute('color', 4);
+        prog.defineAttribute('normal', 3);
+        prog.declareUniforms('mMat', 'vpMat', 'invMat', 'lightDirection', 'eyePosition', 'isMirror');
 
         const torusObject = prog.createObject(torus(64, 64, 0.1, 0.4));
         const sphereObject = prog.createObject(sphere(64, 64, 0.25));
-        const rectObject = prog.createObject(rect(2, [0.5, 0.5, 0.5, 1]));
+        const rectObject = prog.createObject(rect(2, [0.3, 0.3, 0.3, 1]));
 
-        const vMat = m.identity(m.create());
-        const pMat = m.identity(m.create());
-        const vpMat = m.identity(m.create());
+        const mirrorProg = new Program(mvs, mfs);
+        mirrorProg.defineAttribute('position', 3);
+        mirrorProg.defineAttribute('texCoord', 2);
+        mirrorProg.declareUniforms('ortMat', 'texture', 'alpha');
+        const mirrorRect = mirrorProg.createObject(rect(2, [0, 0, 0, 1]));
 
+        const camera = new Camera(canvas);
+        const lightDirection: Vec3 = [-0.577, 0.577, 0.577];
+        const fbuf = createOfflineFrameBuffer(canvas.width, canvas.height);
+
+        const mMat = m.create();
+        const vMat = m.create();
+        const pMat = m.create();
+        const vpMat = m.create();
+        const invMat = m.create();
+        const ortMat = m.create();
+
+        m.lookAt([0.0, 0.0, 0.5], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0], vMat);
+        m.ortho(-1.0, 1.0, 1.0, -1.0, 0.1, 1, pMat);
+        m.multiply(pMat, vMat, ortMat);
         m.perspective(
             /* fov */ 45,
             /* aspect ratio */ canvas.width / canvas.height,
@@ -383,60 +455,115 @@
             pMat,
         );
 
-        const camera = new Camera(canvas);
-        const lightDirection: Vec3 = [-0.577, 0.577, 0.577];
-        const mMat = m.create();
-        const invMat = m.create();
-
         let count = 0;
         function update(): void {
-            clear();
-
             count++;
             const rad = ((count % 720) * Math.PI) / 360;
             const upDown = Math.sin(rad) * 0.25;
 
-            const cameraPos = camera.position();
-            m.lookAt(cameraPos, /* Camera center */ [0, 0, 0], camera.up(), vMat);
-            m.multiply(pMat, vMat, vpMat);
-            gl.uniformMatrix4fv(prog.uniform('vpMat'), /* transpose */ false, vpMat);
+            {
+                function draw(obj: RenderObject): void {
+                    bindObjectBuffers(obj);
+                    gl.uniformMatrix4fv(prog.uniform('mMat'), /* transpose */ false, mMat);
+                    m.inverse(mMat, invMat);
+                    gl.uniformMatrix4fv(prog.uniform('invMat'), /* transpose */ false, invMat);
+                    gl.drawElements(gl.TRIANGLES, obj.lenIndices, gl.UNSIGNED_SHORT, 0);
+                }
 
-            gl.uniform3fv(prog.uniform('lightDirection'), lightDirection);
-            gl.uniform3fv(prog.uniform('eyePosition'), cameraPos);
+                prog.use();
+                gl.disable(gl.STENCIL_TEST);
 
-            function drawObject(obj: RenderObject, m: Float32Array, inv: Float32Array): void {
-                bindObjectBuffers(obj);
-                gl.uniformMatrix4fv(prog.uniform('mMat'), /* transpose */ false, m);
-                gl.uniformMatrix4fv(prog.uniform('invMat'), /* transpose */ false, inv);
-                gl.drawElements(gl.TRIANGLES, obj.lenIndices, gl.UNSIGNED_SHORT, 0);
+                const cameraPos = camera.position();
+                m.lookAt(cameraPos, /* Camera center */ [0, 0, 0], camera.up(), vMat);
+                m.multiply(pMat, vMat, vpMat);
+                gl.uniformMatrix4fv(prog.uniform('vpMat'), /* transpose */ false, vpMat);
+
+                gl.uniform3fv(prog.uniform('lightDirection'), lightDirection);
+                gl.uniform3fv(prog.uniform('eyePosition'), cameraPos);
+
+                // 1. Render the mirror world
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fbuf.frame);
+
+                clear();
+                gl.cullFace(gl.FRONT);
+                gl.uniform1i(prog.uniform('isMirror'), 1);
+
+                // Render torus object
+                {
+                    m.identity(mMat);
+                    m.rotate(mMat, rad, /* axis */ [0, 1, 0], mMat);
+                    m.translate(mMat, [0, 0.75 + upDown, 0], mMat);
+                    m.rotate(mMat, Math.PI * 0.5, [1, 0, 0], mMat);
+                    draw(torusObject);
+                }
+
+                // Render sphere object
+                {
+                    m.identity(mMat);
+                    m.rotate(mMat, -rad, /* axis */ [0, 1, 0], mMat);
+                    m.translate(mMat, [0, 0.75, 1], mMat);
+                    draw(sphereObject);
+                }
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+                // 2. Render the real world
+
+                gl.enable(gl.STENCIL_TEST);
+                gl.stencilFunc(gl.ALWAYS, 0, ~0);
+                gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+
+                clear();
+                gl.cullFace(gl.BACK);
+                gl.uniform1i(prog.uniform('isMirror'), 0);
+
+                // Render torus object
+                {
+                    m.identity(mMat);
+                    m.rotate(mMat, rad, /* axis */ [0, 1, 0], mMat);
+                    m.translate(mMat, [0, 0.75 + upDown, 0], mMat);
+                    m.rotate(mMat, Math.PI * 0.5, [1, 0, 0], mMat);
+                    draw(torusObject);
+                }
+
+                // Render sphere object
+                {
+                    m.identity(mMat);
+                    m.rotate(mMat, -rad, /* axis */ [0, 1, 0], mMat);
+                    m.translate(mMat, [0, 0.75, 1], mMat);
+                    draw(sphereObject);
+                }
+
+                gl.stencilFunc(gl.ALWAYS, 1, ~0);
+                gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+
+                // Render the board
+                {
+                    m.identity(mMat);
+                    m.rotate(mMat, Math.PI * 1.5, [1, 0, 0], mMat);
+                    m.scale(mMat, [2, 2, 1], mMat);
+                    draw(rectObject);
+                }
             }
 
-            // Render torus object
+            // 3. Compose mirror world rendered to the frame buffer to the real world
             {
-                m.identity(mMat);
-                m.rotate(mMat, rad, /* axis */ [0, 1, 0], mMat);
-                m.translate(mMat, [0, 0.75 + upDown, 0], mMat);
-                m.rotate(mMat, Math.PI * 0.5, [1, 0, 0], mMat);
-                m.inverse(mMat, invMat);
-                drawObject(torusObject, mMat, invMat);
-            }
+                mirrorProg.use();
 
-            // Render sphere object
-            {
-                m.identity(mMat);
-                m.rotate(mMat, -rad, /* axis */ [0, 1, 0], mMat);
-                m.translate(mMat, [0, 0.75, 1], mMat);
-                m.inverse(mMat, invMat);
-                drawObject(sphereObject, mMat, invMat);
-            }
+                gl.stencilFunc(gl.EQUAL, 1, ~0);
+                gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
 
-            // Render the board
-            {
-                m.identity(mMat);
-                m.rotate(mMat, Math.PI * 1.5, [1.0, 0.0, 0.0], mMat);
-                m.scale(mMat, [2.0, 2.0, 1.0], mMat);
-                m.inverse(mMat, invMat);
-                drawObject(rectObject, mMat, invMat);
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, fbuf.texture);
+
+                bindObjectBuffers(mirrorRect);
+                gl.uniformMatrix4fv(mirrorProg.uniform('ortMat'), false, ortMat);
+                gl.uniform1i(mirrorProg.uniform('texture'), 0);
+                gl.uniform1f(mirrorProg.uniform('alpha'), 0.3);
+                gl.drawElements(gl.TRIANGLES, mirrorRect.lenIndices, gl.UNSIGNED_SHORT, 0);
+
+                gl.bindTexture(gl.TEXTURE_2D, null);
             }
 
             // Actual re-rendering happens here

@@ -7,6 +7,7 @@ uniform mat4 vpMat;
 uniform mat4 invMat;
 uniform vec3 lightDirection;
 uniform vec3 eyePosition;
+uniform bool isMirror;
 
 varying vec4 vColor;
 
@@ -17,5 +18,9 @@ void main(void) {
     float diffuse = clamp(dot(normal, invLight), 0.1, 1.0);
     float specular = pow(clamp(dot(normal, halfLightEye), 0.0, 1.0), 50.0);
     vColor = color * vec4(vec3(diffuse), 1.0) + vec4(vec3(specular), 1.0);
-    gl_Position = vpMat * mMat * vec4(position, 1.0);
+    vec4 pos = mMat * vec4(position, 1.0);
+    if (isMirror) {
+        pos = vec4(pos.x, -pos.y, pos.zw);
+    }
+    gl_Position = vpMat * pos;
 }
