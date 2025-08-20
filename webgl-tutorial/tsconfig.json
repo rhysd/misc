@@ -29,6 +29,7 @@
     "toon/script.ts",
     "shadowmap/script.ts",
     "filter/script.ts",
+    "mirror/script.ts",
     "script.ts"
   ]
 }
