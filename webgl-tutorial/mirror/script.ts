@@ -5,6 +5,8 @@
     canvas.width = 512;
     canvas.height = 512;
 
+    const alphaInput = document.getElementById('alpha')! as HTMLInputElement;
+
     const gl = canvas.getContext('webgl', { stencil: true })!;
     const m = new matIV();
     const q = new qtnIV();
@@ -535,6 +537,8 @@
             {
                 mirrorProg.use();
 
+                const alpha = parseFloat(alphaInput.value);
+
                 // Only write the mirror world where the stencil value is `1`
                 gl.stencilFunc(gl.EQUAL, 1, ~0);
                 gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
@@ -545,7 +549,7 @@
                 bindObjectBuffers(mirrorRect);
                 gl.uniformMatrix4fv(mirrorProg.uniform('ortMat'), false, ortMat);
                 gl.uniform1i(mirrorProg.uniform('texture'), 0);
-                gl.uniform1f(mirrorProg.uniform('alpha'), 0.3);
+                gl.uniform1f(mirrorProg.uniform('alpha'), alpha);
                 gl.drawElements(gl.TRIANGLES, mirrorRect.lenIndices, gl.UNSIGNED_SHORT, 0);
 
                 gl.bindTexture(gl.TEXTURE_2D, null);

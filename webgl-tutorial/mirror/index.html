@@ -4,13 +4,17 @@
         <title>Mirror reflection</title>
         <style>
           body {
+            color: #ddd;
             background-color: black;
           }
         </style>
         <script src="../minMatrix.js"></script>
     </head>
     <body>
-        <canvas id="canvas"></canvas>
-        <script src="script.js"></script>
+      <canvas id="canvas"></canvas>
+        <div>
+          Alpha: <input id="alpha" type="range" value="0.3" min="0.0" max="1.0" step="0.01"/>
+        </div>
+      <script src="script.js"></script>
     </body>
 </html>
