@@ -9,8 +9,19 @@
     const m = new matIV();
     const q = new qtnIV();
 
-    function clear(): void {
-        gl.clearColor(0.2, 0.5, 1.0, 1.0);
+    const skyButton = document.getElementById('sky')! as HTMLInputElement;
+
+    function getSkyColor(): Color {
+        const color = skyButton.value;
+        const r = parseInt(color.slice(1, 3), 16) / 255;
+        const g = parseInt(color.slice(3, 5), 16) / 255;
+        const b = parseInt(color.slice(5, 7), 16) / 255;
+        return [r, g, b, 1.0];
+    }
+
+    function clear(color: Color): void {
+        const [r, g, b, a] = color.map(x => Math.min(x + 0.2, 1.0));
+        gl.clearColor(r, g, b, a);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
@@ -306,7 +317,6 @@
         const camera = new Camera(canvas);
         const lightDirection: Vec3 = [-0.577, 0.577, 0.577];
         const skyDirection: Vec3 = [0, 1, 0];
-        const skyColor: Color = [0.1, 0.3, 1, 1];
         const groundColor: Color = [0.3, 0.2, 0.1, 1];
 
         const prog = new Program(vs, fs);
@@ -327,7 +337,6 @@
 
         gl.uniform3fv(prog.uniform('lightDirection'), lightDirection);
         gl.uniform3fv(prog.uniform('skyDirection'), skyDirection);
-        gl.uniform4fv(prog.uniform('skyColor'), skyColor);
         gl.uniform4fv(prog.uniform('groundColor'), groundColor);
 
         const torusObject = prog.createObject(torus(64, 64, 0.15, 0.3, [0.7, 0.7, 0.7, 1.0]));
@@ -352,13 +361,15 @@
         function update(): void {
             count++;
             const rad = ((count % 720) * Math.PI) / 360;
+            const skyColor = getSkyColor();
 
-            clear();
+            clear(skyColor);
 
             const cameraPos = camera.position();
             m.lookAt(cameraPos, /* Camera center */ [0, 0, 0], camera.up(), vMat);
             m.multiply(pMat, vMat, vpMat);
             gl.uniform3fv(prog.uniform('eyePosition'), cameraPos);
+            gl.uniform4fv(prog.uniform('skyColor'), skyColor);
 
             function draw(obj: RenderObject): void {
                 bindObjectBuffers(obj);

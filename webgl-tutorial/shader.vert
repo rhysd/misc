@@ -27,7 +27,7 @@ void main(void) {
     vec3 halfLightEye = normalize(invLight + invEye);
     float diffuse = clamp(dot(normal, invLight), 0.1, 1.0);
     float specular = pow(clamp(dot(normal, halfLightEye), 0.0, 1.0), 50.0);
-    // `dot` calculates cos. `+ 1.0` and `* 0.5` normalizes the result to range [0, 1]
+    // `dot` calculates cos. `+ 1.0` and `* 0.5` normalizes the result from [-1, 1] to [0, 1]
     float hemisphere = (dot(normal, invSky) + 1.0) * 0.5;
     vec4 ambient = mix(groundColor, skyColor, hemisphere);
     vColor = color * vec4(vec3(diffuse), 1.0) + vec4(vec3(specular), 1.0) + ambient;
