@@ -30,6 +30,7 @@
     "shadowmap/script.ts",
     "filter/script.ts",
     "mirror/script.ts",
+    "hemisphere/script.ts",
     "script.ts"
   ]
 }
