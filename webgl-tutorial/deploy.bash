@@ -21,6 +21,7 @@ projects=(
     texture_and_blending
     toon
     mirror
+    hemisphere
 )
 
 echo "Building projects..."
