@@ -330,9 +330,6 @@
                 gl.drawArrays(gl.POINTS, 0, 1);
             }
 
-            // Actual re-rendering happens here
-            gl.flush();
-
             window.requestAnimationFrame(update);
         }
 

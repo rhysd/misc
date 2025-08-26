@@ -415,9 +415,6 @@
                 gl.bindTexture(gl.TEXTURE_2D, null);
             }
 
-            // Actual re-rendering happens here
-            gl.flush();
-
             window.requestAnimationFrame(update);
         }
 

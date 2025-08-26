@@ -140,8 +140,6 @@
             gl.uniformMatrix4fv(uniMvpLoc, false, mvpMat);
             // Draw triangles based on the index buffer.
             gl.drawElements(gl.TRIANGLES, indices.length, /* type of index */ gl.UNSIGNED_SHORT, /* start offset */ 0);
-            // Actual re-rendering happens here
-            gl.flush();
             window.requestAnimationFrame(update);
         }
         update();

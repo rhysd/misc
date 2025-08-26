@@ -308,8 +308,6 @@
                 gl.uniform1f(blurUniforms.blur, parseFloat(blur.value));
                 gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
             }
-            // Actual re-rendering happens here
-            gl.flush();
             window.requestAnimationFrame(update);
         }
         update();

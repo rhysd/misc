@@ -314,8 +314,6 @@
                 // The frame buffer will be used on the next iteration. Texture in frame buffer cannot be active.
                 gl.bindTexture(gl.TEXTURE_2D, null);
             }
-            // Actual re-rendering happens here
-            gl.flush();
             window.requestAnimationFrame(update);
         }
         update();

@@ -430,8 +430,6 @@
                 gl.drawElements(gl.TRIANGLES, rectObject.lenIndices, gl.UNSIGNED_SHORT, 0);
                 gl.bindTexture(gl.TEXTURE_2D, null);
             }
-            // Actual re-rendering happens here
-            gl.flush();
             window.requestAnimationFrame(update);
         }
         update();

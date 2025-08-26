@@ -253,8 +253,6 @@
                 gl.uniformMatrix4fv(uniforms.invMat, /* transpose */ false, invMat);
                 drawElementsWithOutline(sphereObject.lenIndices);
             }
-            // Actual re-rendering happens here
-            gl.flush();
             window.requestAnimationFrame(update);
         }
         update();

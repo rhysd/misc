@@ -337,9 +337,6 @@
                 drawElementsWithOutline(sphereObject.lenIndices);
             }
 
-            // Actual re-rendering happens here
-            gl.flush();
-
             window.requestAnimationFrame(update);
         }
 
