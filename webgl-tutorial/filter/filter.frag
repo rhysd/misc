@@ -1,10 +1,10 @@
 precision mediump float;
 
-#define CANVAS_SIZE 512.0
 #define FILTER_GRAYSCALE 1
 #define FILTER_SOBEL 2
 #define FILTER_LAPLACIAN 3
 #define FILTER_GAUSSIAN 4
+#define FILTER_MOSAIC 5
 
 uniform sampler2D texture;
 uniform int filter;
@@ -86,6 +86,22 @@ vec4 gaussianFilter() {
     return vec4(color, 1.0);
 }
 
+vec4 mosaicFilter() {
+    float norm = 1.0 / canvasHeight;
+    vec2 origin = vec2(gl_FragCoord.s, canvasHeight - gl_FragCoord.t);
+    vec2 off = vec2(mod(origin.s, 8.0), mod(origin.t, 8.0));
+
+    // Calculate the average of 8x8 tiles
+    vec4 color = vec4(0.0);
+    for(float x = 0.0; x < 8.0; x += 1.0){
+        for(float y = 0.0; y < 8.0; y += 1.0){
+            vec2 pos = origin + vec2(x, y) - off;
+            color += texture2D(texture, pos * norm);
+        }
+    }
+    return color / 64.0;
+}
+
 void main(void){
     if (filter == FILTER_GRAYSCALE) {
         gl_FragColor = grayScaleFilter();
@@ -95,6 +111,8 @@ void main(void){
         gl_FragColor = laplacianFilter();
     } else if (filter == FILTER_GAUSSIAN) {
         gl_FragColor = gaussianFilter();
+    } else if (filter == FILTER_MOSAIC) {
+        gl_FragColor = mosaicFilter();
     } else {
         gl_FragColor = texture2D(texture, vTexCoord);
     }

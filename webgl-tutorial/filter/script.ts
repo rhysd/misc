@@ -9,6 +9,7 @@
     const sobelButton = document.getElementById('sobel')! as HTMLInputElement;
     const laplacianButton = document.getElementById('laplacian')! as HTMLInputElement;
     const gaussianButton = document.getElementById('gaussian')! as HTMLInputElement;
+    const mosaicButton = document.getElementById('mosaic')! as HTMLInputElement;
     const gaussianWeightInput = document.getElementById('gaussian-weight')! as HTMLInputElement;
 
     const gl = canvas.getContext('webgl')!;
@@ -448,6 +449,7 @@
             const SOBEL_FILTER = 2;
             const LAPLACIAN_FILTER = 3;
             const GAUSSIAN_FILTER = 4;
+            const MOSAIC_FILTER = 5;
             const filter = gaussianButton.checked
                 ? GAUSSIAN_FILTER
                 : laplacianButton.checked
@@ -456,7 +458,9 @@
                     ? SOBEL_FILTER
                     : grayButton.checked
                       ? GRAYSCALE_FILTER
-                      : 0;
+                      : mosaicButton.checked
+                        ? MOSAIC_FILTER
+                        : 0;
 
             // Render the scene to the frame buffer
             {
