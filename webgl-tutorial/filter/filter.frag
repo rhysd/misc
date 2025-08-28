@@ -12,6 +12,7 @@ uniform float canvasHeight;
 uniform float filterKernel[9];
 uniform float gaussianWeight[10];
 uniform bool gaussianIsHorizontal;
+uniform float mosaicSize;
 
 varying vec2 vTexCoord;
 
@@ -89,17 +90,31 @@ vec4 gaussianFilter() {
 vec4 mosaicFilter() {
     float norm = 1.0 / canvasHeight;
     vec2 origin = vec2(gl_FragCoord.s, canvasHeight - gl_FragCoord.t);
-    vec2 off = vec2(mod(origin.s, 8.0), mod(origin.t, 8.0));
+    vec2 offset = vec2(mod(origin.s, mosaicSize), mod(origin.t, mosaicSize));
 
-    // Calculate the average of 8x8 tiles
-    vec4 color = vec4(0.0);
-    for(float x = 0.0; x < 8.0; x += 1.0){
-        for(float y = 0.0; y < 8.0; y += 1.0){
-            vec2 pos = origin + vec2(x, y) - off;
-            color += texture2D(texture, pos * norm);
-        }
+    // Calculate the average of SIZExSIZE tiles for each size. We use the preprocessor macro because
+    // GLSL does not allow comparing an interation variable for `for` statement with non-constant
+    // values. In this case `x < mosaicSize` and `y < mosaicSize` are not allowed.
+#define RETURN_MOSAIC_COLOR_FOR_SIZE(size) \
+    if (mosaicSize == size) { \
+        vec4 color = vec4(0.0); \
+        for(float x = 0.0; x < size; x += 1.0){ \
+            for(float y = 0.0; y < size; y += 1.0){ \
+                vec2 pos = origin + vec2(x, y) - offset; \
+                color += texture2D(texture, pos * norm); \
+            } \
+        } \
+        return color / (size * size); \
     }
-    return color / 64.0;
+
+    RETURN_MOSAIC_COLOR_FOR_SIZE(4.0);
+    RETURN_MOSAIC_COLOR_FOR_SIZE(8.0);
+    RETURN_MOSAIC_COLOR_FOR_SIZE(12.0);
+    RETURN_MOSAIC_COLOR_FOR_SIZE(16.0);
+
+#undef RETURN_MOSAIC_COLOR_FOR_SIZE
+
+    return vec4(0.0, 0.0, 0.0, 1.0);
 }
 
 void main(void){

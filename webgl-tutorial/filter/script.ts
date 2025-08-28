@@ -11,6 +11,7 @@
     const gaussianButton = document.getElementById('gaussian')! as HTMLInputElement;
     const mosaicButton = document.getElementById('mosaic')! as HTMLInputElement;
     const gaussianWeightInput = document.getElementById('gaussian-weight')! as HTMLInputElement;
+    const mosaicSizeInput = document.getElementById('mosaic-size')! as HTMLInputElement;
 
     const gl = canvas.getContext('webgl')!;
     const m = new matIV();
@@ -420,6 +421,7 @@
             'filterKernel',
             'gaussianWeight',
             'gaussianIsHorizontal',
+            'mosaicSize',
         );
         gl.uniform1i(filterProg.uniform('texture'), 0);
         gl.uniform1f(filterProg.uniform('canvasHeight'), canvas.height);
@@ -561,6 +563,11 @@
                         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
                         gl.bindTexture(gl.TEXTURE_2D, frameBufs[1].texture);
                         gl.uniform1i(filterProg.uniform('gaussianIsHorizontal'), 0);
+                        break;
+                    }
+                    case MOSAIC_FILTER: {
+                        const size = parseInt(mosaicSizeInput.value);
+                        gl.uniform1f(filterProg.uniform('mosaicSize'), size);
                         break;
                     }
                     default:
