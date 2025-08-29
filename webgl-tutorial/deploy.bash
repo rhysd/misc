@@ -43,5 +43,10 @@ for project in "${projects[@]}"; do
     cp "${project}"/*.{html,js,frag,vert} "${basedir}/${project}/"
 done
 
-echo "Done. Serving ../docs/webgl/ at http://localhost:1234"
-npx http-server ../docs/webgl/ -p 1234 || true
+echo "Done. Open http://localhost:1234 in a web browser"
+case "$OSTYPE" in
+    darwin*)
+        open "http://localhost:1234"
+        ;;
+esac
+npx http-server ../docs/webgl/ -p 1234
