@@ -7,7 +7,9 @@
     const sobelButton = document.getElementById('sobel');
     const laplacianButton = document.getElementById('laplacian');
     const gaussianButton = document.getElementById('gaussian');
+    const mosaicButton = document.getElementById('mosaic');
     const gaussianWeightInput = document.getElementById('gaussian-weight');
+    const mosaicSizeInput = document.getElementById('mosaic-size');
     const gl = canvas.getContext('webgl');
     const m = new matIV();
     const q = new qtnIV();
@@ -311,7 +313,7 @@
         const filterProg = new Program(filterVs, filterFs);
         filterProg.defineAttribute('position', 'positions', 3);
         filterProg.defineAttribute('texCoord', 'texCoords', 2);
-        filterProg.declareUniforms('mvpMat', 'texture', 'filter', 'canvasHeight', 'filterKernel', 'gaussianWeight', 'gaussianIsHorizontal');
+        filterProg.declareUniforms('mvpMat', 'texture', 'filter', 'canvasHeight', 'filterKernel', 'gaussianWeight', 'gaussianIsHorizontal', 'mosaicSize');
         gl.uniform1i(filterProg.uniform('texture'), 0);
         gl.uniform1f(filterProg.uniform('canvasHeight'), canvas.height);
         const torusObject = prog.createObject(torus(64, 64, 1, 2, [1, 1, 1, 1]));
@@ -335,6 +337,7 @@
             const SOBEL_FILTER = 2;
             const LAPLACIAN_FILTER = 3;
             const GAUSSIAN_FILTER = 4;
+            const MOSAIC_FILTER = 5;
             const filter = gaussianButton.checked
                 ? GAUSSIAN_FILTER
                 : laplacianButton.checked
@@ -343,7 +346,9 @@
                         ? SOBEL_FILTER
                         : grayButton.checked
                             ? GRAYSCALE_FILTER
-                            : 0;
+                            : mosaicButton.checked
+                                ? MOSAIC_FILTER
+                                : 0;
             // Render the scene to the frame buffer
             {
                 prog.use();
@@ -422,6 +427,11 @@
                         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
                         gl.bindTexture(gl.TEXTURE_2D, frameBufs[1].texture);
                         gl.uniform1i(filterProg.uniform('gaussianIsHorizontal'), 0);
+                        break;
+                    }
+                    case MOSAIC_FILTER: {
+                        const size = parseInt(mosaicSizeInput.value);
+                        gl.uniform1f(filterProg.uniform('mosaicSize'), size);
                         break;
                     }
                     default:

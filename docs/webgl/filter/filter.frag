@@ -1,10 +1,10 @@
 precision mediump float;
 
-#define CANVAS_SIZE 512.0
 #define FILTER_GRAYSCALE 1
 #define FILTER_SOBEL 2
 #define FILTER_LAPLACIAN 3
 #define FILTER_GAUSSIAN 4
+#define FILTER_MOSAIC 5
 
 uniform sampler2D texture;
 uniform int filter;
@@ -12,6 +12,7 @@ uniform float canvasHeight;
 uniform float filterKernel[9];
 uniform float gaussianWeight[10];
 uniform bool gaussianIsHorizontal;
+uniform float mosaicSize;
 
 varying vec2 vTexCoord;
 
@@ -86,6 +87,36 @@ vec4 gaussianFilter() {
     return vec4(color, 1.0);
 }
 
+vec4 mosaicFilter() {
+    float norm = 1.0 / canvasHeight;
+    vec2 origin = vec2(gl_FragCoord.s, canvasHeight - gl_FragCoord.t);
+    vec2 offset = vec2(mod(origin.s, mosaicSize), mod(origin.t, mosaicSize));
+
+    // Calculate the average of SIZExSIZE tiles for each size. We use the preprocessor macro because
+    // GLSL does not allow comparing an interation variable for `for` statement with non-constant
+    // values. In this case `x < mosaicSize` and `y < mosaicSize` are not allowed.
+#define RETURN_MOSAIC_COLOR_FOR_SIZE(size) \
+    if (mosaicSize == size) { \
+        vec4 color = vec4(0.0); \
+        for(float x = 0.0; x < size; x += 1.0){ \
+            for(float y = 0.0; y < size; y += 1.0){ \
+                vec2 pos = origin + vec2(x, y) - offset; \
+                color += texture2D(texture, pos * norm); \
+            } \
+        } \
+        return color / (size * size); \
+    }
+
+    RETURN_MOSAIC_COLOR_FOR_SIZE(4.0);
+    RETURN_MOSAIC_COLOR_FOR_SIZE(8.0);
+    RETURN_MOSAIC_COLOR_FOR_SIZE(12.0);
+    RETURN_MOSAIC_COLOR_FOR_SIZE(16.0);
+
+#undef RETURN_MOSAIC_COLOR_FOR_SIZE
+
+    return vec4(0.0, 0.0, 0.0, 1.0);
+}
+
 void main(void){
     if (filter == FILTER_GRAYSCALE) {
         gl_FragColor = grayScaleFilter();
@@ -95,6 +126,8 @@ void main(void){
         gl_FragColor = laplacianFilter();
     } else if (filter == FILTER_GAUSSIAN) {
         gl_FragColor = gaussianFilter();
+    } else if (filter == FILTER_MOSAIC) {
+        gl_FragColor = mosaicFilter();
     } else {
         gl_FragColor = texture2D(texture, vTexCoord);
     }

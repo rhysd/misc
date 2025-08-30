@@ -13,6 +13,13 @@
             margin: 4px;
             display: block;
           }
+          .mosaic-only {
+            display: none;
+          }
+          #mosaic:checked ~ .mosaic-only {
+            margin: 4px;
+            display: block;
+          }
         </style>
         <script src="../minMatrix.js"></script>
     </head>
@@ -24,8 +31,12 @@
             <input id="sobel" name="mode" type="radio"/><label>Sobel filter</label>
             <input id="laplacian" name="mode" type="radio"/><label>Laplacian filter</label>
             <input id="gaussian" name="mode" type="radio"/><label>Gaussian filter</label>
+            <input id="mosaic" name="mode" type="radio"/><label>Mosaic filter</label>
             <div class="gaussian-only">
-                <input id="gaussian-weight" type="range" value="5" min="1" max="10" step="0.1"/>
+                Weight: <input id="gaussian-weight" type="range" value="5" min="1" max="10" step="0.1"/>
+            </div>
+            <div class="mosaic-only">
+                Size: <input id="mosaic-size" type="range" value="8" min="4" max="16" step="4"/>
             </div>
         </div>
         <script src="script.js"></script>
