@@ -327,6 +327,6 @@
         }
         update();
     }
-    main().catch(err => alert(err.stack ?? err.message));
+    main().catch((err) => alert(err.stack ?? err.message ?? String(err)));
 })();
 //# sourceMappingURL=script.js.map

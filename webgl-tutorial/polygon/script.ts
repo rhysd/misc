@@ -174,5 +174,5 @@
         update();
     }
 
-    main().catch(alert);
+    main().catch((err: Error) => alert(err.stack ?? err.message ?? String(err)));
 })();

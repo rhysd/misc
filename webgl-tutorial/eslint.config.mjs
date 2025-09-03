@@ -16,7 +16,6 @@ export default ts.config(
         rules: {
             'prefer-spread': 'off',
             '@typescript-eslint/explicit-member-accessibility': 'off',
-            '@typescript-eslint/no-unsafe-member-access': 'off',
             eqeqeq: 'error',
             '@typescript-eslint/explicit-function-return-type': [
                 'error',
