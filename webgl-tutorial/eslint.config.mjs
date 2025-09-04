@@ -14,8 +14,6 @@ export default ts.config(
     },
     {
         rules: {
-            'prefer-spread': 'off',
-            '@typescript-eslint/explicit-member-accessibility': 'off',
             eqeqeq: 'error',
             '@typescript-eslint/explicit-function-return-type': [
                 'error',
@@ -62,12 +60,6 @@ export default ts.config(
             '@typescript-eslint/consistent-indexed-object-style': 'error',
             '@typescript-eslint/no-base-to-string': 'error',
             '@typescript-eslint/switch-exhaustiveness-check': ['error', { considerDefaultExhaustiveForUnions: true }],
-        },
-    },
-    {
-        files: ['scripts/*.ts'],
-        rules: {
-            'n/no-sync': 'off',
         },
     },
 );
