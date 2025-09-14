@@ -94,9 +94,12 @@ impl DerefMut for Hittables {
 
 impl Hittable for Hittables {
     fn hit(&self, ray: &Ray, span: Interval) -> Option<Hit<'_>> {
-        self.0
-            .iter()
-            .flat_map(|h| h.hit(ray, span))
-            .min_by(|l, r| l.time.partial_cmp(&r.time).unwrap())
+        let mut nearest: Option<Hit> = None;
+        for hit in self.0.iter().flat_map(|h| h.hit(ray, span)) {
+            if nearest.as_ref().is_none_or(|n| hit.time < n.time) {
+                nearest = Some(hit);
+            }
+        }
+        nearest
     }
 }
