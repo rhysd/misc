@@ -94,6 +94,17 @@ impl DerefMut for Hittables {
 
 impl Hittable for Hittables {
     fn hit(&self, ray: &Ray, span: Interval) -> Option<Hit<'_>> {
+        // Note: We manually reimplement `Iterator::min_by` here because `Iterator::fold` used inside
+        // `Iterator::min_by` is much slower than manual `for` loop in this case (more than 2x).
+        // ```
+        // self.0
+        //     .iter()
+        //     .flat_map(|h| h.hit(ray, span))
+        //     .min_by(|l, r| l.time.partial_cmp(&r.time).unwrap())
+        // ```
+        // See the following resources for more details:
+        // - Commit message: ed1590acc42ac39dadd3f069e74d1c9c4c572437
+        // - Assembly comparison: https://gist.github.com/rhysd/c49733ce3086c12bf95edccca99c1641
         let mut nearest: Option<Hit> = None;
         for hit in self.0.iter().flat_map(|h| h.hit(ray, span)) {
             if nearest.as_ref().is_none_or(|n| hit.time < n.time) {
