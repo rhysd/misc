@@ -16,7 +16,7 @@ fn main() -> io::Result<()> {
     let mut world = Hittables::default();
 
     // Ground
-    world.add(Sphere::new(
+    world.add(Sphere::stationary(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
         Lambertian::new(Color::new(0.5, 0.5, 0.5)),
@@ -38,29 +38,34 @@ fn main() -> io::Result<()> {
             if random < 0.8 {
                 // Diffuse
                 let albedo = Color::random(0.0..1.0) * Color::random(0.0..1.0);
-                let sphere = Sphere::new(center, 0.2, Lambertian::new(albedo));
+                let center_end = center + Vec3::new(0.0, rand::random_range(0.0..0.5), 0.0);
+                let sphere = Sphere::moving(center, center_end, 0.2, Lambertian::new(albedo));
                 world.add(sphere);
             } else if random < 0.95 {
                 // Metal
                 let albedo = Color::random(0.5..1.0);
                 let fuzz = random_range(0.0..0.5);
-                let sphere = Sphere::new(center, 0.2, Metal::new(albedo, fuzz));
+                let sphere = Sphere::stationary(center, 0.2, Metal::new(albedo, fuzz));
                 world.add(sphere);
             } else {
                 // Glass
-                let sphere = Sphere::new(center, 0.2, Dielectric::new(1.5));
+                let sphere = Sphere::stationary(center, 0.2, Dielectric::new(1.5));
                 world.add(sphere);
             }
         }
     }
 
-    world.add(Sphere::new(Point3::new(0.0, 1.0, 0.0), 1.0, Dielectric::new(1.5)));
-    world.add(Sphere::new(
+    world.add(Sphere::stationary(
+        Point3::new(0.0, 1.0, 0.0),
+        1.0,
+        Dielectric::new(1.5),
+    ));
+    world.add(Sphere::stationary(
         Point3::new(-4.0, 1.0, 0.0),
         1.0,
         Lambertian::new(Color::new(0.4, 0.2, 0.1)),
     ));
-    world.add(Sphere::new(
+    world.add(Sphere::stationary(
         Point3::new(4.0, 1.0, 0.0),
         1.0,
         Metal::new(Color::new(0.7, 0.6, 0.5), 0.0),

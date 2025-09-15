@@ -139,8 +139,10 @@ impl Camera {
             self.center + p.x() * self.defocus_disk_u + p.y() * self.defocus_disk_v
         };
         let direction = pixel_sample - origin;
+        // For object animation (motion blur), generate rays at random time in the period [0, 1)
+        let time = random_range(0.0..1.0);
 
-        Ray::new(origin, direction)
+        Ray::new_at(time, origin, direction)
     }
 
     fn write_color(&mut self, c: Color) -> io::Result<()> {

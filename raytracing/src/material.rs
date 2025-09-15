@@ -19,7 +19,7 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)> {
+    fn scatter(&self, ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)> {
         // Diffuse the ray around the normal (the Lambertian reflection)
         let mut scatter_direction = hit.normal + Vec3::random_unit();
 
@@ -30,7 +30,7 @@ impl Material for Lambertian {
             scatter_direction = hit.normal;
         }
 
-        let scattered = Ray::new(hit.pos, scatter_direction);
+        let scattered = Ray::new_at(ray.time(), hit.pos, scatter_direction);
         let attenuation = self.albedo;
         Some((scattered, attenuation))
     }
@@ -52,7 +52,7 @@ impl Material for Metal {
     fn scatter(&self, ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)> {
         let fuzz = self.fuzz * Vec3::random_unit();
         let reflected = ray.direction().reflect(&hit.normal) + fuzz;
-        let scattered = Ray::new(hit.pos, reflected);
+        let scattered = Ray::new_at(ray.time(), hit.pos, reflected);
 
         // When dot-product is negative, that means the unit vector is inside the hemisphere
         // and it is incorrect as a reflection of ray.
@@ -102,7 +102,7 @@ impl Material for Dielectric {
             unit_direction.refract(&hit.normal, refraction_index)
         };
 
-        let scattered = Ray::new(hit.pos, direction);
+        let scattered = Ray::new_at(ray.time(), hit.pos, direction);
         let attenuation = Color::new(1.0, 1.0, 1.0);
         Some((scattered, attenuation))
     }

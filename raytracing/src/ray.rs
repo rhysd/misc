@@ -6,11 +6,16 @@ use crate::vec3::{Color, Point3, Vec3};
 pub struct Ray {
     orig: Point3,
     dir: Vec3,
+    time: f64, // The time when the ray is generated
 }
 
 impl Ray {
     pub fn new(orig: Point3, dir: Vec3) -> Self {
-        Self { orig, dir }
+        Self::new_at(0.0, orig, dir)
+    }
+
+    pub fn new_at(time: f64, orig: Point3, dir: Vec3) -> Self {
+        Self { orig, dir, time }
     }
 
     pub fn origin(&self) -> &Point3 {
@@ -19,6 +24,10 @@ impl Ray {
 
     pub fn direction(&self) -> &Vec3 {
         &self.dir
+    }
+
+    pub fn time(&self) -> f64 {
+        self.time
     }
 
     pub fn at(&self, t: f64) -> Point3 {

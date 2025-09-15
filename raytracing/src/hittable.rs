@@ -23,15 +23,23 @@ pub trait Hittable {
 }
 
 pub struct Sphere<M> {
-    center: Point3,
+    center: Ray,
     radius: f64,
     mat: M,
 }
 
 impl<M> Sphere<M> {
-    pub fn new(center: Point3, radius: f64, mat: M) -> Self {
+    pub fn stationary(center: Point3, radius: f64, mat: M) -> Self {
         Self {
-            center,
+            center: Ray::new(center, Vec3::ZERO),
+            radius: radius.max(0.0),
+            mat,
+        }
+    }
+
+    pub fn moving(from: Point3, to: Point3, radius: f64, mat: M) -> Self {
+        Self {
+            center: Ray::new(from, to - from),
             radius: radius.max(0.0),
             mat,
         }
@@ -40,7 +48,8 @@ impl<M> Sphere<M> {
 
 impl<M: Material> Hittable for Sphere<M> {
     fn hit(&self, ray: &Ray, time: Interval) -> Option<Hit<'_>> {
-        let oc = self.center - *ray.origin(); // C - Q
+        let center = self.center.at(ray.time());
+        let oc = center - *ray.origin(); // C - Q
         let a = ray.direction().length_squared();
         let h = ray.direction().dot(&oc);
         let c = oc.length_squared() - self.radius * self.radius;
@@ -52,7 +61,7 @@ impl<M: Material> Hittable for Sphere<M> {
         let d = discriminant.sqrt();
         let time = [(h - d) / a, (h + d) / a].into_iter().find(|&t| time.surrounds(t))?;
         let pos = ray.at(time);
-        let outward_normal = (pos - self.center) / self.radius;
+        let outward_normal = (pos - center) / self.radius;
         let face = ray.face(&outward_normal);
         let normal = match face {
             Face::Front => outward_normal,
