@@ -1,3 +1,4 @@
+mod aabb;
 mod camera;
 mod hittable;
 mod interval;
@@ -10,7 +11,45 @@ use hittable::{Hittables, Sphere};
 use material::{Dielectric, Lambertian, Metal};
 use rand::random_range;
 use std::io;
+use std::path::PathBuf;
 use vec3::{Color, Point3, Vec3};
+
+enum Action {
+    Render,
+    RenderTo(PathBuf),
+    Help(&'static str),
+}
+
+fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
+    use lexopt::prelude::*;
+
+    let mut action = Action::Render;
+    let mut parser = lexopt::Parser::from_env();
+    while let Some(arg) = parser.next()? {
+        match arg {
+            Long("width") => cam.image_width = parser.value()?.parse()?,
+            Long("aspect") => cam.aspect_ratio = parser.value()?.parse()?,
+            Long("samples") => cam.samples_per_pixel = parser.value()?.parse()?,
+            Long("depth") => cam.max_depth = parser.value()?.parse()?,
+            Value(val) => action = Action::RenderTo(PathBuf::from(val)),
+            Short('h') | Long("help") => {
+                return Ok(Action::Help(
+                    r#"Usage: raytracing [OPTIONS] [PATH]
+
+Options:
+    --width VALUE    Width in pixels
+    --aspect VALUE   Aspect ratio in float number
+    --samples VALUE  Samples per pixel
+    --depth VALUE    Max depth of ray scattering
+    --help           Show this help
+"#,
+                ));
+            }
+            _ => return Err(arg.unexpected()),
+        }
+    }
+    Ok(action)
+}
 
 fn main() -> io::Result<()> {
     let mut world = Hittables::default();
@@ -71,7 +110,7 @@ fn main() -> io::Result<()> {
         Metal::new(Color::new(0.7, 0.6, 0.5), 0.0),
     ));
 
-    let mut cam = Camera::new("out.ppm")?;
+    let mut cam = Camera::new()?;
     cam.aspect_ratio = 16.0 / 9.0;
     cam.image_width = 1200;
     cam.samples_per_pixel = 500;
@@ -85,5 +124,12 @@ fn main() -> io::Result<()> {
     cam.defocus_angle = 0.6;
     cam.focus_distance = 10.0;
 
-    cam.render(&world)
+    match parse_args(&mut cam).map_err(io::Error::other)? {
+        Action::Render => cam.render("out.ppm", &world),
+        Action::RenderTo(path) => cam.render(&path, &world),
+        Action::Help(help) => {
+            println!("{help}");
+            Ok(())
+        }
+    }
 }

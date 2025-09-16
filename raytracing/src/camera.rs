@@ -14,6 +14,29 @@ fn degrees_to_radians(degrees: f64) -> f64 {
     degrees * PI / 180.0
 }
 
+fn to_rgb(c: Color) -> (u8, u8, u8) {
+    // Gamma correction. Convert linear space to gamma space (γ=2.0)
+    fn linear_to_gamma(linear_component: f64) -> f64 {
+        if linear_component > 0.0 {
+            linear_component.sqrt()
+        } else {
+            0.0
+        }
+    }
+
+    let r = linear_to_gamma(c.x());
+    let g = linear_to_gamma(c.y());
+    let b = linear_to_gamma(c.z());
+
+    // Ensure `r`, `g`, and `b` are in range of [0..255]
+    const INTENSITY: Interval = Interval::new(0.0, 0.999);
+    let r = (256.0 * INTENSITY.clamp(r)) as _;
+    let g = (256.0 * INTENSITY.clamp(g)) as _;
+    let b = (256.0 * INTENSITY.clamp(b)) as _;
+
+    (r, g, b)
+}
+
 pub struct Camera {
     pub aspect_ratio: f64,      // Ratio of image width over height
     pub image_width: u32,       // Rendered image width in pixel count
@@ -25,13 +48,12 @@ pub struct Camera {
     pub vup: Vec3,              // Camera-relative "up" direction
     pub defocus_angle: f64,     // Variation angle of rays through each pixel
     pub focus_distance: f64,    // Distance from camera lookfrom point to plane of perfect focus.
-    out: BufWriter<File>,
-    image_height: u32,        // Rendered image height
-    pixel_samples_scale: f64, // Color scale factor for a sum of pixel samples
-    center: Point3,           // Camera center
-    pixel00_loc: Point3,      // Location of pixel (0, 0)
-    pixel_delta_u: Vec3,      // Offset to pixel to the right
-    pixel_delta_v: Vec3,      // Offset to pixel below
+    image_height: u32,          // Rendered image height
+    pixel_samples_scale: f64,   // Color scale factor for a sum of pixel samples
+    center: Point3,             // Camera center
+    pixel00_loc: Point3,        // Location of pixel (0, 0)
+    pixel_delta_u: Vec3,        // Offset to pixel to the right
+    pixel_delta_v: Vec3,        // Offset to pixel below
     cam_u: Vec3,
     cam_v: Vec3,
     cam_w: Vec3,
@@ -40,7 +62,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(path: impl AsRef<Path>) -> io::Result<Self> {
+    pub fn new() -> io::Result<Self> {
         Ok(Self {
             aspect_ratio: 1.0,
             image_width: 100,
@@ -52,7 +74,6 @@ impl Camera {
             vup: Vec3::new(0.0, 1.0, 0.0),
             defocus_angle: 0.0, // No blur by default
             focus_distance: 10.0,
-            out: BufWriter::new(File::create(path.as_ref())?),
             // These will be calculated by `initialize()`
             image_height: 0,
             pixel_samples_scale: 0.0,
@@ -103,12 +124,14 @@ impl Camera {
         self.defocus_disk_v = self.cam_v * defocus_radius;
     }
 
-    pub fn render<H: Hittable>(mut self, world: &H) -> io::Result<()> {
+    pub fn render<H: Hittable>(&mut self, path: impl AsRef<Path>, world: &H) -> io::Result<()> {
+        let mut out = BufWriter::new(File::create(path.as_ref())?);
+
         self.initialize();
 
-        writeln!(self.out, "P3")?;
-        writeln!(self.out, "{} {}", self.image_width, self.image_height)?;
-        writeln!(self.out, "255")?;
+        writeln!(out, "P3")?;
+        writeln!(out, "{} {}", self.image_width, self.image_height)?;
+        writeln!(out, "255")?;
 
         for h in 0..self.image_height {
             for w in 0..self.image_width {
@@ -116,7 +139,8 @@ impl Camera {
                     .take(self.samples_per_pixel as _)
                     .reduce(Add::add)
                     .unwrap_or_default();
-                self.write_color(sum * self.pixel_samples_scale)?;
+                let (r, g, b) = to_rgb(sum * self.pixel_samples_scale);
+                writeln!(out, "{r} {g} {b}")?;
             }
         }
 
@@ -143,28 +167,5 @@ impl Camera {
         let time = random_range(0.0..1.0);
 
         Ray::new_at(time, origin, direction)
-    }
-
-    fn write_color(&mut self, c: Color) -> io::Result<()> {
-        // Gamma correction. Convert linear space to gamma space (γ=2.0)
-        fn linear_to_gamma(linear_component: f64) -> f64 {
-            if linear_component > 0.0 {
-                linear_component.sqrt()
-            } else {
-                0.0
-            }
-        }
-
-        let r = linear_to_gamma(c.x());
-        let g = linear_to_gamma(c.y());
-        let b = linear_to_gamma(c.z());
-
-        // Ensure `r`, `g`, and `b` are in range of [0..255]
-        const INTENSITY: Interval = Interval::new(0.0, 0.999);
-        let r = (256.0 * INTENSITY.clamp(r)) as u8;
-        let g = (256.0 * INTENSITY.clamp(g)) as u8;
-        let b = (256.0 * INTENSITY.clamp(b)) as u8;
-
-        writeln!(self.out, "{r} {g} {b}")
     }
 }
