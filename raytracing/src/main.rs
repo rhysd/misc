@@ -1,4 +1,3 @@
-mod aabb;
 mod camera;
 mod hittable;
 mod interval;
@@ -35,6 +34,9 @@ fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
             Short('h') | Long("help") => {
                 return Ok(Action::Help(
                     r#"Usage: raytracing [OPTIONS] [PATH]
+
+Arguments:
+    PATH             Output file path (default: "out.ppm")
 
 Options:
     --width VALUE    Width in pixels
