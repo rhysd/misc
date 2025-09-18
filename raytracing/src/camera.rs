@@ -38,8 +38,8 @@ fn to_rgb(c: Color) -> (u8, u8, u8) {
 }
 
 pub struct Camera {
-    pub aspect_ratio: f64,      // Ratio of image width over height
     pub image_width: u32,       // Rendered image width in pixel count
+    pub image_height: u32,      // Rendered image height in pixel count
     pub samples_per_pixel: u32, // Count of random samples for each pixel
     pub max_depth: u8,          // Maximum number of ray bounces into scene
     pub vfov: f64,              // Vertical view angle (field of view)
@@ -48,7 +48,6 @@ pub struct Camera {
     pub vup: Vec3,              // Camera-relative "up" direction
     pub defocus_angle: f64,     // Variation angle of rays through each pixel
     pub focus_distance: f64,    // Distance from camera lookfrom point to plane of perfect focus.
-    image_height: u32,          // Rendered image height
     pixel_samples_scale: f64,   // Color scale factor for a sum of pixel samples
     center: Point3,             // Camera center
     pixel00_loc: Point3,        // Location of pixel (0, 0)
@@ -64,9 +63,9 @@ pub struct Camera {
 impl Camera {
     pub fn new() -> io::Result<Self> {
         Ok(Self {
-            aspect_ratio: 1.0,
-            image_width: 100,
-            samples_per_pixel: 10,
+            image_width: 800,
+            image_height: 450,
+            samples_per_pixel: 100,
             max_depth: 10,
             vfov: 90.0,
             lookfrom: Point3::new(0.0, 0.0, 0.0),
@@ -74,8 +73,6 @@ impl Camera {
             vup: Vec3::new(0.0, 1.0, 0.0),
             defocus_angle: 0.0, // No blur by default
             focus_distance: 10.0,
-            // These will be calculated by `initialize()`
-            image_height: 0,
             pixel_samples_scale: 0.0,
             center: Point3::ZERO,
             pixel00_loc: Point3::ZERO,
@@ -90,9 +87,6 @@ impl Camera {
     }
 
     fn initialize(&mut self) {
-        self.image_height = (self.image_width as f64 / self.aspect_ratio) as u32;
-        assert!(self.image_height >= 1);
-
         // Camera
         self.center = self.lookfrom;
         let theta = degrees_to_radians(self.vfov);

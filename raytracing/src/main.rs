@@ -27,7 +27,7 @@ fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
     while let Some(arg) = parser.next()? {
         match arg {
             Long("width") => cam.image_width = parser.value()?.parse()?,
-            Long("aspect") => cam.aspect_ratio = parser.value()?.parse()?,
+            Long("height") => cam.image_height = parser.value()?.parse()?,
             Long("samples") => cam.samples_per_pixel = parser.value()?.parse()?,
             Long("depth") => cam.max_depth = parser.value()?.parse()?,
             Value(val) => action = Action::RenderTo(PathBuf::from(val)),
@@ -39,10 +39,10 @@ Arguments:
     PATH             Output file path (default: "out.ppm")
 
 Options:
-    --width VALUE    Width in pixels
-    --aspect VALUE   Aspect ratio in float number
-    --samples VALUE  Samples per pixel
-    --depth VALUE    Max depth of ray scattering
+    --width VALUE    Width in pixels (default: 800)
+    --height VALUE   Height in pixels (default: 450)
+    --samples VALUE  Samples per pixel (default: 100)
+    --depth VALUE    Max depth of ray scattering (default: 10)
     --help           Show this help
 "#,
                 ));
@@ -113,16 +113,10 @@ fn main() -> io::Result<()> {
     ));
 
     let mut cam = Camera::new()?;
-    cam.aspect_ratio = 16.0 / 9.0;
-    cam.image_width = 1200;
-    cam.samples_per_pixel = 500;
-    cam.max_depth = 50;
-
     cam.vfov = 20.0;
     cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
     cam.lookat = Point3::new(0.0, 0.0, 0.0);
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
-
     cam.defocus_angle = 0.6;
     cam.focus_distance = 10.0;
 
