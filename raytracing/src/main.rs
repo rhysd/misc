@@ -1,3 +1,4 @@
+mod aabb;
 mod camera;
 mod hittable;
 mod interval;

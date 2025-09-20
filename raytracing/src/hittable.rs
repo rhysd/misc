@@ -1,8 +1,8 @@
+use crate::aabb::Aabb;
 use crate::interval::Interval;
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
-use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Face {
@@ -20,27 +20,41 @@ pub struct Hit<'a> {
 
 pub trait Hittable {
     fn hit(&self, ray: &Ray, time: Interval) -> Option<Hit<'_>>;
+    fn bbox(&self) -> Aabb;
 }
 
 pub struct Sphere<M> {
     center: Ray,
     radius: f64,
+    bbox: Aabb,
     mat: M,
 }
 
 impl<M> Sphere<M> {
     pub fn stationary(center: Point3, radius: f64, mat: M) -> Self {
+        let radvec = Vec3::new(radius, radius, radius);
         Self {
             center: Ray::new(center, Vec3::ZERO),
             radius: radius.max(0.0),
+            bbox: Aabb::from_extrema(center - radvec, center + radvec),
             mat,
         }
     }
 
     pub fn moving(from: Point3, to: Point3, radius: f64, mat: M) -> Self {
+        let center = Ray::new(from, to - from);
+        let radvec = Vec3::new(radius, radius, radius);
+
+        let center0 = center.at(0.0);
+        let bbox0 = Aabb::from_extrema(center0 - radvec, center0 + radvec);
+
+        let center1 = center.at(1.0);
+        let bbox1 = Aabb::from_extrema(center1 - radvec, center1 + radvec);
+
         Self {
-            center: Ray::new(from, to - from),
+            center,
             radius: radius.max(0.0),
+            bbox: Aabb::new_contained(&bbox0, &bbox1),
             mat,
         }
     }
@@ -76,28 +90,22 @@ impl<M: Material> Hittable for Sphere<M> {
             mat: &self.mat,
         })
     }
+
+    fn bbox(&self) -> Aabb {
+        self.bbox.clone()
+    }
 }
 
 #[derive(Default)]
-pub struct Hittables(Vec<Box<dyn Hittable>>);
+pub struct Hittables {
+    objects: Vec<Box<dyn Hittable>>,
+    bbox: Aabb,
+}
 
 impl Hittables {
     pub fn add<H: Hittable + 'static>(&mut self, h: H) {
-        self.0.push(Box::new(h));
-    }
-}
-
-impl Deref for Hittables {
-    type Target = Vec<Box<dyn Hittable>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Hittables {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        self.bbox = Aabb::new_contained(&self.bbox, &h.bbox());
+        self.objects.push(Box::new(h));
     }
 }
 
@@ -115,11 +123,15 @@ impl Hittable for Hittables {
         // - Commit message: ed1590acc42ac39dadd3f069e74d1c9c4c572437
         // - Assembly comparison: https://gist.github.com/rhysd/c49733ce3086c12bf95edccca99c1641
         let mut nearest: Option<Hit> = None;
-        for hit in self.0.iter().flat_map(|h| h.hit(ray, span)) {
+        for hit in self.objects.iter().flat_map(|o| o.hit(ray, span)) {
             if nearest.as_ref().is_none_or(|n| hit.time < n.time) {
                 nearest = Some(hit);
             }
         }
         nearest
+    }
+
+    fn bbox(&self) -> Aabb {
+        todo!()
     }
 }
