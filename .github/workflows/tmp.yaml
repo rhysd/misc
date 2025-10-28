@@ -1,0 +1,25 @@
+on: push
+
+jobs:
+  actual:
+    runs-on: windows-11-arm
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - run: |
+          cargo init foo
+          cd foo
+          cargo llvm-cov --lcov --output-path lcov.info
+  expected:
+    runs-on: windows-11-arm
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - run: cargo install cargo-llvm-cov
+      - run: |
+          cargo init foo
+          cd foo
+          cargo llvm-cov --lcov --output-path lcov.info
