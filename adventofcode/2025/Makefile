@@ -40,6 +40,10 @@ ans/%-2: in/%-2 ans
 	cargo run --release --bin $* -- 2 < in/$*-2 | tee ans/$*-2
 ans/%-2: in/%-1 ans
 	cargo run --release --bin $* -- 2 < in/$*-1 | tee ans/$*-2
+ans/%-s1: in/%-s1 ans
+	cargo run --release --bin $* -- 1 < in/$*-s1 | tee ans/$*-s1
+ans/%-s2: in/%-s2 ans
+	cargo run --release --bin $* -- 2 < in/$*-s2 | tee ans/$*-s2
 
 clean:
 	rm -f out/* diff/*

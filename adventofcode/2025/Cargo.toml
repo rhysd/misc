@@ -4,9 +4,9 @@ version = "0.0.0"
 edition = "2024"
 publish = false
 
-# [[bin]]
-# name = "1"
-# path = "1.rs"
+[[bin]]
+name = "1"
+path = "1.rs"
 
 # [[bin]]
 # name = "2"
