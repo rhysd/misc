@@ -1,0 +1,55 @@
+[package]
+name = "advent_of_code_2025"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# [[bin]]
+# name = "1"
+# path = "1.rs"
+
+# [[bin]]
+# name = "2"
+# path = "2.rs"
+
+# [[bin]]
+# name = "3"
+# path = "3.rs"
+
+# [[bin]]
+# name = "4"
+# path = "4.rs"
+
+# [[bin]]
+# name = "5"
+# path = "5.rs"
+
+# [[bin]]
+# name = "6"
+# path = "6.rs"
+
+# [[bin]]
+# name = "7"
+# path = "7.rs"
+
+# [[bin]]
+# name = "8"
+# path = "8.rs"
+
+# [[bin]]
+# name = "9"
+# path = "9.rs"
+
+# [[bin]]
+# name = "10"
+# path = "10.rs"
+
+# [[bin]]
+# name = "11"
+# path = "11.rs"
+
+# [[bin]]
+# name = "12"
+# path = "12.rs"
+
+[dependencies]
