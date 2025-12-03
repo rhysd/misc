@@ -2,7 +2,7 @@ SHELL := /bin/bash -e -o pipefail
 ANS := $(wildcard ans/*)
 OUT := $(patsubst ans/%,out/%,$(ANS))
 DIRS := in out diff ans
-ALL := $(patsubst ans/%,diff/%,$(ANS)) $(DIRS)
+ALL := $(DIRS) $(patsubst ans/%,diff/%,$(ANS))
 
 default: $(ALL)
 
