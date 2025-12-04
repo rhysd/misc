@@ -24,7 +24,9 @@ fn max_joltage(rem: u8, digits: &[u64], cache: &mut HashMap<(u8, u8), u64>) -> u
         return *ret;
     }
     if rem == 1 {
-        return digits.iter().copied().max().unwrap_or(0);
+        let max = digits.iter().copied().max().unwrap_or(0);
+        cache.insert(key, max);
+        return max;
     }
     let mut ret = 0;
     let mut max = 0;
@@ -46,7 +48,7 @@ fn part2(lines: impl Iterator<Item = String>) {
     let mut total = 0;
     for line in lines {
         let digits: Vec<_> = line.chars().map(|c| c.to_digit(10).unwrap() as u64).collect();
-        assert!(digits.len() < u8::MAX as usize);
+        assert!(digits.len() <= u8::MAX as usize);
         total += max_joltage(12, &digits, &mut HashMap::new());
     }
     println!("{total}");
