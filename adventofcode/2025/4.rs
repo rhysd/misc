@@ -56,20 +56,13 @@ impl Cells {
     }
 
     fn part2(&mut self) -> u32 {
-        let mut total = 0;
-        loop {
-            let mut removed = 0;
-            for y in 0..self.0.len() {
-                for x in 0..self.0[y].len() {
-                    removed += self.remove_rolls(x, y);
-                }
+        let mut removed = 0;
+        for y in 0..self.0.len() {
+            for x in 0..self.0[y].len() {
+                removed += self.remove_rolls(x, y);
             }
-            if removed == 0 {
-                break;
-            }
-            total += removed;
         }
-        total
+        removed
     }
 }
 
