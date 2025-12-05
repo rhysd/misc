@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::env;
 use std::io::{self, BufRead};
 
@@ -35,31 +34,27 @@ impl Cells {
         count
     }
 
-    fn remove_rolls(&mut self, x: usize, y: usize) -> u32 {
-        if !self.can_remove(x, y) {
-            return 0;
-        }
-        self.0[y][x] = b'.';
+    fn part2(&mut self) -> u32 {
+        let mut removed = 0;
 
-        let mut removed = 1;
-        let mut queue = VecDeque::from([(x, y)]);
-        while let Some((x, y)) = queue.pop_front() {
+        let mut stack = vec![];
+        for y in 0..self.0.len() {
+            for x in 0..self.0[y].len() {
+                if self.can_remove(x, y) {
+                    self.0[y][x] = b'.';
+                    removed += 1;
+                    stack.push((x, y));
+                }
+            }
+        }
+
+        while let Some((x, y)) = stack.pop() {
             for (x, y) in self.adjucents(x, y) {
                 if self.can_remove(x, y) {
                     self.0[y][x] = b'.';
                     removed += 1;
-                    queue.push_back((x, y));
+                    stack.push((x, y));
                 }
-            }
-        }
-        removed
-    }
-
-    fn part2(&mut self) -> u32 {
-        let mut removed = 0;
-        for y in 0..self.0.len() {
-            for x in 0..self.0[y].len() {
-                removed += self.remove_rolls(x, y);
             }
         }
         removed
