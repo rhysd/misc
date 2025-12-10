@@ -1,8 +1,59 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::env;
+use std::hash::Hash;
 use std::io::{self, BufRead};
 
 type Pos = (f64, f64, f64);
+
+#[repr(transparent)]
+#[derive(PartialEq, Eq, Clone, Copy)]
+struct SetHandle(usize);
+
+#[derive(Default)]
+pub struct DisjointSets<T> {
+    items: HashMap<T, SetHandle>,
+    links: Vec<SetHandle>,
+}
+
+impl<T: PartialEq + Eq + Hash> DisjointSets<T> {
+    fn add(&mut self, value: T) {
+        debug_assert!(!self.items.contains_key(&value));
+        let handle = SetHandle(self.links.len());
+        self.links.push(handle);
+        self.items.insert(value, handle);
+    }
+
+    fn union(&mut self, a: SetHandle, b: SetHandle) {
+        let (i, h) = if a.0 < b.0 { (b.0, a) } else { (a.0, b) };
+        self.links[i] = h;
+    }
+
+    fn resolve(&mut self, handle: SetHandle) -> SetHandle {
+        let h = self.links[handle.0];
+        if handle == h {
+            return handle;
+        }
+        let h = self.resolve(h);
+        self.links[handle.0] = h;
+        h
+    }
+
+    fn find(&mut self, a: &T) -> Option<SetHandle> {
+        let handle = self.items.get(a).copied()?;
+        Some(self.resolve(handle))
+    }
+
+    fn sizes(&mut self) -> Vec<usize> {
+        for i in 0..self.links.len() {
+            self.resolve(SetHandle(i));
+        }
+        let mut sizes = vec![0; self.links.len()];
+        for h in self.items.values() {
+            sizes[self.links[h.0].0] += 1;
+        }
+        sizes
+    }
+}
 
 fn parse(lines: impl Iterator<Item = String>) -> (Vec<Pos>, Vec<(usize, usize, f64)>) {
     let boxes: Vec<Pos> = lines
@@ -26,47 +77,42 @@ fn parse(lines: impl Iterator<Item = String>) -> (Vec<Pos>, Vec<(usize, usize, f
     (boxes, dists)
 }
 
-fn connect(i: usize, j: usize, circuits: &mut Vec<HashSet<usize>>) -> bool {
-    let ci = circuits.iter().position(|s| s.contains(&i));
-    let cj = circuits.iter().position(|s| s.contains(&j));
-    match (ci, cj) {
-        (Some(ci), Some(cj)) if ci == cj => return false,
-        (Some(ci), Some(cj)) => {
-            let s = circuits.remove(ci.max(cj));
-            circuits[ci.min(cj)].extend(s);
-        }
-        (Some(ci), None) => {
-            circuits[ci].insert(j);
-        }
-        (None, Some(cj)) => {
-            circuits[cj].insert(i);
-        }
-        (None, None) => circuits.push(HashSet::from([i, j])),
-    }
-    true
-}
-
 fn part1(lines: impl Iterator<Item = String>) {
-    let (_, dists) = parse(lines);
+    let (boxes, dists) = parse(lines);
 
-    let mut circuits = vec![];
-    for (i, j, _) in dists.into_iter().take(1000) {
-        connect(i, j, &mut circuits);
+    let mut d = DisjointSets::default();
+    for i in 0..boxes.len() {
+        d.add(i);
     }
-    circuits.sort_unstable_by_key(|s| s.len());
-    let answer: usize = circuits[circuits.len() - 3..].iter().map(HashSet::len).product();
-    println!("{answer}");
+    for (i, j, _) in dists.into_iter().take(1000) {
+        let a = d.find(&i).unwrap();
+        let b = d.find(&j).unwrap();
+        d.union(a, b);
+    }
+
+    let mut sizes = d.sizes();
+    let i = sizes.len() - 3;
+    let (_, a, b) = sizes.select_nth_unstable(i);
+    println!("{}", *a * b[0] * b[1]);
 }
 
 fn part2(lines: impl Iterator<Item = String>) {
     let (boxes, dists) = parse(lines);
 
-    let mut circuits = vec![];
+    let mut d = DisjointSets::default();
+    for i in 0..boxes.len() {
+        d.add(i);
+    }
+
     let mut last = (0, 0);
     for (i, j, _) in dists.into_iter() {
-        if connect(i, j, &mut circuits) {
-            last = (i, j);
+        let a = d.find(&i).unwrap();
+        let b = d.find(&j).unwrap();
+        if a == b {
+            continue;
         }
+        d.union(a, b);
+        last = (i, j);
     }
     println!("{}", (boxes[last.0].0 * boxes[last.1].0) as u64);
 }
