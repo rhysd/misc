@@ -40,9 +40,9 @@ path = "8.rs"
 name = "9"
 path = "9.rs"
 
-# [[bin]]
-# name = "10"
-# path = "10.rs"
+[[bin]]
+name = "10"
+path = "10.rs"
 
 # [[bin]]
 # name = "11"
@@ -53,6 +53,7 @@ path = "9.rs"
 # path = "12.rs"
 
 [dependencies]
+z3 = "0.19.5"
 
 [lints.clippy]
 needless_range_loop = "allow"
