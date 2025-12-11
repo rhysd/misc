@@ -52,8 +52,11 @@ path = "10.rs"
 # name = "12"
 # path = "12.rs"
 
-[dependencies]
-z3 = "0.19.5"
+[target.'cfg(not(windows))'.dependencies]
+z3 = "0.19.6"
+
+[target.'cfg(windows)'.dependencies]
+z3 = { version = "0.19.6", features = ["gh-release"] }
 
 [lints.clippy]
 needless_range_loop = "allow"

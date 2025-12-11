@@ -63,28 +63,27 @@ fn part1(lines: impl Iterator<Item = String>) {
 
 fn min_presses_for_joltage(m: &Machine) -> u64 {
     let solver = Optimize::new();
-
     let zero = Int::from_u64(0);
+
     let mut eq = vec![zero.clone(); m.joltage.len()];
-    let mut counts = vec![];
+    let mut presses = zero.clone();
     for (i, conn) in m.buttons.iter().enumerate() {
-        let v = Int::new_const(format!("count{i}"));
-        solver.assert(&v.ge(&zero));
+        let count = Int::new_const(format!("count{i}"));
+        solver.assert(&count.ge(&zero));
         for &j in conn {
-            eq[j] += &v;
+            eq[j] += &count;
         }
-        counts.push(v);
+        presses += count;
     }
     for (i, &jolt) in m.joltage.iter().enumerate() {
         solver.assert(&eq[i].eq(Int::from_u64(jolt)));
     }
 
-    let total = counts.into_iter().reduce(|acc, a| acc + a).unwrap();
-    solver.minimize(&total);
+    solver.minimize(&presses);
 
     assert_eq!(solver.check(&[]), SatResult::Sat);
     let model = solver.get_model().unwrap();
-    model.eval(&total, true).unwrap().as_u64().unwrap()
+    model.eval(&presses, true).unwrap().as_u64().unwrap()
 }
 
 fn part2(lines: impl Iterator<Item = String>) {
