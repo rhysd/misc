@@ -48,9 +48,9 @@ path = "10.rs"
 name = "11"
 path = "11.rs"
 
-# [[bin]]
-# name = "12"
-# path = "12.rs"
+[[bin]]
+name = "12"
+path = "12.rs"
 
 [target.'cfg(not(windows))'.dependencies]
 z3 = "0.19.6"
