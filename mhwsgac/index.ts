@@ -3,14 +3,10 @@ interface WeaponItem {
     input: HTMLInputElement;
 }
 
-interface Done {
-    weapon: string;
-    element: string;
-    count: number;
-}
-
-type Ongoing = {
-  [K in keyof Done]: Done[K] | null
+interface Ongoing {
+    weapon: string | null;
+    element: string | null;
+    count: number | null;
 }
 
 const ONGOING_INIT: Ongoing = { weapon: null, element: null, count: null };
@@ -29,14 +25,11 @@ function createTH(child: string | HTMLElement, className?: string): HTMLTableCel
 }
 
 class App {
-    addButton: HTMLButtonElement;
     table: HTMLElement;
     ongoing: Ongoing;
     doneCounts: Map<string, Map<string, number>>;
 
     constructor() {
-        this.addButton = document.getElementById('add')! as HTMLButtonElement;
-        this.addButton.addEventListener('click', this.onAddButtonClicked.bind(this));
         this.table = document.getElementById('candidates')!;
         this.doneCounts = new Map();
         this.ongoing = { ...ONGOING_INIT };
@@ -93,19 +86,15 @@ class App {
     }
 
     update(): void {
-        this.addButton.disabled = !(this.ongoing.weapon && this.ongoing.element && this.ongoing.count);
-        const {weapon, element} = this.ongoing;
+        const {weapon, element, count} = this.ongoing;
         if (weapon && element) {
             const count = this.doneCounts.get(weapon)!.get(element)!;
             this.disableCountUntil(count);
         }
-    }
 
-    onAddButtonClicked(event: Event): void {
-        if (this.addButton.disabled) {
+        if (weapon === null || element === null || count === null) {
             return;
         }
-        const {weapon, element, count} = this.ongoing as Done;
 
         const tr = document.createElement('tr');
         tr.appendChild(createTH(count.toString(), 'found-count'));
@@ -125,7 +114,6 @@ class App {
         this.disableCountUntil(count);
         this.doneCounts.get(weapon)!.set(element, count);
         this.ongoing.count = null;
-        this.update();
     }
 
     findCandiatePosition(count: number): Node | null {
