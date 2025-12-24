@@ -15,9 +15,13 @@ type Ongoing = {
 
 const ONGOING_INIT: Ongoing = { weapon: null, element: null, count: null };
 
-function createTH(text: string, className?: string): HTMLTableCellElement {
+function createTH(child: string | HTMLElement, className?: string): HTMLTableCellElement {
     const th = document.createElement('th');
-    th.textContent = text;
+    if (typeof child === 'string') {
+        th.textContent = child;
+    } else {
+        th.appendChild(child);
+    }
     if (className) {
         th.className = className;
     }
@@ -105,8 +109,12 @@ class App {
 
         const tr = document.createElement('tr');
         tr.appendChild(createTH(count.toString(), 'found-count'));
-        tr.appendChild(createTH(weapon));
-        tr.appendChild(createTH(element));
+        tr.appendChild(createTH(weapon, 'found-weapon'));
+        tr.appendChild(createTH(element, 'found-element'));
+        const close = document.createElement('button');
+        close.className = 'close';
+        close.addEventListener('click', this.deleteCandidate.bind(this, weapon, element));
+        tr.appendChild(createTH(close));
         const n = this.findCandiatePosition(count);
         if (n === null) {
             this.table.appendChild(tr);
@@ -137,6 +145,19 @@ class App {
             elem.disabled = (i + 1) <= count;
             if (elem.disabled && elem.checked) {
                 elem.checked = false;
+            }
+        }
+    }
+
+    deleteCandidate(weapon: string, element: string): void {
+        this.doneCounts.get(weapon)!.set(element, 0);
+        this.update();
+        for (const row of this.table.children) {
+            const w = row.querySelector('.found-weapon')?.textContent;
+            const e = row.querySelector('.found-element')?.textContent;
+            if (w === weapon && e === element) {
+                this.table.removeChild(row);
+                return;
             }
         }
     }
