@@ -1,20 +1,22 @@
 const ONGOING_INIT = { weapon: null, element: null, count: null };
-function createTH(text, className) {
+function createTH(child, className) {
     const th = document.createElement('th');
-    th.textContent = text;
+    if (typeof child === 'string') {
+        th.textContent = child;
+    }
+    else {
+        th.appendChild(child);
+    }
     if (className) {
         th.className = className;
     }
     return th;
 }
 class App {
-    addButton;
     table;
     ongoing;
     doneCounts;
     constructor() {
-        this.addButton = document.getElementById('add');
-        this.addButton.addEventListener('click', this.onAddButtonClicked.bind(this));
         this.table = document.getElementById('candidates');
         this.doneCounts = new Map();
         this.ongoing = { ...ONGOING_INIT };
@@ -65,22 +67,22 @@ class App {
         this.update();
     }
     update() {
-        this.addButton.disabled = !(this.ongoing.weapon && this.ongoing.element && this.ongoing.count);
-        const { weapon, element } = this.ongoing;
+        const { weapon, element, count } = this.ongoing;
         if (weapon && element) {
             const count = this.doneCounts.get(weapon).get(element);
             this.disableCountUntil(count);
         }
-    }
-    onAddButtonClicked(event) {
-        if (this.addButton.disabled) {
+        if (weapon === null || element === null || count === null) {
             return;
         }
-        const { weapon, element, count } = this.ongoing;
         const tr = document.createElement('tr');
         tr.appendChild(createTH(count.toString(), 'found-count'));
-        tr.appendChild(createTH(weapon));
-        tr.appendChild(createTH(element));
+        tr.appendChild(createTH(weapon, 'found-weapon'));
+        tr.appendChild(createTH(element, 'found-element'));
+        const close = document.createElement('button');
+        close.className = 'close';
+        close.addEventListener('click', this.deleteCandidate.bind(this, weapon, element));
+        tr.appendChild(createTH(close));
         const n = this.findCandiatePosition(count);
         if (n === null) {
             this.table.appendChild(tr);
@@ -91,7 +93,6 @@ class App {
         this.disableCountUntil(count);
         this.doneCounts.get(weapon).set(element, count);
         this.ongoing.count = null;
-        this.update();
     }
     findCandiatePosition(count) {
         for (const n of this.table.children) {
@@ -109,6 +110,18 @@ class App {
             elem.disabled = (i + 1) <= count;
             if (elem.disabled && elem.checked) {
                 elem.checked = false;
+            }
+        }
+    }
+    deleteCandidate(weapon, element) {
+        this.doneCounts.get(weapon).set(element, 0);
+        this.update();
+        for (const row of this.table.children) {
+            const w = row.querySelector('.found-weapon')?.textContent;
+            const e = row.querySelector('.found-element')?.textContent;
+            if (w === weapon && e === element) {
+                this.table.removeChild(row);
+                return;
             }
         }
     }
