@@ -1,0 +1,24 @@
+{
+  "name": "mhwsgac",
+  "version": "0.0.0",
+  "description": "",
+  "private": true,
+  "license": "MIT",
+  "author": "rhysd <lin90162@yahoo.co.jp> (https://rhysd.github.io/)",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc --pretty -p .",
+    "serve": "http-server . -p 1234 --silent",
+    "watch:ts": "npm run build -- --watch --preserveWatchOutput",
+    "watch": "concurrently -c auto npm:watch:ts npm:serve"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "http-server": "^14.1.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@picocss/pico": "^2.1.1"
+  }
+}

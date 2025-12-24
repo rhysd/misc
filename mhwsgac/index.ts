@@ -1,0 +1,160 @@
+interface WeaponItem {
+    name: string;
+    input: HTMLInputElement;
+}
+
+interface Done {
+    weapon: string;
+    element: string;
+    count: number;
+}
+
+type Ongoing = {
+  [K in keyof Done]: Done[K] | null
+}
+
+const ONGOING_INIT: Ongoing = { weapon: null, element: null, count: null };
+
+function createTH(text: string, className?: string): HTMLTableCellElement {
+    const th = document.createElement('th');
+    th.textContent = text;
+    if (className) {
+        th.className = className;
+    }
+    return th;
+}
+
+class App {
+    addButton: HTMLButtonElement;
+    table: HTMLElement;
+    ongoing: Ongoing;
+    doneCounts: Map<string, Map<string, number>>;
+
+    constructor() {
+        this.addButton = document.getElementById('add')! as HTMLButtonElement;
+        this.addButton.addEventListener('click', this.onAddButtonClicked.bind(this));
+        this.table = document.getElementById('candidates')!;
+        this.doneCounts = new Map();
+        this.ongoing = { ...ONGOING_INIT };
+
+        for (const span of document.querySelectorAll('#select-weapon .item')) {
+            const name = span.querySelector('label')!.textContent;
+            const input = span.querySelector('input')! as HTMLInputElement;
+            input.addEventListener('change', this.onWeaponClicked.bind(this, name));
+            this.doneCounts.set(name, new Map());
+        }
+        for (const span of document.querySelectorAll('#select-element .item')) {
+            const name = span.querySelector('label')!.textContent;
+            const input = span.querySelector('input')! as HTMLInputElement;
+            input.addEventListener('change', this.onElementClicked.bind(this, name));
+            for (const m of this.doneCounts.values()) {
+                m.set(name, 0);
+            }
+        }
+        for (const span of document.querySelectorAll('#select-count .item')) {
+            const count = parseInt(span.querySelector('label')!.textContent, 10);
+            const input = span.querySelector('input')! as HTMLInputElement;
+            input.addEventListener('change', this.onCountClicked.bind(this, count));
+        }
+
+        const resetButton = document.getElementById('reset')! as HTMLButtonElement;
+        resetButton.addEventListener('click', this.reset.bind(this));
+    }
+
+    onWeaponClicked(name: string, event: Event): void {
+        const input = event.target! as HTMLInputElement;
+        if (!input.checked) {
+            return;
+        }
+        this.ongoing.weapon = name;
+        this.update();
+    }
+
+    onElementClicked(name: string, event: Event): void {
+        const input = event.target! as HTMLInputElement;
+        if (!input.checked) {
+            return;
+        }
+        this.ongoing.element = name;
+        this.update();
+    }
+
+    onCountClicked(count: number, event: Event): void {
+        const input = event.target! as HTMLInputElement;
+        if (!input.checked) {
+            return;
+        }
+        this.ongoing.count = count;
+        this.update();
+    }
+
+    update(): void {
+        this.addButton.disabled = !(this.ongoing.weapon && this.ongoing.element && this.ongoing.count);
+        const {weapon, element} = this.ongoing;
+        if (weapon && element) {
+            const count = this.doneCounts.get(weapon)!.get(element)!;
+            this.disableCountUntil(count);
+        }
+    }
+
+    onAddButtonClicked(event: Event): void {
+        if (this.addButton.disabled) {
+            return;
+        }
+        const {weapon, element, count} = this.ongoing as Done;
+
+        const tr = document.createElement('tr');
+        tr.appendChild(createTH(count.toString(), 'found-count'));
+        tr.appendChild(createTH(weapon));
+        tr.appendChild(createTH(element));
+        const n = this.findCandiatePosition(count);
+        if (n === null) {
+            this.table.appendChild(tr);
+        } else {
+            this.table.insertBefore(tr, n);
+        }
+
+        this.disableCountUntil(count);
+        this.doneCounts.get(weapon)!.set(element, count);
+        this.ongoing.count = null;
+        this.update();
+    }
+
+    findCandiatePosition(count: number): Node | null {
+        for (const n of this.table.children) {
+            const c = parseInt(n.querySelector('.found-count')!.textContent, 10);
+            if (c >= count) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    disableCountUntil(count: number): void {
+        const elems = document.querySelectorAll('#select-count input') as NodeListOf<HTMLInputElement>;
+        for (let i = 0; i < elems.length; i++) {
+            const elem = elems[i]!;
+            elem.disabled = (i + 1) <= count;
+            if (elem.disabled && elem.checked) {
+                elem.checked = false;
+            }
+        }
+    }
+
+    reset(): void {
+        this.ongoing = { ...ONGOING_INIT };
+        this.disableCountUntil(0);
+        for (const m of this.doneCounts.values()) {
+            for (const k of m.keys()) {
+                m.set(k, 0);
+            }
+        }
+        const checked = document.querySelectorAll('input[type="radio"]:checked') as NodeListOf<HTMLInputElement>;
+        for (const input of checked) {
+            input.checked = false;
+        }
+        this.table.replaceChildren();
+    }
+}
+
+new App();

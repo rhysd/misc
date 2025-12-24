@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en" >
+  <head>
+    <meta charset="utf-8"/>
+    <link rel="stylesheet" href="pico.css">
+    <link rel="stylesheet" href="style.css">
+    <title>ゴグアーティア復元強化カウンター</title>
+  </head>
+  <body>
+    <main class=container>
+      <h1>ゴグアーティア復元強化カウンター</h1>
+      <fieldset id="select-weapon">
+        <legend>武器種</legend>
+        <span class="item">
+          <input type="radio" id="gs" name="weapon" />
+          <label>大剣</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="ss" name="weapon" />
+          <label>片手剣</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="db" name="weapon" />
+          <label>双剣</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="ls" name="weapon" />
+          <label>太刀</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="hm" name="weapon" />
+          <label>ハンマー</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="hh" name="weapon" />
+          <label>狩猟笛</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="lc" name="weapon" />
+          <label>ランス</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="gl" name="weapon" />
+          <label>ガンランス</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="sa" name="weapon" />
+          <label>スラアク</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="cb" name="weapon" />
+          <label>チャアク</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="ig" name="weapon" />
+          <label>操虫棍</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="bw" name="weapon" />
+          <label>弓</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="lb" name="weapon" />
+          <label>ライト</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="hb" name="weapon" />
+          <label>ヘビィ</label>
+        </span>
+      </fieldset>
+      <fieldset id="select-element">
+        <legend>属性</legend>
+        <span class="item">
+          <input type="radio" id="fire" name="element" />
+          <label>火</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="water" name="element" />
+          <label>水</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="thunder" name="element" />
+          <label>雷</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="ice" name="element" />
+          <label>氷</label>
+        </span>
+        <span class="item">
+          <input type="radio" id="dragon" name="element" />
+          <label>龍</label>
+        </span>
+      </fieldset>
+      <fieldset id="select-count">
+        <legend>回数</legend>
+        <span class="item">
+          <input type="radio" name="count" />
+          <label>1</label>
+        </span>
+        <span class="item">
+          <input type="radio" name="count" />
+          <label>2</label>
+        </span>
+        <span class="item">
+          <input type="radio" name="count" />
+          <label>3</label>
+        </span>
+        <span class="item">
+          <input type="radio" name="count" />
+          <label>4</label>
+        </span>
+        <span class="item">
+          <input type="radio" name="count" />
+          <label>5</label>
+        </span>
+        <span class="item">
+          <input type="radio" name="count" />
+          <label>6</label>
+        </span>
+        <span class="item">
+          <input type="radio" name="count" />
+          <label>7</label>
+        </span>
+        <span class="item">
+          <input type="radio" name="count" />
+          <label>8</label>
+        </span>
+        <span class="item">
+          <input type="radio" name="count" />
+          <label>9</label>
+        </span>
+        <span class="item">
+          <input type="radio" name="count" />
+          <label>10</label>
+        </span>
+      </fieldset>
+      <button id="add" disabled>追加</button>
+      <hr/>
+      <table>
+        <thead>
+          <tr>
+            <th>回数</th>
+            <th>武器種</th>
+            <th>属性</th>
+          </tr>
+        </thead>
+        <tbody id="candidates">
+        </tbody>
+      </table>
+      <button id="reset" class="secondary">リセット</button>
+    </main>
+    <script type="module" src="index.js"></script>
+  </body>
+</html>
