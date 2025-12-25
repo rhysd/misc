@@ -26,11 +26,13 @@ function createTH(child: string | HTMLElement, className?: string): HTMLTableCel
 
 class App {
     table: HTMLElement;
+    countsRoot: HTMLElement;
     ongoing: Ongoing;
     doneCounts: Map<string, Map<string, number>>;
 
     constructor() {
         this.table = document.getElementById('candidates')!;
+        this.countsRoot = document.getElementById('select-count')!;
         this.doneCounts = new Map();
         this.ongoing = { ...ONGOING_INIT };
 
@@ -48,14 +50,22 @@ class App {
                 m.set(name, 0);
             }
         }
-        for (const span of document.querySelectorAll('#select-count .item')) {
-            const count = parseInt(span.querySelector('label')!.textContent, 10);
-            const input = span.querySelector('input')! as HTMLInputElement;
-            input.addEventListener('change', this.onCountClicked.bind(this, count));
-        }
+        this.prepareCounts(10);
 
-        const resetButton = document.getElementById('reset')! as HTMLButtonElement;
+        const resetButton = document.getElementById('reset-button')! as HTMLButtonElement;
         resetButton.addEventListener('click', this.reset.bind(this));
+
+        const configDialog = document.getElementById('config-dialog')! as HTMLDialogElement;
+        const configButton = document.getElementById('config-button')! as HTMLButtonElement;
+        configButton.addEventListener('click', () => {
+            configDialog.open = !configDialog.open;
+        });
+        const configMaxCount = document.getElementById('config-max-count')! as HTMLInputElement;
+        document.getElementById('dialog-close')!.addEventListener('click', () => {
+            configDialog.open = false;
+            this.prepareCounts(parseInt(configMaxCount.value, 10));
+            this.reset();
+        });
     }
 
     onWeaponClicked(name: string, event: Event): void {
@@ -163,6 +173,29 @@ class App {
             input.checked = false;
         }
         this.table.replaceChildren();
+    }
+
+    prepareCounts(max: number): void {
+        while (true) {
+            const c = this.countsRoot.lastChild as (HTMLElement | null);
+            if (!c || c.tagName === 'LEGEND') {
+                break;
+            }
+            this.countsRoot.removeChild(c);
+        }
+        for (let count = 1; count <= max; count++) {
+            const span = document.createElement('span');
+            span.className = 'item';
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = 'count';
+            input.addEventListener('change', this.onCountClicked.bind(this, count));
+            span.appendChild(input);
+            const label = document.createElement('label');
+            label.textContent = count.toString();
+            span.appendChild(label);
+            this.countsRoot.appendChild(span);
+        }
     }
 }
 
