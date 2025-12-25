@@ -109,46 +109,6 @@
       </fieldset>
       <fieldset id="select-count">
         <legend>回数</legend>
-        <span class="item">
-          <input type="radio" name="count" />
-          <label>1</label>
-        </span>
-        <span class="item">
-          <input type="radio" name="count" />
-          <label>2</label>
-        </span>
-        <span class="item">
-          <input type="radio" name="count" />
-          <label>3</label>
-        </span>
-        <span class="item">
-          <input type="radio" name="count" />
-          <label>4</label>
-        </span>
-        <span class="item">
-          <input type="radio" name="count" />
-          <label>5</label>
-        </span>
-        <span class="item">
-          <input type="radio" name="count" />
-          <label>6</label>
-        </span>
-        <span class="item">
-          <input type="radio" name="count" />
-          <label>7</label>
-        </span>
-        <span class="item">
-          <input type="radio" name="count" />
-          <label>8</label>
-        </span>
-        <span class="item">
-          <input type="radio" name="count" />
-          <label>9</label>
-        </span>
-        <span class="item">
-          <input type="radio" name="count" />
-          <label>10</label>
-        </span>
       </fieldset>
       <hr/>
       <table>
@@ -163,8 +123,25 @@
         <tbody id="candidates">
         </tbody>
       </table>
-      <button id="reset" class="secondary">リセット</button>
+      <footer id="footer-buttons">
+        <button id="reset-button" class="secondary">リセット</button>
+        <button id="config-button" class="outline secondary">設定</button>
+      </footer>
     </main>
+    <dialog id="config-dialog">
+      <article>
+        <header>
+          <button id="dialog-close" aria-label="Close" rel="prev"></button>
+          <p>
+            <strong>設定</strong>
+          </p>
+        </header>
+        <fieldset>
+          <legend>試行回数</legend>
+          <input id="config-max-count" type="number" name="number" placeholder="Number" aria-label="Number" value="10" min="1">
+        </fieldset>
+      </article>
+    </dialog>
     <script type="module" src="index.js"></script>
   </body>
 </html>

@@ -14,10 +14,12 @@ function createTH(child, className) {
 }
 class App {
     table;
+    countsRoot;
     ongoing;
     doneCounts;
     constructor() {
         this.table = document.getElementById('candidates');
+        this.countsRoot = document.getElementById('select-count');
         this.doneCounts = new Map();
         this.ongoing = { ...ONGOING_INIT };
         for (const span of document.querySelectorAll('#select-weapon .item')) {
@@ -34,13 +36,20 @@ class App {
                 m.set(name, 0);
             }
         }
-        for (const span of document.querySelectorAll('#select-count .item')) {
-            const count = parseInt(span.querySelector('label').textContent, 10);
-            const input = span.querySelector('input');
-            input.addEventListener('change', this.onCountClicked.bind(this, count));
-        }
-        const resetButton = document.getElementById('reset');
+        this.prepareCounts(10);
+        const resetButton = document.getElementById('reset-button');
         resetButton.addEventListener('click', this.reset.bind(this));
+        const configDialog = document.getElementById('config-dialog');
+        const configButton = document.getElementById('config-button');
+        configButton.addEventListener('click', () => {
+            configDialog.open = !configDialog.open;
+        });
+        const configMaxCount = document.getElementById('config-max-count');
+        document.getElementById('dialog-close').addEventListener('click', () => {
+            configDialog.open = false;
+            this.prepareCounts(parseInt(configMaxCount.value, 10));
+            this.reset();
+        });
     }
     onWeaponClicked(name, event) {
         const input = event.target;
@@ -138,6 +147,28 @@ class App {
             input.checked = false;
         }
         this.table.replaceChildren();
+    }
+    prepareCounts(max) {
+        while (true) {
+            const c = this.countsRoot.lastChild;
+            if (!c || c.tagName === 'LEGEND') {
+                break;
+            }
+            this.countsRoot.removeChild(c);
+        }
+        for (let count = 1; count <= max; count++) {
+            const span = document.createElement('span');
+            span.className = 'item';
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = 'count';
+            input.addEventListener('change', this.onCountClicked.bind(this, count));
+            span.appendChild(input);
+            const label = document.createElement('label');
+            label.textContent = count.toString();
+            span.appendChild(label);
+            this.countsRoot.appendChild(span);
+        }
     }
 }
 new App();
