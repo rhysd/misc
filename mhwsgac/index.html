@@ -10,7 +10,7 @@
     <main class=container>
       <h1>ゴグアーティア復元強化カウンター</h1>
       <fieldset id="select-weapon">
-        <legend>武器種</legend>
+        <legend data-tooltip="強化対象の武器の種類">武器種</legend>
         <span class="item">
           <input type="radio" id="gs" name="weapon" />
           <label>大剣</label>
@@ -69,7 +69,7 @@
         </span>
       </fieldset>
       <fieldset id="select-element">
-        <legend>属性</legend>
+        <legend data-tooltip="強化対象の武器の属性">属性</legend>
         <span class="item">
           <input type="radio" id="fire" name="element" />
           <label>火</label>
@@ -108,7 +108,7 @@
         </span>
       </fieldset>
       <fieldset id="select-count">
-        <legend>回数</legend>
+        <legend data-tooltip="何回目に欲しい強化が出たか">回数</legend>
       </fieldset>
       <hr/>
       <table id="table-root" class="hidden">
@@ -131,12 +131,10 @@
       <article>
         <header>
           <button id="dialog-close" aria-label="Close" rel="prev"></button>
-          <p>
-            <strong>設定</strong>
-          </p>
+          <p><strong>設定</strong></p>
         </header>
         <fieldset>
-          <legend>試行回数</legend>
+          <legend data-tooltip="最大強化回数">試行回数</legend>
           <input id="config-max-count" type="number" name="number" placeholder="Number" aria-label="Number" value="10" min="1">
         </fieldset>
       </article>
