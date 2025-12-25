@@ -14,11 +14,13 @@ function createTH(child, className) {
 }
 class App {
     table;
+    tableRoot;
     countsRoot;
     ongoing;
     doneCounts;
     constructor() {
-        this.table = document.getElementById('candidates');
+        this.tableRoot = document.getElementById('table-root');
+        this.table = document.getElementById('table-body');
         this.countsRoot = document.getElementById('select-count');
         this.doneCounts = new Map();
         this.ongoing = { ...ONGOING_INIT };
@@ -89,8 +91,8 @@ class App {
         tr.appendChild(createTH(weapon, 'found-weapon'));
         tr.appendChild(createTH(element, 'found-element'));
         const close = document.createElement('button');
-        close.className = 'close';
-        close.addEventListener('click', this.deleteCandidate.bind(this, weapon, element));
+        close.className = 'delete-row';
+        close.addEventListener('click', this.deleteRow.bind(this, weapon, element));
         tr.appendChild(createTH(close));
         const n = this.findCandiatePosition(count);
         if (n === null) {
@@ -99,6 +101,7 @@ class App {
         else {
             this.table.insertBefore(tr, n);
         }
+        this.tableRoot.classList.remove('hidden');
         this.disableCountUntil(count);
         this.doneCounts.get(weapon).set(element, count);
         this.ongoing.count = null;
@@ -122,7 +125,7 @@ class App {
             }
         }
     }
-    deleteCandidate(weapon, element) {
+    deleteRow(weapon, element) {
         this.doneCounts.get(weapon).set(element, 0);
         this.update();
         for (const row of this.table.children) {
@@ -130,6 +133,9 @@ class App {
             const e = row.querySelector('.found-element')?.textContent;
             if (w === weapon && e === element) {
                 this.table.removeChild(row);
+                if (this.table.children.length === 0) {
+                    this.tableRoot.classList.add('hidden');
+                }
                 return;
             }
         }
@@ -147,6 +153,7 @@ class App {
             input.checked = false;
         }
         this.table.replaceChildren();
+        this.tableRoot.classList.add('hidden');
     }
     prepareCounts(max) {
         while (true) {
