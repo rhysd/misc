@@ -11,6 +11,13 @@ interface Ongoing {
 
 const ONGOING_INIT: Ongoing = { weapon: null, element: null, count: null };
 
+function unwrap<T>(v: T): NonNullable<T> {
+    if (v === null || v === undefined) {
+        throw new Error(`Unexpected nullish value: ${v}`);
+    }
+    return v;
+}
+
 function createTH(child: string | HTMLElement, className?: string): HTMLTableCellElement {
     const th = document.createElement('th');
     if (typeof child === 'string') {
@@ -32,21 +39,21 @@ class App {
     doneCounts: Map<string, Map<string, number>>;
 
     constructor() {
-        this.tableRoot = document.getElementById('table-root')!;
-        this.table = document.getElementById('table-body')!;
-        this.countsRoot = document.getElementById('select-count')!;
+        this.tableRoot = unwrap(document.getElementById('table-root'));
+        this.table = unwrap(document.getElementById('table-body'));
+        this.countsRoot = unwrap(document.getElementById('select-count'));
         this.doneCounts = new Map();
         this.ongoing = { ...ONGOING_INIT };
 
         for (const span of document.querySelectorAll('#select-weapon .item')) {
-            const name = span.querySelector('label')!.textContent;
-            const input = span.querySelector('input')! as HTMLInputElement;
+            const name = unwrap(span.querySelector('label')).textContent;
+            const input = unwrap(span.querySelector('input')) as HTMLInputElement;
             input.addEventListener('change', this.onWeaponClicked.bind(this, name));
             this.doneCounts.set(name, new Map());
         }
         for (const span of document.querySelectorAll('#select-element .item')) {
-            const name = span.querySelector('label')!.textContent;
-            const input = span.querySelector('input')! as HTMLInputElement;
+            const name = unwrap(span.querySelector('label')).textContent;
+            const input = unwrap(span.querySelector('input')) as HTMLInputElement;
             input.addEventListener('change', this.onElementClicked.bind(this, name));
             for (const m of this.doneCounts.values()) {
                 m.set(name, 0);
@@ -54,16 +61,16 @@ class App {
         }
         this.prepareCounts(10);
 
-        const resetButton = document.getElementById('reset-button')! as HTMLButtonElement;
+        const resetButton = unwrap(document.getElementById('reset-button')) as HTMLButtonElement;
         resetButton.addEventListener('click', this.reset.bind(this));
 
-        const configDialog = document.getElementById('config-dialog')! as HTMLDialogElement;
-        const configButton = document.getElementById('config-button')! as HTMLButtonElement;
+        const configDialog = unwrap(document.getElementById('config-dialog')) as HTMLDialogElement;
+        const configButton = unwrap(document.getElementById('config-button')) as HTMLButtonElement;
         configButton.addEventListener('click', () => {
             configDialog.open = !configDialog.open;
         });
-        const configMaxCount = document.getElementById('config-max-count')! as HTMLInputElement;
-        document.getElementById('dialog-close')!.addEventListener('click', () => {
+        const configMaxCount = unwrap(document.getElementById('config-max-count')) as HTMLInputElement;
+        unwrap(document.getElementById('dialog-close')).addEventListener('click', () => {
             configDialog.open = false;
             this.prepareCounts(parseInt(configMaxCount.value, 10));
             this.reset();
@@ -71,7 +78,7 @@ class App {
     }
 
     onWeaponClicked(name: string, event: Event): void {
-        const input = event.target! as HTMLInputElement;
+        const input = unwrap(event.target) as HTMLInputElement;
         if (!input.checked) {
             return;
         }
@@ -80,7 +87,7 @@ class App {
     }
 
     onElementClicked(name: string, event: Event): void {
-        const input = event.target! as HTMLInputElement;
+        const input = unwrap(event.target) as HTMLInputElement;
         if (!input.checked) {
             return;
         }
@@ -89,7 +96,7 @@ class App {
     }
 
     onCountClicked(count: number, event: Event): void {
-        const input = event.target! as HTMLInputElement;
+        const input = unwrap(event.target) as HTMLInputElement;
         if (!input.checked) {
             return;
         }
@@ -100,7 +107,7 @@ class App {
     update(): void {
         const {weapon, element, count} = this.ongoing;
         if (weapon && element) {
-            const count = this.doneCounts.get(weapon)!.get(element)!;
+            const count = unwrap(unwrap(this.doneCounts.get(weapon)).get(element));
             this.disableCountUntil(count);
         }
 
@@ -125,13 +132,13 @@ class App {
         this.tableRoot.classList.remove('hidden');
 
         this.disableCountUntil(count);
-        this.doneCounts.get(weapon)!.set(element, count);
+        unwrap(this.doneCounts.get(weapon)).set(element, count);
         this.ongoing.count = null;
     }
 
     findCandiatePosition(count: number): Node | null {
         for (const n of this.table.children) {
-            const c = parseInt(n.querySelector('.found-count')!.textContent, 10);
+            const c = parseInt(unwrap(n.querySelector('.found-count')).textContent, 10);
             if (c >= count) {
                 return n;
             }
@@ -142,7 +149,7 @@ class App {
     disableCountUntil(count: number): void {
         const elems = document.querySelectorAll('#select-count input') as NodeListOf<HTMLInputElement>;
         for (let i = 0; i < elems.length; i++) {
-            const elem = elems[i]!;
+            const elem = unwrap(elems[i]);
             elem.disabled = (i + 1) <= count;
             if (elem.disabled && elem.checked) {
                 elem.checked = false;
@@ -151,7 +158,7 @@ class App {
     }
 
     deleteRow(weapon: string, element: string): void {
-        this.doneCounts.get(weapon)!.set(element, 0);
+        unwrap(this.doneCounts.get(weapon)).set(element, 0);
         this.update();
         for (const row of this.table.children) {
             const w = row.querySelector('.found-weapon')?.textContent;
