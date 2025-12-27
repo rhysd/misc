@@ -98,7 +98,7 @@ class App {
     }
 
     update(): void {
-        const {weapon, element, count} = this.ongoing;
+        const { weapon, element, count } = this.ongoing;
         if (weapon && element) {
             const count = this.doneCounts.get(weapon)!.get(element)!;
             this.disableCountUntil(count);
@@ -143,7 +143,7 @@ class App {
         const elems = document.querySelectorAll('#select-count input') as NodeListOf<HTMLInputElement>;
         for (let i = 0; i < elems.length; i++) {
             const elem = elems[i]!;
-            elem.disabled = (i + 1) <= count;
+            elem.disabled = i + 1 <= count;
             if (elem.disabled && elem.checked) {
                 elem.checked = false;
             }
@@ -184,7 +184,7 @@ class App {
 
     prepareCounts(max: number): void {
         while (true) {
-            const c = this.countsRoot.lastChild as (HTMLElement | null);
+            const c = this.countsRoot.lastChild as HTMLElement | null;
             if (!c || c.tagName === 'LEGEND') {
                 break;
             }
