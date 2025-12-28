@@ -114,7 +114,7 @@ class App {
         tr.appendChild(createTH(element, 'found-element'));
         const close = document.createElement('button');
         close.className = 'delete-row';
-        close.addEventListener('click', this.deleteRow.bind(this, weapon, element));
+        close.addEventListener('click', this.deleteRow.bind(this, weapon, element, count));
         tr.appendChild(createTH(close));
         const n = this.findCandiatePosition(count);
         if (n === null) {
@@ -150,13 +150,14 @@ class App {
         }
     }
 
-    deleteRow(weapon: string, element: string): void {
+    deleteRow(weapon: string, element: string, count: number): void {
         this.doneCounts.get(weapon)!.set(element, 0);
         this.update();
         for (const row of this.table.children) {
             const w = row.querySelector('.found-weapon')?.textContent;
             const e = row.querySelector('.found-element')?.textContent;
-            if (w === weapon && e === element) {
+            const c = parseInt(row.querySelector('.found-count')?.textContent ?? '', 10);
+            if (w === weapon && e === element && c === count) {
                 this.table.removeChild(row);
                 if (this.table.children.length === 0) {
                     this.tableRoot.classList.add('hidden');
