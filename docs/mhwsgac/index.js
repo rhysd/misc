@@ -1,4 +1,28 @@
 const ONGOING_INIT = { weapon: null, element: null, count: null };
+function elementNameToClass(name) {
+    switch (name) {
+        case '火':
+            return 'fire';
+        case '水':
+            return 'water';
+        case '雷':
+            return 'thunder';
+        case '氷':
+            return 'ice';
+        case '龍':
+            return 'dragon';
+        case '毒':
+            return 'poison';
+        case '麻痺':
+            return 'paralysis';
+        case '睡眠':
+            return 'sleep';
+        case '爆破':
+            return 'explosion';
+        default:
+            throw new Error(`Unexpected element name: ${name}`);
+    }
+}
 function createTH(child, className) {
     const th = document.createElement('th');
     if (typeof child === 'string') {
@@ -86,13 +110,14 @@ class App {
         if (weapon === null || element === null || count === null) {
             return;
         }
+        const elemClass = elementNameToClass(element);
         const tr = document.createElement('tr');
         tr.appendChild(createTH(count.toString(), 'found-count'));
         tr.appendChild(createTH(weapon, 'found-weapon'));
-        tr.appendChild(createTH(element, 'found-element'));
+        tr.appendChild(createTH(element, `found-element ${elemClass}`));
         const close = document.createElement('button');
         close.className = 'delete-row';
-        close.addEventListener('click', this.deleteRow.bind(this, weapon, element));
+        close.addEventListener('click', this.deleteRow.bind(this, weapon, element, count));
         tr.appendChild(createTH(close));
         const n = this.findCandiatePosition(count);
         if (n === null) {
@@ -119,19 +144,20 @@ class App {
         const elems = document.querySelectorAll('#select-count input');
         for (let i = 0; i < elems.length; i++) {
             const elem = elems[i];
-            elem.disabled = (i + 1) <= count;
+            elem.disabled = i + 1 <= count;
             if (elem.disabled && elem.checked) {
                 elem.checked = false;
             }
         }
     }
-    deleteRow(weapon, element) {
+    deleteRow(weapon, element, count) {
         this.doneCounts.get(weapon).set(element, 0);
         this.update();
         for (const row of this.table.children) {
             const w = row.querySelector('.found-weapon')?.textContent;
             const e = row.querySelector('.found-element')?.textContent;
-            if (w === weapon && e === element) {
+            const c = parseInt(row.querySelector('.found-count')?.textContent ?? '', 10);
+            if (w === weapon && e === element && c === count) {
                 this.table.removeChild(row);
                 if (this.table.children.length === 0) {
                     this.tableRoot.classList.add('hidden');
