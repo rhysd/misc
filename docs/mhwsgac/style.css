@@ -37,29 +37,29 @@ body {
 }
 
 .fire {
-  color: var(--pico-color-red-500);
+  color: var(--pico-color-red-400);
 }
 .water {
-  color: var(--pico-color-azure-500);
+  color: var(--pico-color-azure-400);
 }
 .thunder {
   color: var(--pico-color-yellow-100);
 }
 .ice {
-  color: var(--pico-color-blue-500);
+  color: var(--pico-color-blue-450);
 }
 .dragon {
-  color: var(--pico-color-violet-600);
+  color: var(--pico-color-violet-550);
 }
 .poison {
-  color: var(--pico-color-purple-600);
+  color: var(--pico-color-purple-500);
 }
 .paralysis {
-  color: var(--pico-color-amber-200);
+  color: var(--pico-color-amber-150);
 }
 .sleep {
-  color: var(--pico-color-indigo-600);
+  color: var(--pico-color-indigo-550);
 }
 .explosion {
-  color: var(--pico-color-orange-500);
+  color: var(--pico-color-orange-350);
 }
