@@ -11,6 +11,31 @@ interface Ongoing {
 
 const ONGOING_INIT: Ongoing = { weapon: null, element: null, count: null };
 
+function elementNameToClass(name: string): string {
+    switch (name) {
+        case '火':
+            return 'fire';
+        case '水':
+            return 'water';
+        case '雷':
+            return 'thunder';
+        case '氷':
+            return 'ice';
+        case '龍':
+            return 'dragon';
+        case '毒':
+            return 'poison';
+        case '麻痺':
+            return 'paralysis';
+        case '睡眠':
+            return 'sleep';
+        case '爆破':
+            return 'explosion';
+        default:
+            throw new Error(`Unexpected element name: ${name}`);
+    }
+}
+
 function createTH(child: string | HTMLElement, className?: string): HTMLTableCellElement {
     const th = document.createElement('th');
     if (typeof child === 'string') {
@@ -108,10 +133,11 @@ class App {
             return;
         }
 
+        const elemClass = elementNameToClass(element);
         const tr = document.createElement('tr');
         tr.appendChild(createTH(count.toString(), 'found-count'));
         tr.appendChild(createTH(weapon, 'found-weapon'));
-        tr.appendChild(createTH(element, 'found-element'));
+        tr.appendChild(createTH(element, `found-element ${elemClass}`));
         const close = document.createElement('button');
         close.className = 'delete-row';
         close.addEventListener('click', this.deleteRow.bind(this, weapon, element, count));

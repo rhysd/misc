@@ -18,6 +18,7 @@ cp ./index.js ../docs/mhwsgac/index.js
 cp ./index.html ../docs/mhwsgac/index.html
 cp ./style.css ../docs/mhwsgac/style.css
 cp ./node_modules/@picocss/pico/css/pico.min.css ../docs/mhwsgac/pico.css
+cp ./node_modules/@picocss/pico/css/pico.colors.min.css ../docs/mhwsgac/pico.colors.css
 
 git add ../docs/mhwsgac
 git commit -m "mhwsgac: deploy from ${hash}"

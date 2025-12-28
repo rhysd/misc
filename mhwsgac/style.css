@@ -35,3 +35,31 @@ body {
 #config-button {
   justify-self: end;
 }
+
+.fire {
+  color: var(--pico-color-red-500);
+}
+.water {
+  color: var(--pico-color-azure-500);
+}
+.thunder {
+  color: var(--pico-color-yellow-100);
+}
+.ice {
+  color: var(--pico-color-blue-500);
+}
+.dragon {
+  color: var(--pico-color-violet-600);
+}
+.poison {
+  color: var(--pico-color-purple-600);
+}
+.paralysis {
+  color: var(--pico-color-amber-200);
+}
+.sleep {
+  color: var(--pico-color-indigo-600);
+}
+.explosion {
+  color: var(--pico-color-orange-500);
+}
