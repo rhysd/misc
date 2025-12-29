@@ -1,6 +1,10 @@
-body {
+html, body {
   width: 100%;
-  width: 100%;
+  height: 100%;
+}
+
+th {
+  background-color: transparent;
 }
 
 .item {
@@ -24,6 +28,11 @@ body {
   background-color: transparent;
   opacity: 0.5;
   margin-left: auto;
+}
+
+.focused {
+  font-weight: bold;
+  background-color: var(--pico-card-background-color);
 }
 
 #footer-buttons {

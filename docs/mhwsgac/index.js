@@ -37,14 +37,14 @@ function createTH(child, className) {
     return th;
 }
 class App {
-    table;
+    tableBody;
     tableRoot;
     countsRoot;
     ongoing;
     doneCounts;
     constructor() {
         this.tableRoot = document.getElementById('table-root');
-        this.table = document.getElementById('table-body');
+        this.tableBody = document.getElementById('table-body');
         this.countsRoot = document.getElementById('select-count');
         this.doneCounts = new Map();
         this.ongoing = { ...ONGOING_INIT };
@@ -115,16 +115,17 @@ class App {
         tr.appendChild(createTH(count.toString(), 'found-count'));
         tr.appendChild(createTH(weapon, 'found-weapon'));
         tr.appendChild(createTH(element, `found-element ${elemClass}`));
+        tr.addEventListener('click', this.toggleFocus.bind(this, weapon, element, tr));
         const close = document.createElement('button');
         close.className = 'delete-row';
         close.addEventListener('click', this.deleteRow.bind(this, weapon, element, count));
         tr.appendChild(createTH(close));
         const n = this.findCandiatePosition(count);
         if (n === null) {
-            this.table.appendChild(tr);
+            this.tableBody.appendChild(tr);
         }
         else {
-            this.table.insertBefore(tr, n);
+            this.tableBody.insertBefore(tr, n);
         }
         this.tableRoot.classList.remove('hidden');
         this.disableCountUntil(count);
@@ -132,7 +133,7 @@ class App {
         this.ongoing.count = null;
     }
     findCandiatePosition(count) {
-        for (const n of this.table.children) {
+        for (const n of this.tableBody.children) {
             const c = parseInt(n.querySelector('.found-count').textContent, 10);
             if (c >= count) {
                 return n;
@@ -153,13 +154,13 @@ class App {
     deleteRow(weapon, element, count) {
         this.doneCounts.get(weapon).set(element, 0);
         this.update();
-        for (const row of this.table.children) {
+        for (const row of this.tableBody.children) {
             const w = row.querySelector('.found-weapon')?.textContent;
             const e = row.querySelector('.found-element')?.textContent;
             const c = parseInt(row.querySelector('.found-count')?.textContent ?? '', 10);
             if (w === weapon && e === element && c === count) {
-                this.table.removeChild(row);
-                if (this.table.children.length === 0) {
+                this.tableBody.removeChild(row);
+                if (this.tableBody.children.length === 0) {
                     this.tableRoot.classList.add('hidden');
                 }
                 return;
@@ -178,7 +179,7 @@ class App {
         for (const input of checked) {
             input.checked = false;
         }
-        this.table.replaceChildren();
+        this.tableBody.replaceChildren();
         this.tableRoot.classList.add('hidden');
     }
     prepareCounts(max) {
@@ -201,6 +202,22 @@ class App {
             label.textContent = count.toString();
             span.appendChild(label);
             this.countsRoot.appendChild(span);
+        }
+    }
+    toggleFocus(weapon, element, dom) {
+        const focus = dom.classList.contains('focused');
+        for (const tr of this.tableBody.children) {
+            tr.classList.remove('focused');
+        }
+        if (focus) {
+            return;
+        }
+        for (const tr of this.tableBody.children) {
+            const w = tr.querySelector('.found-weapon')?.textContent;
+            const e = tr.querySelector('.found-element')?.textContent;
+            if (w === weapon && e === element) {
+                tr.classList.add('focused');
+            }
         }
     }
 }
