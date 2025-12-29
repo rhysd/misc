@@ -138,7 +138,7 @@ class App {
         tr.appendChild(createTH(count.toString(), 'found-count'));
         tr.appendChild(createTH(weapon, 'found-weapon'));
         tr.appendChild(createTH(element, `found-element ${elemClass}`));
-        tr.addEventListener('click', this.toggleFocus.bind(this, weapon, element, tr));
+        tr.addEventListener('click', this.toggleFocus.bind(this, weapon, element, count, tr));
         const close = document.createElement('button');
         close.className = 'delete-row';
         close.addEventListener('click', this.deleteRow.bind(this, weapon, element, count));
@@ -233,19 +233,24 @@ class App {
         }
     }
 
-    toggleFocus(weapon: string, element: string, dom: HTMLTableRowElement): void {
-        const focus = dom.classList.contains('focused');
+    toggleFocus(weapon: string, element: string, count: number, tr: HTMLTableRowElement): void {
+        const isFocused = tr.classList.contains('focused');
         for (const tr of this.tableBody.children) {
-            tr.classList.remove('focused');
+            tr.classList.remove('focused', 'conflict');
         }
-        if (focus) {
+        if (isFocused) {
             return;
         }
-        for (const tr of this.tableBody.children) {
-            const w = tr.querySelector('.found-weapon')?.textContent;
-            const e = tr.querySelector('.found-element')?.textContent;
+        for (const row of this.tableBody.children) {
+            const w = row.querySelector('.found-weapon')?.textContent;
+            const e = row.querySelector('.found-element')?.textContent;
             if (w === weapon && e === element) {
-                tr.classList.add('focused');
+                row.classList.add('focused');
+                continue;
+            }
+            const c = parseInt(row.querySelector('.found-count')!.textContent, 10);
+            if (c === count) {
+                row.classList.add('conflict');
             }
         }
     }
