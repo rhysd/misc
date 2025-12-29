@@ -80,15 +80,20 @@ class App {
         this.prepareCounts(10);
 
         const resetButton = document.getElementById('reset-button')! as HTMLButtonElement;
-        resetButton.addEventListener('click', this.reset.bind(this));
+        resetButton.addEventListener('click', event => {
+            event.stopPropagation();
+            this.reset();
+        });
 
         const configDialog = document.getElementById('config-dialog')! as HTMLDialogElement;
         const configButton = document.getElementById('config-button')! as HTMLButtonElement;
-        configButton.addEventListener('click', () => {
+        configButton.addEventListener('click', event => {
+            event.stopPropagation();
             configDialog.open = !configDialog.open;
         });
         const configMaxCount = document.getElementById('config-max-count')! as HTMLInputElement;
-        document.getElementById('dialog-close')!.addEventListener('click', () => {
+        document.getElementById('dialog-close')!.addEventListener('click', event => {
+            event.stopPropagation();
             configDialog.open = false;
             this.prepareCounts(parseInt(configMaxCount.value, 10));
             this.reset();
@@ -96,6 +101,7 @@ class App {
     }
 
     onWeaponClicked(name: string, event: Event): void {
+        event.stopPropagation();
         const input = event.target! as HTMLInputElement;
         if (!input.checked) {
             return;
@@ -105,6 +111,7 @@ class App {
     }
 
     onElementClicked(name: string, event: Event): void {
+        event.stopPropagation();
         const input = event.target! as HTMLInputElement;
         if (!input.checked) {
             return;
@@ -114,6 +121,7 @@ class App {
     }
 
     onCountClicked(count: number, event: Event): void {
+        event.stopPropagation();
         const input = event.target! as HTMLInputElement;
         if (!input.checked) {
             return;
@@ -138,10 +146,10 @@ class App {
         tr.appendChild(createTH(count.toString(), 'found-count'));
         tr.appendChild(createTH(weapon, 'found-weapon'));
         tr.appendChild(createTH(element, `found-element ${elemClass}`));
-        tr.addEventListener('click', this.toggleRowFocus.bind(this, weapon, element, count, tr));
+        tr.addEventListener('click', this.onToggleRowFocus.bind(this, weapon, element, count, tr));
         const close = document.createElement('button');
         close.className = 'delete-row';
-        close.addEventListener('click', this.deleteRow.bind(this, weapon, element, count));
+        close.addEventListener('click', this.onDeleteRow.bind(this, weapon, element, count));
         tr.appendChild(createTH(close));
         const n = this.findCandiatePosition(count);
         if (n === null) {
@@ -177,7 +185,8 @@ class App {
         }
     }
 
-    deleteRow(weapon: string, element: string, count: number): void {
+    onDeleteRow(weapon: string, element: string, count: number, event: Event): void {
+        event.stopPropagation();
         this.doneCounts.get(weapon)!.set(element, 0);
         this.update();
         for (const row of this.tableBody.children) {
@@ -240,7 +249,8 @@ class App {
         }
     }
 
-    toggleRowFocus(weapon: string, element: string, count: number, tr: HTMLTableRowElement): void {
+    onToggleRowFocus(weapon: string, element: string, count: number, tr: HTMLTableRowElement, event: Event): void {
+        event.stopPropagation();
         const isFocused = tr.classList.contains('focused');
         this.resetRowFocus();
         if (isFocused) {
