@@ -64,20 +64,26 @@ class App {
         }
         this.prepareCounts(10);
         const resetButton = document.getElementById('reset-button');
-        resetButton.addEventListener('click', this.reset.bind(this));
+        resetButton.addEventListener('click', event => {
+            event.stopPropagation();
+            this.reset();
+        });
         const configDialog = document.getElementById('config-dialog');
         const configButton = document.getElementById('config-button');
-        configButton.addEventListener('click', () => {
+        configButton.addEventListener('click', event => {
+            event.stopPropagation();
             configDialog.open = !configDialog.open;
         });
         const configMaxCount = document.getElementById('config-max-count');
-        document.getElementById('dialog-close').addEventListener('click', () => {
+        document.getElementById('dialog-close').addEventListener('click', event => {
+            event.stopPropagation();
             configDialog.open = false;
             this.prepareCounts(parseInt(configMaxCount.value, 10));
             this.reset();
         });
     }
     onWeaponClicked(name, event) {
+        event.stopPropagation();
         const input = event.target;
         if (!input.checked) {
             return;
@@ -86,6 +92,7 @@ class App {
         this.update();
     }
     onElementClicked(name, event) {
+        event.stopPropagation();
         const input = event.target;
         if (!input.checked) {
             return;
@@ -94,6 +101,7 @@ class App {
         this.update();
     }
     onCountClicked(count, event) {
+        event.stopPropagation();
         const input = event.target;
         if (!input.checked) {
             return;
@@ -115,10 +123,10 @@ class App {
         tr.appendChild(createTH(count.toString(), 'found-count'));
         tr.appendChild(createTH(weapon, 'found-weapon'));
         tr.appendChild(createTH(element, `found-element ${elemClass}`));
-        tr.addEventListener('click', this.toggleRowFocus.bind(this, weapon, element, count, tr));
+        tr.addEventListener('click', this.onToggleRowFocus.bind(this, weapon, element, count, tr));
         const close = document.createElement('button');
         close.className = 'delete-row';
-        close.addEventListener('click', this.deleteRow.bind(this, weapon, element, count));
+        close.addEventListener('click', this.onDeleteRow.bind(this, weapon, element, count));
         tr.appendChild(createTH(close));
         const n = this.findCandiatePosition(count);
         if (n === null) {
@@ -151,7 +159,8 @@ class App {
             }
         }
     }
-    deleteRow(weapon, element, count) {
+    onDeleteRow(weapon, element, count, event) {
+        event.stopPropagation();
         this.doneCounts.get(weapon).set(element, 0);
         this.update();
         for (const row of this.tableBody.children) {
@@ -210,7 +219,8 @@ class App {
             tr.classList.remove('focused', 'conflict');
         }
     }
-    toggleRowFocus(weapon, element, count, tr) {
+    onToggleRowFocus(weapon, element, count, tr, event) {
+        event.stopPropagation();
         const isFocused = tr.classList.contains('focused');
         this.resetRowFocus();
         if (isFocused) {
