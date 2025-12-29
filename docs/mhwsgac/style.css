@@ -31,8 +31,10 @@ th {
 }
 
 .focused {
-  font-weight: bold;
   background-color: var(--pico-card-background-color);
+}
+.conflict {
+  background-color: var(--pico-color-red-950);
 }
 
 #footer-buttons {
