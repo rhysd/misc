@@ -138,7 +138,7 @@ class App {
         tr.appendChild(createTH(count.toString(), 'found-count'));
         tr.appendChild(createTH(weapon, 'found-weapon'));
         tr.appendChild(createTH(element, `found-element ${elemClass}`));
-        tr.addEventListener('click', this.toggleFocus.bind(this, weapon, element, count, tr));
+        tr.addEventListener('click', this.toggleRowFocus.bind(this, weapon, element, count, tr));
         const close = document.createElement('button');
         close.className = 'delete-row';
         close.addEventListener('click', this.deleteRow.bind(this, weapon, element, count));
@@ -189,6 +189,7 @@ class App {
                 if (this.tableBody.children.length === 0) {
                     this.tableRoot.classList.add('hidden');
                 }
+                this.resetRowFocus();
                 return;
             }
         }
@@ -233,11 +234,15 @@ class App {
         }
     }
 
-    toggleFocus(weapon: string, element: string, count: number, tr: HTMLTableRowElement): void {
-        const isFocused = tr.classList.contains('focused');
+    resetRowFocus(): void {
         for (const tr of this.tableBody.children) {
             tr.classList.remove('focused', 'conflict');
         }
+    }
+
+    toggleRowFocus(weapon: string, element: string, count: number, tr: HTMLTableRowElement): void {
+        const isFocused = tr.classList.contains('focused');
+        this.resetRowFocus();
         if (isFocused) {
             return;
         }
