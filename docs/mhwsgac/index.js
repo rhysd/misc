@@ -138,6 +138,7 @@ class App {
             this.tableBody.insertBefore(tr, n);
         }
         this.tableRoot.classList.remove('hidden');
+        this.resetRowFocus();
         this.disableCountUntil(count);
         this.doneCounts.get(weapon).set(element, count);
         this.ongoing.count = null;
