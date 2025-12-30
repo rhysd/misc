@@ -75,3 +75,6 @@ th {
 .explosion {
   color: var(--pico-color-orange-350);
 }
+.neutral {
+  color: var(--pico-color-zinc-150);
+}

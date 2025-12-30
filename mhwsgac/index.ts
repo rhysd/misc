@@ -31,6 +31,8 @@ function elementNameToClass(name: string): string {
             return 'sleep';
         case '爆破':
             return 'explosion';
+        case '無':
+            return 'neutral';
         default:
             throw new Error(`Unexpected element name: ${name}`);
     }
