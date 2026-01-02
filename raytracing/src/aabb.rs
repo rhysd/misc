@@ -38,26 +38,36 @@ impl Aabb {
         Self { x, y, z }
     }
 
-    pub fn hit(&self, ray: &Ray, ray_t: Interval) -> bool {
-        #[inline]
-        fn intersect(ax: Interval, dir: f64, orig: f64, ray_t: Interval) -> bool {
+    pub fn hit(&self, ray: &Ray, mut ray_t: Interval) -> bool {
+        let mut intersect = move |ax: Interval, dir, orig| {
             // Compute the start/end of bounding box of the axis
             let ad_inv = 1.0 / dir;
             let (tmin, tmax) = minmax(
                 (ax.min() - orig) * ad_inv, // t0 = (x0 - Qx) / dx
                 (ax.max() - orig) * ad_inv, // t1 = (x1 - Qx) / dx
             );
+
             // Check the intersection of the bounding box and the ray
-            let min = ray_t.min().max(tmin);
-            let max = ray_t.max().min(tmax);
-            min < max
-        }
+            ray_t.clamp_min(tmin);
+            ray_t.clamp_max(tmax);
+
+            ray_t.min() < ray_t.max()
+        };
 
         let orig = ray.origin();
         let dir = ray.direction();
+        intersect(self.x, dir.x(), orig.x())
+            && intersect(self.y, dir.y(), orig.y())
+            && intersect(self.z, dir.z(), orig.z())
+    }
 
-        intersect(self.x, dir.x(), orig.x(), ray_t)
-            && intersect(self.y, dir.y(), orig.y(), ray_t)
-            && intersect(self.z, dir.z(), orig.z(), ray_t)
+    pub fn x(&self) -> Interval {
+        self.x
+    }
+    pub fn y(&self) -> Interval {
+        self.y
+    }
+    pub fn z(&self) -> Interval {
+        self.z
     }
 }

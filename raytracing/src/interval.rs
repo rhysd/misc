@@ -46,4 +46,16 @@ impl Interval {
             max: self.max + pad,
         }
     }
+
+    pub fn clamp_min(&mut self, x: f64) {
+        if self.min < x {
+            self.min = x;
+        }
+    }
+
+    pub fn clamp_max(&mut self, x: f64) {
+        if self.max > x {
+            self.max = x;
+        }
+    }
 }

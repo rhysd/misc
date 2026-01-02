@@ -7,7 +7,7 @@ mod ray;
 mod vec3;
 
 use camera::Camera;
-use hittable::{Hittables, Sphere};
+use hittable::{Bvh, Hittables, Sphere};
 use material::{Dielectric, Lambertian, Metal};
 use rand::random_range;
 use std::io;
@@ -112,6 +112,7 @@ fn main() -> io::Result<()> {
         1.0,
         Metal::new(Color::new(0.7, 0.6, 0.5), 0.0),
     ));
+    let world = Bvh::new(world);
 
     let mut cam = Camera::new()?;
     cam.vfov = 20.0;

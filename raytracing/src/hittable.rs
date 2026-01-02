@@ -3,6 +3,9 @@ use crate::interval::Interval;
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
+use rand::random_range;
+use std::cmp::Ordering;
+use std::rc::Rc;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Face {
@@ -98,14 +101,14 @@ impl<M: Material> Hittable for Sphere<M> {
 
 #[derive(Default)]
 pub struct Hittables {
-    objects: Vec<Box<dyn Hittable>>,
+    objects: Vec<Rc<dyn Hittable>>,
     bbox: Aabb,
 }
 
 impl Hittables {
     pub fn add<H: Hittable + 'static>(&mut self, h: H) {
         self.bbox = Aabb::new_contained(&self.bbox, &h.bbox());
-        self.objects.push(Box::new(h));
+        self.objects.push(Rc::new(h));
     }
 }
 
@@ -132,6 +135,76 @@ impl Hittable for Hittables {
     }
 
     fn bbox(&self) -> Aabb {
-        todo!()
+        self.bbox.clone()
+    }
+}
+
+// Never hit to this object. This is useful when BVH node only has a single child.
+pub struct Null;
+
+impl Null {
+    fn rc() -> Rc<dyn Hittable> {
+        Rc::new(Self)
+    }
+}
+
+impl Hittable for Null {
+    fn hit(&self, _: &Ray, _: Interval) -> Option<Hit<'_>> {
+        None
+    }
+
+    fn bbox(&self) -> Aabb {
+        Aabb::default()
+    }
+}
+
+pub struct Bvh {
+    left: Rc<dyn Hittable>,
+    right: Rc<dyn Hittable>,
+    bbox: Aabb,
+}
+
+impl Bvh {
+    pub fn new(mut h: Hittables) -> Self {
+        Self::new_impl(&mut h.objects)
+    }
+
+    fn new_impl(objs: &mut [Rc<dyn Hittable>]) -> Self {
+        let (left, right) = match objs {
+            [x] => (Null::rc(), x.clone()),   // This case will be optimized later
+            [l, r] => (l.clone(), r.clone()), // XXX: `l` and `r` should be sorted
+            _ => {
+                let compare: fn(&Rc<dyn Hittable>, &Rc<dyn Hittable>) -> Ordering = match random_range(0..3) {
+                    0 => |l, r| l.bbox().x().min().total_cmp(&r.bbox().x().min()),
+                    1 => |l, r| l.bbox().y().min().total_cmp(&r.bbox().y().min()),
+                    _ => |l, r| l.bbox().z().min().total_cmp(&r.bbox().z().min()),
+                };
+                objs.sort_unstable_by(compare);
+                let (left, right) = objs.split_at_mut(objs.len() / 2);
+                let left: Rc<dyn Hittable> = Rc::new(Self::new_impl(left));
+                let right: Rc<dyn Hittable> = Rc::new(Self::new_impl(right));
+                (left, right)
+            }
+        };
+        let bbox = Aabb::new_contained(&left.bbox(), &right.bbox());
+        Self { left, right, bbox }
+    }
+}
+
+impl Hittable for Bvh {
+    fn hit(&self, ray: &Ray, mut time: Interval) -> Option<Hit<'_>> {
+        if !self.bbox.hit(ray, time) {
+            return None;
+        }
+        let left = self.left.hit(ray, time);
+        if let Some(left) = &left {
+            time.clamp_max(left.time);
+        }
+        let right = self.right.hit(ray, time);
+        right.or(left)
+    }
+
+    fn bbox(&self) -> Aabb {
+        self.bbox.clone()
     }
 }
