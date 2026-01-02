@@ -1,12 +1,17 @@
 [package]
 name = "learn-wgpu"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2024"
+publish = false
 
 [dependencies]
 anyhow = "1.0"
-winit = { version = "0.30", features = ["android-native-activity"] }
+winit = "0.30"
 env_logger = "0.10"
 log = "0.4"
 wgpu = "28.0"
 pollster = "0.3"
+image = "0.23"
+cgmath = "0.18"
+bytemuck = { version = "1.24", features = [ "derive" ] }
+tobj = { version = "3.2", default-features = false, features = ["async"]}
