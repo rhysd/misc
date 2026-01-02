@@ -39,7 +39,13 @@ impl Aabb {
     }
 
     pub fn hit(&self, ray: &Ray, mut ray_t: Interval) -> bool {
-        let mut intersect = move |ax: Interval, dir, orig| {
+        let orig = ray.origin();
+        let dir = ray.direction();
+        for (ax, dir, orig) in [
+            (self.x, dir.x(), orig.x()),
+            (self.y, dir.y(), orig.y()),
+            (self.z, dir.z(), orig.z()),
+        ] {
             // Compute the start/end of bounding box of the axis
             let ad_inv = 1.0 / dir;
             let (tmin, tmax) = minmax(
@@ -50,15 +56,11 @@ impl Aabb {
             // Check the intersection of the bounding box and the ray
             ray_t.clamp_min(tmin);
             ray_t.clamp_max(tmax);
-
-            ray_t.min() < ray_t.max()
-        };
-
-        let orig = ray.origin();
-        let dir = ray.direction();
-        intersect(self.x, dir.x(), orig.x())
-            && intersect(self.y, dir.y(), orig.y())
-            && intersect(self.z, dir.z(), orig.z())
+            if ray_t.min() >= ray_t.max() {
+                return false;
+            }
+        }
+        true
     }
 
     pub fn x(&self) -> Interval {
