@@ -58,4 +58,8 @@ impl Interval {
             self.max = x;
         }
     }
+
+    pub fn len(&self) -> f64 {
+        self.max - self.min
+    }
 }

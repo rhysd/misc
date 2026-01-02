@@ -7,6 +7,12 @@ fn minmax(a: f64, b: f64) -> (f64, f64) {
     if a < b { (a, b) } else { (b, a) }
 }
 
+pub enum Axis {
+    X,
+    Y,
+    Z,
+}
+
 // Struct for Axis-Aligned Bounding Box. See 3.3
 #[derive(Default, Clone)]
 pub struct Aabb {
@@ -71,5 +77,14 @@ impl Aabb {
     }
     pub fn z(&self) -> Interval {
         self.z
+    }
+
+    pub fn longest_axis(&self) -> Axis {
+        let (x, y, z) = (self.x.len(), self.y.len(), self.z.len());
+        if x >= y {
+            if x >= z { Axis::X } else { Axis::Z }
+        } else {
+            if y >= z { Axis::Y } else { Axis::Z }
+        }
     }
 }

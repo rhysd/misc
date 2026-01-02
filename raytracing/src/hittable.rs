@@ -1,9 +1,8 @@
-use crate::aabb::Aabb;
+use crate::aabb::{Aabb, Axis};
 use crate::interval::Interval;
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
-use rand::random_range;
 use std::cmp::Ordering;
 use std::rc::Rc;
 
@@ -170,14 +169,18 @@ impl Bvh {
     }
 
     fn new_impl(objs: &mut [Rc<dyn Hittable>]) -> Self {
+        let bbox = objs
+            .iter()
+            .skip(1)
+            .fold(objs[0].bbox(), |acc, obj| Aabb::new_contained(&acc, &obj.bbox()));
         let (left, right) = match objs {
             [x] => (Null::rc(), x.clone()),   // This case will be optimized later
             [l, r] => (l.clone(), r.clone()), // XXX: `l` and `r` should be sorted
             _ => {
-                let compare: fn(&Rc<dyn Hittable>, &Rc<dyn Hittable>) -> Ordering = match random_range(0..3) {
-                    0 => |l, r| l.bbox().x().min().total_cmp(&r.bbox().x().min()),
-                    1 => |l, r| l.bbox().y().min().total_cmp(&r.bbox().y().min()),
-                    _ => |l, r| l.bbox().z().min().total_cmp(&r.bbox().z().min()),
+                let compare: fn(&Rc<dyn Hittable>, &Rc<dyn Hittable>) -> Ordering = match bbox.longest_axis() {
+                    Axis::X => |l, r| l.bbox().x().min().total_cmp(&r.bbox().x().min()),
+                    Axis::Y => |l, r| l.bbox().y().min().total_cmp(&r.bbox().y().min()),
+                    Axis::Z => |l, r| l.bbox().z().min().total_cmp(&r.bbox().z().min()),
                 };
                 objs.sort_unstable_by(compare);
                 let (left, right) = objs.split_at_mut(objs.len() / 2);
@@ -186,7 +189,6 @@ impl Bvh {
                 (left, right)
             }
         };
-        let bbox = Aabb::new_contained(&left.bbox(), &right.bbox());
         Self { left, right, bbox }
     }
 }
