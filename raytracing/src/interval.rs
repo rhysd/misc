@@ -1,5 +1,5 @@
 // Note: This type is very similar to `std::ops::Range<f64>` but it differs in terms of boundary comparisons.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct Interval {
     min: f64,
     max: f64,
@@ -61,5 +61,14 @@ impl Interval {
 
     pub fn len(&self) -> f64 {
         self.max - self.min
+    }
+}
+
+impl Default for Interval {
+    fn default() -> Self {
+        Self {
+            min: f64::INFINITY,
+            max: f64::NEG_INFINITY,
+        }
     }
 }
