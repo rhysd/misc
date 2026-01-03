@@ -84,9 +84,7 @@ impl Renderer {
         }
 
         let output = self.surface.get_current_texture()?;
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -132,9 +130,7 @@ impl App {
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = event_loop
-            .create_window(Window::default_attributes())
-            .unwrap();
+        let window = event_loop.create_window(Window::default_attributes()).unwrap();
         let renderer = pollster::block_on(Renderer::new(Arc::new(window))).unwrap();
         self.renderer = Some(renderer);
     }
