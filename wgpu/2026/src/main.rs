@@ -12,7 +12,6 @@ struct Renderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    is_surface_configured: bool,
     window: Arc<Window>,
 }
 
@@ -51,25 +50,28 @@ impl Renderer {
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
+        surface.configure(&device, &config);
         Ok(Self {
             surface,
             adapter,
             device,
             queue,
             config,
-            is_surface_configured: false,
             window,
         })
     }
 
+    fn window(&self) -> &Window {
+        &self.window
+    }
+
     fn resize(&mut self, width: u32, height: u32) {
-        if width == 0 || height == 0 {
+        if width == self.config.width || height == self.config.height {
             return;
         }
         self.config.width = width;
         self.config.height = height;
         self.surface.configure(&self.device, &self.config);
-        self.is_surface_configured = true;
     }
 
     fn update(&mut self) {
@@ -78,10 +80,6 @@ impl Renderer {
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
-
-        if !self.is_surface_configured {
-            return Ok(());
-        }
 
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -130,7 +128,8 @@ impl App {
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = event_loop.create_window(Window::default_attributes()).unwrap();
+        let attrs = Window::default_attributes().with_title("Hello, wgpu");
+        let window = event_loop.create_window(attrs).unwrap();
         let renderer = pollster::block_on(Renderer::new(Arc::new(window))).unwrap();
         self.renderer = Some(renderer);
     }
@@ -142,7 +141,16 @@ impl ApplicationHandler for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => renderer.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                renderer.render(); // TODO: Handle error
+                renderer.update();
+                if let Err(err) = renderer.render() {
+                    match err {
+                        wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated => {
+                            let size = renderer.window().inner_size();
+                            renderer.resize(size.width, size.height);
+                        }
+                        err => panic!("Could not render the surface: {err:?}"),
+                    }
+                }
             }
             WindowEvent::KeyboardInput {
                 event:
