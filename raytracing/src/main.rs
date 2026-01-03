@@ -112,7 +112,7 @@ fn main() -> io::Result<()> {
         1.0,
         Metal::new(Color::new(0.7, 0.6, 0.5), 0.0),
     ));
-    let world = Bvh::new(world);
+    let world = Bvh::from(world);
 
     let mut cam = Camera::new()?;
     cam.vfov = 20.0;

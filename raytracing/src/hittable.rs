@@ -138,25 +138,6 @@ impl Hittable for Hittables {
     }
 }
 
-// Never hit to this object. This is useful when BVH node only has a single child.
-pub struct Null;
-
-impl Null {
-    fn rc() -> Rc<dyn Hittable> {
-        Rc::new(Self)
-    }
-}
-
-impl Hittable for Null {
-    fn hit(&self, _: &Ray, _: Interval) -> Option<Hit<'_>> {
-        None
-    }
-
-    fn bbox(&self) -> Aabb {
-        Aabb::default()
-    }
-}
-
 pub struct Bvh {
     left: Rc<dyn Hittable>,
     right: Rc<dyn Hittable>,
@@ -164,18 +145,23 @@ pub struct Bvh {
 }
 
 impl Bvh {
-    pub fn new(mut h: Hittables) -> Self {
-        Self::new_impl(&mut h.objects)
-    }
-
-    fn new_impl(objs: &mut [Rc<dyn Hittable>]) -> Self {
+    pub fn new(objs: &mut [Rc<dyn Hittable>]) -> Self {
         let bbox = objs
             .iter()
             .skip(1)
             .fold(objs[0].bbox(), |acc, obj| Aabb::new_contained(&acc, &obj.bbox()));
         let (left, right) = match objs {
-            [x] => (Null::rc(), x.clone()),   // This case will be optimized later
-            [l, r] => (l.clone(), r.clone()), // XXX: `l` and `r` should be sorted
+            [] | [_] => panic!("BVH node requires at least two objects"),
+            [l, r] => (l.clone(), r.clone()),
+            [a, b, c] => {
+                let left = a.clone();
+                let right: Rc<dyn Hittable> = Rc::new(Self {
+                    left: b.clone(),
+                    right: c.clone(),
+                    bbox: Aabb::new_contained(&b.bbox(), &c.bbox()),
+                });
+                (left, right)
+            }
             _ => {
                 let compare: fn(&Rc<dyn Hittable>, &Rc<dyn Hittable>) -> Ordering = match bbox.longest_axis() {
                     Axis::X => |l, r| l.bbox().x().min().total_cmp(&r.bbox().x().min()),
@@ -184,12 +170,18 @@ impl Bvh {
                 };
                 objs.sort_unstable_by(compare);
                 let (left, right) = objs.split_at_mut(objs.len() / 2);
-                let left: Rc<dyn Hittable> = Rc::new(Self::new_impl(left));
-                let right: Rc<dyn Hittable> = Rc::new(Self::new_impl(right));
+                let left: Rc<dyn Hittable> = Rc::new(Self::new(left));
+                let right: Rc<dyn Hittable> = Rc::new(Self::new(right));
                 (left, right)
             }
         };
         Self { left, right, bbox }
+    }
+}
+
+impl From<Hittables> for Bvh {
+    fn from(mut h: Hittables) -> Self {
+        Self::new(&mut h.objects)
     }
 }
 
