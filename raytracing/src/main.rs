@@ -4,6 +4,7 @@ mod hittable;
 mod interval;
 mod material;
 mod ray;
+mod texture;
 mod vec3;
 
 use camera::Camera;
@@ -12,6 +13,7 @@ use material::{Dielectric, Lambertian, Metal};
 use rand::random_range;
 use std::io;
 use std::path::PathBuf;
+use texture::CheckerTexture;
 use vec3::{Color, Point3, Vec3};
 
 enum Action {
@@ -61,7 +63,11 @@ fn main() -> io::Result<()> {
     world.add(Sphere::stationary(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
-        Lambertian::new(Color::new(0.5, 0.5, 0.5)),
+        Lambertian::new(CheckerTexture::solid(
+            0.32,
+            Color::new(0.2, 0.3, 0.1),
+            Color::new(0.9, 0.9, 0.9),
+        )),
     ));
 
     for a in -11..11 {
@@ -81,7 +87,7 @@ fn main() -> io::Result<()> {
                 // Diffuse
                 let albedo = Color::random(0.0..1.0) * Color::random(0.0..1.0);
                 let center_end = center + Vec3::new(0.0, rand::random_range(0.0..0.5), 0.0);
-                let sphere = Sphere::moving(center, center_end, 0.2, Lambertian::new(albedo));
+                let sphere = Sphere::moving(center, center_end, 0.2, Lambertian::solid(albedo));
                 world.add(sphere);
             } else if random < 0.95 {
                 // Metal
@@ -105,7 +111,7 @@ fn main() -> io::Result<()> {
     world.add(Sphere::stationary(
         Point3::new(-4.0, 1.0, 0.0),
         1.0,
-        Lambertian::new(Color::new(0.4, 0.2, 0.1)),
+        Lambertian::solid(Color::new(0.4, 0.2, 0.1)),
     ));
     world.add(Sphere::stationary(
         Point3::new(4.0, 1.0, 0.0),

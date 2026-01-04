@@ -18,6 +18,8 @@ pub struct Hit<'a> {
     pub time: f64,
     pub face: Face,
     pub mat: &'a dyn Material,
+    pub u: f64,
+    pub v: f64,
 }
 
 pub trait Hittable {
@@ -90,6 +92,8 @@ impl<M: Material> Hittable for Sphere<M> {
             normal,
             face,
             mat: &self.mat,
+            u: 0.0, // TODO
+            v: 0.0, // TODO
         })
     }
 

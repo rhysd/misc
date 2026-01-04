@@ -1,5 +1,6 @@
 use crate::hittable::{Face, Hit};
 use crate::ray::Ray;
+use crate::texture::{SolidColor, Texture};
 use crate::vec3::{Color, Vec3};
 use rand::random_range;
 
@@ -8,17 +9,24 @@ pub trait Material {
 }
 
 // Lambertian (diffuse) reflectance
-pub struct Lambertian {
-    albedo: Color,
+pub struct Lambertian<T> {
+    tex: T,
 }
 
-impl Lambertian {
-    pub fn new(albedo: Color) -> Self {
-        Self { albedo }
+impl Lambertian<SolidColor> {
+    pub fn solid(albedo: Color) -> Self {
+        let tex = SolidColor::new(albedo);
+        Self { tex }
     }
 }
 
-impl Material for Lambertian {
+impl<T: Texture> Lambertian<T> {
+    pub fn new(tex: T) -> Self {
+        Self { tex }
+    }
+}
+
+impl<T: Texture> Material for Lambertian<T> {
     fn scatter(&self, ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)> {
         // Diffuse the ray around the normal (the Lambertian reflection)
         let mut scatter_direction = hit.normal + Vec3::random_unit();
@@ -31,7 +39,7 @@ impl Material for Lambertian {
         }
 
         let scattered = Ray::new_at(ray.time(), hit.pos, scatter_direction);
-        let attenuation = self.albedo;
+        let attenuation = self.tex.color(hit.u, hit.v, &hit.pos);
         Some((scattered, attenuation))
     }
 }
