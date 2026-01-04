@@ -3,6 +3,7 @@ use crate::interval::Interval;
 use crate::ray::Ray;
 use crate::vec3::{Color, Point3, Vec3};
 use rand::random_range;
+use rayon::prelude::*;
 use std::f64::consts::PI;
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
@@ -119,23 +120,27 @@ impl Camera {
     }
 
     pub fn render<H: Hittable>(&mut self, path: impl AsRef<Path>, world: &H) -> io::Result<()> {
-        let mut out = BufWriter::new(File::create(path.as_ref())?);
-
         self.initialize();
 
-        writeln!(out, "P3")?;
-        writeln!(out, "{} {}", self.image_width, self.image_height)?;
-        writeln!(out, "255")?;
-
-        for h in 0..self.image_height {
-            for w in 0..self.image_width {
+        let pixels: Vec<_> = (0..self.image_height * self.image_width)
+            .into_par_iter()
+            .map(|slot| {
+                let (h, w) = (slot / self.image_width, slot % self.image_width);
                 let sum = repeat_with(|| self.ray_to(w, h).color(self.max_depth, world))
                     .take(self.samples_per_pixel as _)
                     .reduce(Add::add)
                     .unwrap_or_default();
-                let (r, g, b) = to_rgb(sum * self.pixel_samples_scale);
-                writeln!(out, "{r} {g} {b}")?;
-            }
+                to_rgb(sum * self.pixel_samples_scale)
+            })
+            .collect();
+
+        let mut out = BufWriter::new(File::create(path.as_ref())?);
+        writeln!(out, "P3")?;
+        writeln!(out, "{} {}", self.image_width, self.image_height)?;
+        writeln!(out, "255")?;
+
+        for (r, g, b) in pixels {
+            writeln!(out, "{r} {g} {b}")?;
         }
 
         Ok(())

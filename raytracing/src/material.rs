@@ -4,12 +4,12 @@ use crate::texture::{SolidColor, Texture};
 use crate::vec3::{Color, Vec3};
 use rand::random_range;
 
-pub trait Material {
+pub trait Material: Sync + Send {
     fn scatter(&self, ray: &Ray, hit: &Hit<'_>) -> Option<(Ray, Color)>;
 }
 
 // Lambertian (diffuse) reflectance
-pub struct Lambertian<T> {
+pub struct Lambertian<T: Sync + Send> {
     tex: T,
 }
 
