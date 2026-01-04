@@ -9,4 +9,5 @@ codegen-units = 1
 
 [dependencies]
 lexopt = "0.3.1"
+open = "5.3.3"
 rand = "0.9.1"

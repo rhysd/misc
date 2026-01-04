@@ -13,7 +13,6 @@ use material::{Dielectric, Lambertian, Metal};
 use rand::random_range;
 use std::io;
 use std::path::PathBuf;
-use std::process::Command;
 use texture::CheckerTexture;
 use vec3::{Color, Point3, Vec3};
 
@@ -34,10 +33,7 @@ fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
             Long("height") => cam.image_height = parser.value()?.parse()?,
             Long("samples") => cam.samples_per_pixel = parser.value()?.parse()?,
             Long("depth") => cam.max_depth = parser.value()?.parse()?,
-            #[cfg(target_os = "macos")]
             Long("open") => open = true,
-            #[cfg(not(target_os = "macos"))]
-            Long("open") => return Err("--open is only availale on macOS".into()),
             Value(val) => path = val.into(),
             Short('h') | Long("help") => {
                 return Ok(Action::Help(
@@ -51,7 +47,7 @@ Options:
     --height VALUE   Height in pixels (default: 450)
     --samples VALUE  Samples per pixel (default: 100)
     --depth VALUE    Max depth of ray scattering (default: 10)
-    --open           Open the output after finishing the rendering (macOS only)
+    --open           Open the output after finishing the rendering
     --help           Show this help
 "#,
                 ));
@@ -138,7 +134,7 @@ fn main() -> io::Result<()> {
         Action::Render { path, open } => {
             cam.render(&path, &world)?;
             if open {
-                Command::new("open").arg(&path).output()?;
+                open::that(&path)?;
             }
         }
         Action::Help(help) => println!("{help}"),
