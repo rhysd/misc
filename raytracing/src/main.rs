@@ -13,19 +13,20 @@ use material::{Dielectric, Lambertian, Metal};
 use rand::random_range;
 use std::io;
 use std::path::PathBuf;
+use std::process::Command;
 use texture::CheckerTexture;
 use vec3::{Color, Point3, Vec3};
 
 enum Action {
-    Render,
-    RenderTo(PathBuf),
+    Render { path: PathBuf, open: bool },
     Help(&'static str),
 }
 
 fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
     use lexopt::prelude::*;
 
-    let mut action = Action::Render;
+    let mut path = PathBuf::from("out.ppm");
+    let mut open = false;
     let mut parser = lexopt::Parser::from_env();
     while let Some(arg) = parser.next()? {
         match arg {
@@ -33,7 +34,11 @@ fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
             Long("height") => cam.image_height = parser.value()?.parse()?,
             Long("samples") => cam.samples_per_pixel = parser.value()?.parse()?,
             Long("depth") => cam.max_depth = parser.value()?.parse()?,
-            Value(val) => action = Action::RenderTo(PathBuf::from(val)),
+            #[cfg(target_os = "macos")]
+            Long("open") => open = true,
+            #[cfg(not(target_os = "macos"))]
+            Long("open") => return Err("--open is only availale on macOS".into()),
+            Value(val) => path = val.into(),
             Short('h') | Long("help") => {
                 return Ok(Action::Help(
                     r#"Usage: raytracing [OPTIONS] [PATH]
@@ -46,6 +51,7 @@ Options:
     --height VALUE   Height in pixels (default: 450)
     --samples VALUE  Samples per pixel (default: 100)
     --depth VALUE    Max depth of ray scattering (default: 10)
+    --open           Open the output after finishing the rendering (macOS only)
     --help           Show this help
 "#,
                 ));
@@ -53,7 +59,7 @@ Options:
             _ => return Err(arg.unexpected()),
         }
     }
-    Ok(action)
+    Ok(Action::Render { path, open })
 }
 
 fn main() -> io::Result<()> {
@@ -129,11 +135,13 @@ fn main() -> io::Result<()> {
     cam.focus_distance = 10.0;
 
     match parse_args(&mut cam).map_err(io::Error::other)? {
-        Action::Render => cam.render("out.ppm", &world),
-        Action::RenderTo(path) => cam.render(&path, &world),
-        Action::Help(help) => {
-            println!("{help}");
-            Ok(())
+        Action::Render { path, open } => {
+            cam.render(&path, &world)?;
+            if open {
+                Command::new("open").arg(&path).output()?;
+            }
         }
+        Action::Help(help) => println!("{help}"),
     }
+    Ok(())
 }
