@@ -167,12 +167,13 @@ impl Bvh {
                 (left, right)
             }
             _ => {
-                // Note: Chaning this to partitioning makes building BVH faster (O(n*log(n)) to O(n)) but it causes many edge cases.
                 let compare: fn(&Arc<dyn Hittable>, &Arc<dyn Hittable>) -> Ordering = match bbox.longest_axis() {
                     Axis::X => |l, r| l.bbox().x().min().total_cmp(&r.bbox().x().min()),
                     Axis::Y => |l, r| l.bbox().y().min().total_cmp(&r.bbox().y().min()),
                     Axis::Z => |l, r| l.bbox().z().min().total_cmp(&r.bbox().z().min()),
                 };
+                // Note: O(n) `select_nth_unstable_by` is about 8% slower than O(n*log(n)) `sort_unstable_by` in our case.
+                // The small sort optimization may win here.
                 objs.sort_unstable_by(compare);
                 let (left, right) = objs.split_at_mut(objs.len() / 2);
                 let left = Arc::new(Self::new(left));

@@ -67,8 +67,8 @@ fn main() -> io::Result<()> {
         1000.0,
         Lambertian::new(CheckerTexture::solid(
             0.32,
-            Color::new(0.2, 0.3, 0.1),
-            Color::new(0.9, 0.9, 0.9),
+            Color::new(0.1, 0.1, 0.2),
+            Color::new(0.7, 0.7, 0.7),
         )),
     ));
 
@@ -89,7 +89,12 @@ fn main() -> io::Result<()> {
                 // Diffuse
                 let albedo = Color::random(0.0..1.0) * Color::random(0.0..1.0);
                 let center_end = center + Vec3::new(0.0, rand::random_range(0.0..0.5), 0.0);
-                let sphere = Sphere::moving(center, center_end, 0.2, Lambertian::solid(albedo));
+                let material = Lambertian::solid(albedo);
+                let sphere = if random < 0.3 {
+                    Sphere::moving(center, center_end, 0.2, material)
+                } else {
+                    Sphere::stationary(center, 0.2, material)
+                };
                 world.add(sphere);
             } else if random < 0.95 {
                 // Metal
