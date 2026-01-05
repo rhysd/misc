@@ -149,7 +149,7 @@ pub struct Bvh {
 }
 
 impl Bvh {
-    pub fn new(objs: &mut [Arc<dyn Hittable>], prev_axis: Option<Axis>) -> Self {
+    pub fn new(objs: &mut [Arc<dyn Hittable>]) -> Self {
         let bbox = objs
             .iter()
             .skip(1)
@@ -167,20 +167,17 @@ impl Bvh {
                 (left, right)
             }
             _ => {
-                let axis = bbox.longest_axis();
-                if Some(axis) != prev_axis {
-                    let compare: fn(&Arc<dyn Hittable>, &Arc<dyn Hittable>) -> Ordering = match axis {
-                        Axis::X => |l, r| l.bbox().x().min().total_cmp(&r.bbox().x().min()),
-                        Axis::Y => |l, r| l.bbox().y().min().total_cmp(&r.bbox().y().min()),
-                        Axis::Z => |l, r| l.bbox().z().min().total_cmp(&r.bbox().z().min()),
-                    };
-                    // Note: O(n) `select_nth_unstable_by` is about 8% slower than O(n*log(n)) `sort_unstable_by` in our case.
-                    // The small sort optimization may win here.
-                    objs.sort_unstable_by(compare);
-                }
+                let compare: fn(&Arc<dyn Hittable>, &Arc<dyn Hittable>) -> Ordering = match bbox.longest_axis() {
+                    Axis::X => |l, r| l.bbox().x().min().total_cmp(&r.bbox().x().min()),
+                    Axis::Y => |l, r| l.bbox().y().min().total_cmp(&r.bbox().y().min()),
+                    Axis::Z => |l, r| l.bbox().z().min().total_cmp(&r.bbox().z().min()),
+                };
+                // Note: O(n) `select_nth_unstable_by` is about 8% slower than O(n*log(n)) `sort_unstable_by` in our case.
+                // The small sort optimization may win here.
+                objs.sort_unstable_by(compare);
                 let (left, right) = objs.split_at_mut(objs.len() / 2);
-                let left = Arc::new(Self::new(left, Some(axis)));
-                let right = Arc::new(Self::new(right, Some(axis)));
+                let left = Arc::new(Self::new(left));
+                let right = Arc::new(Self::new(right));
                 (left, right)
             }
         };
@@ -190,7 +187,7 @@ impl Bvh {
 
 impl From<Hittables> for Bvh {
     fn from(mut h: Hittables) -> Self {
-        Self::new(&mut h.objects, None)
+        Self::new(&mut h.objects)
     }
 }
 
