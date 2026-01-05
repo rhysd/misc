@@ -17,7 +17,7 @@ use texture::CheckerTexture;
 use vec3::{Color, Point3, Vec3};
 
 enum Action {
-    Render { path: PathBuf, open: bool },
+    Render { path: PathBuf, open: bool, serial: bool },
     Help(&'static str),
 }
 
@@ -26,6 +26,7 @@ fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
 
     let mut path = PathBuf::from("out.ppm");
     let mut open = false;
+    let mut serial = false;
     let mut parser = lexopt::Parser::from_env();
     while let Some(arg) = parser.next()? {
         match arg {
@@ -34,6 +35,7 @@ fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
             Long("samples") => cam.samples_per_pixel = parser.value()?.parse()?,
             Long("depth") => cam.max_depth = parser.value()?.parse()?,
             Long("open") => open = true,
+            Long("serial") => serial = true,
             Value(val) => path = val.into(),
             Short('h') | Long("help") => {
                 return Ok(Action::Help(
@@ -48,6 +50,7 @@ Options:
     --samples VALUE  Samples per pixel (default: 100)
     --depth VALUE    Max depth of ray scattering (default: 10)
     --open           Open the output after finishing the rendering
+    --serial         Render output in a single thread
     --help           Show this help
 "#,
                 ));
@@ -55,7 +58,7 @@ Options:
             _ => return Err(arg.unexpected()),
         }
     }
-    Ok(Action::Render { path, open })
+    Ok(Action::Render { path, open, serial })
 }
 
 fn main() -> io::Result<()> {
@@ -136,8 +139,12 @@ fn main() -> io::Result<()> {
     cam.focus_distance = 10.0;
 
     match parse_args(&mut cam).map_err(io::Error::other)? {
-        Action::Render { path, open } => {
-            cam.render(&path, &world)?;
+        Action::Render { path, open, serial } => {
+            if serial {
+                cam.render(&path, &world)?;
+            } else {
+                cam.render_parallel(&path, &world)?;
+            }
             if open {
                 open::that(&path)?;
             }
