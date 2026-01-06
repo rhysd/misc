@@ -30,11 +30,11 @@ impl Aabb {
         let (xmin, xmax) = minmax(a.x(), b.x());
         let (ymin, ymax) = minmax(a.y(), b.y());
         let (zmin, zmax) = minmax(a.z(), b.z());
-        Self {
-            x: Interval::new(xmin, xmax),
-            y: Interval::new(ymin, ymax),
-            z: Interval::new(zmin, zmax),
-        }
+        Self::from_axis(
+            Interval::new(xmin, xmax),
+            Interval::new(ymin, ymax),
+            Interval::new(zmin, zmax),
+        )
     }
 
     pub fn new_contained(a: &Aabb, b: &Aabb) -> Self {

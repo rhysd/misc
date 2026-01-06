@@ -30,13 +30,7 @@ impl Interval {
 
     pub fn clamp(&self, x: f64) -> f64 {
         // Note: `f64::clamp` is not available because it panics when `min` > `max` in debug build.
-        if x < self.min {
-            self.min
-        } else if self.max < x {
-            self.max
-        } else {
-            x
-        }
+        x.max(self.min).min(self.max)
     }
 
     pub fn expand(&self, delta: f64) -> Self {
