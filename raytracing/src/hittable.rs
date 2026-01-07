@@ -142,6 +142,31 @@ impl Hittable for Hittables {
     }
 }
 
+type Bound = (Arc<dyn Hittable>, f64); // Pre-compute the surface of AABB
+
+// SAH (Surface Area Heuristic)
+fn split_bounds_sah(parent: &Aabb, bounds: &mut [Bound]) -> usize {
+    let compare: fn(&Bound, &Bound) -> Ordering = match parent.longest_axis() {
+        Axis::X => |(l, _), (r, _)| l.bbox().x().mid().total_cmp(&r.bbox().x().mid()),
+        Axis::Y => |(l, _), (r, _)| l.bbox().y().mid().total_cmp(&r.bbox().y().mid()),
+        Axis::Z => |(l, _), (r, _)| l.bbox().z().mid().total_cmp(&r.bbox().z().mid()),
+    };
+    bounds.sort_unstable_by(compare);
+
+    fn cost(idx: usize, bounds: &[Bound]) -> f64 {
+        let (l, r) = bounds.split_at(idx);
+        let sl: f64 = l.iter().map(|(_, surface)| *surface).sum();
+        let sr: f64 = r.iter().map(|(_, surface)| *surface).sum();
+        sl * l.len() as f64 + sr * r.len() as f64
+    }
+
+    let len = bounds.len();
+    (1..len - 1)
+        .min_by(|&i, &j| cost(i, bounds).total_cmp(&cost(j, bounds)))
+        .unwrap_or(len / 2)
+}
+
+// BVH (Bounding Volume Hierarchy)
 pub struct Bvh {
     left: Arc<dyn Hittable>,
     right: Arc<dyn Hittable>,
@@ -149,15 +174,16 @@ pub struct Bvh {
 }
 
 impl Bvh {
-    pub fn new(objs: &mut [Arc<dyn Hittable>]) -> Self {
-        let bbox = objs
+    fn build(bounds: &mut [Bound]) -> Self {
+        let bbox = bounds
             .iter()
             .skip(1)
-            .fold(objs[0].bbox(), |acc, obj| Aabb::new_contained(&acc, &obj.bbox()));
-        let (left, right): (Arc<dyn Hittable>, Arc<dyn Hittable>) = match objs {
+            .fold(bounds[0].0.bbox(), |acc, b| Aabb::new_contained(&acc, &b.0.bbox()));
+
+        let (left, right): (Arc<dyn Hittable>, Arc<dyn Hittable>) = match bounds {
             [] | [_] => panic!("BVH node requires at least two objects"),
-            [l, r] => (l.clone(), r.clone()),
-            [l, m, r] => {
+            [(l, _), (r, _)] => (l.clone(), r.clone()),
+            [(l, _), (m, _), (r, _)] => {
                 let left = l.clone();
                 let right = Arc::new(Self {
                     left: m.clone(),
@@ -167,27 +193,32 @@ impl Bvh {
                 (left, right)
             }
             _ => {
-                let compare: fn(&Arc<dyn Hittable>, &Arc<dyn Hittable>) -> Ordering = match bbox.longest_axis() {
-                    Axis::X => |l, r| l.bbox().x().min().total_cmp(&r.bbox().x().min()),
-                    Axis::Y => |l, r| l.bbox().y().min().total_cmp(&r.bbox().y().min()),
-                    Axis::Z => |l, r| l.bbox().z().min().total_cmp(&r.bbox().z().min()),
-                };
-                // Note: O(n) `select_nth_unstable_by` is about 8% slower than O(n*log(n)) `sort_unstable_by` in our case.
-                // The small sort optimization may win here.
-                objs.sort_unstable_by(compare);
-                let (left, right) = objs.split_at_mut(objs.len() / 2);
-                let left = Arc::new(Self::new(left));
-                let right = Arc::new(Self::new(right));
-                (left, right)
+                let idx = split_bounds_sah(&bbox, bounds);
+                match bounds.split_at_mut(idx) {
+                    ([(h, _)], bounds) | (bounds, [(h, _)]) => (Arc::new(Self::build(bounds)), h.clone()),
+                    (left, right) => (Arc::new(Self::build(left)), Arc::new(Self::build(right))),
+                }
             }
         };
+
         Self { left, right, bbox }
+    }
+
+    pub fn new(objs: Vec<Arc<dyn Hittable>>) -> Self {
+        let mut bounds: Vec<_> = objs
+            .into_iter()
+            .map(|o| {
+                let s = o.bbox().surface();
+                (o, s)
+            })
+            .collect();
+        Self::build(&mut bounds)
     }
 }
 
 impl From<Hittables> for Bvh {
-    fn from(mut h: Hittables) -> Self {
-        Self::new(&mut h.objects)
+    fn from(h: Hittables) -> Self {
+        Self::new(h.objects)
     }
 }
 
@@ -198,7 +229,7 @@ impl Hittable for Bvh {
         }
         let left = self.left.hit(ray, time);
         if let Some(left) = &left {
-            time.clamp_max(left.time);
+            time.upper_bound(left.time);
         }
         let right = self.right.hit(ray, time);
         right.or(left)

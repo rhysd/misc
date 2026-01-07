@@ -44,7 +44,7 @@ impl Aabb {
         Self { x, y, z }
     }
 
-    pub fn hit(&self, ray: &Ray, mut ray_t: Interval) -> bool {
+    pub fn hit(&self, ray: &Ray, mut time: Interval) -> bool {
         let orig = ray.origin();
         let dir = ray.direction();
         for (ax, dir, orig) in [
@@ -53,16 +53,16 @@ impl Aabb {
             (self.z, dir.z(), orig.z()),
         ] {
             // Compute the start/end of bounding box of the axis
-            let ad_inv = 1.0 / dir;
+            let dir_inv = 1.0 / dir;
             let (tmin, tmax) = minmax(
-                (ax.min() - orig) * ad_inv, // t0 = (x0 - Qx) / dx
-                (ax.max() - orig) * ad_inv, // t1 = (x1 - Qx) / dx
+                (ax.min() - orig) * dir_inv, // t0 = (x0 - Qx) / dx
+                (ax.max() - orig) * dir_inv, // t1 = (x1 - Qx) / dx
             );
 
             // Check the intersection of the bounding box and the ray
-            ray_t.clamp_min(tmin);
-            ray_t.clamp_max(tmax);
-            if ray_t.min() >= ray_t.max() {
+            time.lower_bound(tmin);
+            time.upper_bound(tmax);
+            if time.min() >= time.max() {
                 return false;
             }
         }
@@ -86,5 +86,10 @@ impl Aabb {
         } else {
             if y >= z { Axis::Y } else { Axis::Z }
         }
+    }
+
+    pub fn surface(&self) -> f64 {
+        let (x, y, z) = (self.x.len(), self.y.len(), self.z.len());
+        (x * y + y * z + z * x) * 2.0
     }
 }

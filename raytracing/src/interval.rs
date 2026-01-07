@@ -24,6 +24,10 @@ impl Interval {
         self.max
     }
 
+    pub fn mid(&self) -> f64 {
+        (self.min + self.max) * 0.5
+    }
+
     pub fn surrounds(&self, x: f64) -> bool {
         self.min < x && x < self.max
     }
@@ -41,20 +45,20 @@ impl Interval {
         }
     }
 
-    pub fn clamp_min(&mut self, x: f64) {
+    pub fn lower_bound(&mut self, x: f64) {
         if self.min < x {
             self.min = x;
         }
     }
 
-    pub fn clamp_max(&mut self, x: f64) {
+    pub fn upper_bound(&mut self, x: f64) {
         if self.max > x {
             self.max = x;
         }
     }
 
     pub fn len(&self) -> f64 {
-        self.max - self.min
+        (self.max - self.min).max(0.0)
     }
 }
 
