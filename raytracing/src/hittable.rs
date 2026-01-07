@@ -142,27 +142,25 @@ impl Hittable for Hittables {
     }
 }
 
-type Bound = (Arc<dyn Hittable>, f64); // Pre-compute the surface of AABB
-
 // SAH (Surface Area Heuristic)
-fn split_bounds_sah(parent: &Aabb, bounds: &mut [Bound]) -> usize {
-    let compare: fn(&Bound, &Bound) -> Ordering = match parent.longest_axis() {
-        Axis::X => |(l, _), (r, _)| l.bbox().x().mid().total_cmp(&r.bbox().x().mid()),
-        Axis::Y => |(l, _), (r, _)| l.bbox().y().mid().total_cmp(&r.bbox().y().mid()),
-        Axis::Z => |(l, _), (r, _)| l.bbox().z().mid().total_cmp(&r.bbox().z().mid()),
+fn split_bounds_sah(parent: &Aabb, objects: &mut [Arc<dyn Hittable>]) -> usize {
+    let compare: fn(&Arc<dyn Hittable>, &Arc<dyn Hittable>) -> Ordering = match parent.longest_axis() {
+        Axis::X => |l, r| l.bbox().x().mid().total_cmp(&r.bbox().x().mid()),
+        Axis::Y => |l, r| l.bbox().y().mid().total_cmp(&r.bbox().y().mid()),
+        Axis::Z => |l, r| l.bbox().z().mid().total_cmp(&r.bbox().z().mid()),
     };
-    bounds.sort_unstable_by(compare);
+    objects.sort_unstable_by(compare);
 
-    fn cost(idx: usize, bounds: &[Bound]) -> f64 {
-        let (l, r) = bounds.split_at(idx);
-        let sl: f64 = l.iter().map(|(_, surface)| *surface).sum();
-        let sr: f64 = r.iter().map(|(_, surface)| *surface).sum();
+    fn cost(idx: usize, objects: &[Arc<dyn Hittable>]) -> f64 {
+        let (l, r) = objects.split_at(idx);
+        let sl: f64 = l.iter().map(|h| h.bbox().surface()).sum();
+        let sr: f64 = r.iter().map(|h| h.bbox().surface()).sum();
         sl * l.len() as f64 + sr * r.len() as f64
     }
 
-    let len = bounds.len();
+    let len = objects.len();
     (1..len - 1)
-        .min_by(|&i, &j| cost(i, bounds).total_cmp(&cost(j, bounds)))
+        .min_by(|&i, &j| cost(i, objects).total_cmp(&cost(j, objects)))
         .unwrap_or(len / 2)
 }
 
@@ -174,51 +172,31 @@ pub struct Bvh {
 }
 
 impl Bvh {
-    fn build(bounds: &mut [Bound]) -> Self {
-        let bbox = bounds
+    pub fn new(objects: &mut [Arc<dyn Hittable>]) -> Self {
+        let bbox = objects
             .iter()
             .skip(1)
-            .fold(bounds[0].0.bbox(), |acc, b| Aabb::new_contained(&acc, &b.0.bbox()));
+            .fold(objects[0].bbox(), |acc, b| Aabb::new_contained(&acc, &b.bbox()));
 
-        let (left, right): (Arc<dyn Hittable>, Arc<dyn Hittable>) = match bounds {
+        let (left, right): (Arc<dyn Hittable>, Arc<dyn Hittable>) = match objects {
             [] | [_] => panic!("BVH node requires at least two objects"),
-            [(l, _), (r, _)] => (l.clone(), r.clone()),
-            [(l, _), (m, _), (r, _)] => {
-                let left = l.clone();
-                let right = Arc::new(Self {
-                    left: m.clone(),
-                    right: r.clone(),
-                    bbox: Aabb::new_contained(&m.bbox(), &r.bbox()),
-                });
-                (left, right)
-            }
+            [l, r] => (l.clone(), r.clone()),
             _ => {
-                let idx = split_bounds_sah(&bbox, bounds);
-                match bounds.split_at_mut(idx) {
-                    ([(h, _)], bounds) | (bounds, [(h, _)]) => (Arc::new(Self::build(bounds)), h.clone()),
-                    (left, right) => (Arc::new(Self::build(left)), Arc::new(Self::build(right))),
+                let idx = split_bounds_sah(&bbox, objects);
+                match objects.split_at_mut(idx) {
+                    ([h], objects) | (objects, [h]) => (Arc::new(Self::new(objects)), h.clone()),
+                    (left, right) => (Arc::new(Self::new(left)), Arc::new(Self::new(right))),
                 }
             }
         };
 
         Self { left, right, bbox }
     }
-
-    pub fn new(objs: Vec<Arc<dyn Hittable>>) -> Self {
-        let mut bounds: Vec<_> = objs
-            .into_iter()
-            .map(|o| {
-                let s = o.bbox().surface();
-                (o, s)
-            })
-            .collect();
-        Self::build(&mut bounds)
-    }
 }
 
 impl From<Hittables> for Bvh {
-    fn from(h: Hittables) -> Self {
-        Self::new(h.objects)
+    fn from(mut h: Hittables) -> Self {
+        Self::new(&mut h.objects)
     }
 }
 
