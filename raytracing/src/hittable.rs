@@ -4,6 +4,7 @@ use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
 use std::cmp::Ordering;
+use std::sync::Arc;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Face {
@@ -103,14 +104,14 @@ impl<M: Material> Hittable for Sphere<M> {
 
 #[derive(Default)]
 pub struct Hittables {
-    objects: Vec<Box<dyn Hittable>>,
+    objects: Vec<Arc<dyn Hittable>>,
     bbox: Aabb,
 }
 
 impl Hittables {
     pub fn add<H: Hittable + 'static>(&mut self, h: H) {
         self.bbox = Aabb::new_contained(&self.bbox, &h.bbox());
-        self.objects.push(Box::new(h));
+        self.objects.push(Arc::new(h));
     }
 }
 
@@ -142,47 +143,31 @@ impl Hittable for Hittables {
 }
 
 pub struct Bvh {
-    left: Box<dyn Hittable>,
-    right: Box<dyn Hittable>,
+    left: Arc<dyn Hittable>,
+    right: Arc<dyn Hittable>,
     bbox: Aabb,
 }
 
 impl Bvh {
-    pub fn new(objs: &mut [Box<dyn Hittable>]) -> Self {
-        struct Nil;
-        impl Nil {
-            fn replace(obj: &mut Box<dyn Hittable>) -> Box<dyn Hittable> {
-                let me = Box::new(Self);
-                std::mem::replace(obj, me)
-            }
-        }
-        impl Hittable for Nil {
-            fn hit(&self, _: &Ray, _: Interval) -> Option<Hit<'_>> {
-                None
-            }
-            fn bbox(&self) -> Aabb {
-                Aabb::default()
-            }
-        }
-
+    pub fn new(objs: &mut [Arc<dyn Hittable>]) -> Self {
         let bbox = objs
             .iter()
             .skip(1)
             .fold(objs[0].bbox(), |acc, obj| Aabb::new_contained(&acc, &obj.bbox()));
-        let (left, right): (Box<dyn Hittable>, Box<dyn Hittable>) = match objs {
+        let (left, right): (Arc<dyn Hittable>, Arc<dyn Hittable>) = match objs {
             [] | [_] => panic!("BVH node requires at least two objects"),
-            [l, r] => (Nil::replace(l), Nil::replace(r)),
+            [l, r] => (l.clone(), r.clone()),
             [l, m, r] => {
-                let left = Nil::replace(l);
-                let right = Box::new(Self {
-                    left: Nil::replace(m),
-                    right: Nil::replace(r),
+                let left = l.clone();
+                let right = Arc::new(Self {
+                    left: m.clone(),
+                    right: r.clone(),
                     bbox: Aabb::new_contained(&m.bbox(), &r.bbox()),
                 });
                 (left, right)
             }
             _ => {
-                let compare: fn(&Box<dyn Hittable>, &Box<dyn Hittable>) -> Ordering = match bbox.longest_axis() {
+                let compare: fn(&Arc<dyn Hittable>, &Arc<dyn Hittable>) -> Ordering = match bbox.longest_axis() {
                     Axis::X => |l, r| l.bbox().x().min().total_cmp(&r.bbox().x().min()),
                     Axis::Y => |l, r| l.bbox().y().min().total_cmp(&r.bbox().y().min()),
                     Axis::Z => |l, r| l.bbox().z().min().total_cmp(&r.bbox().z().min()),
@@ -191,8 +176,8 @@ impl Bvh {
                 // The small sort optimization may win here.
                 objs.sort_unstable_by(compare);
                 let (left, right) = objs.split_at_mut(objs.len() / 2);
-                let left = Box::new(Self::new(left));
-                let right = Box::new(Self::new(right));
+                let left = Arc::new(Self::new(left));
+                let right = Arc::new(Self::new(right));
                 (left, right)
             }
         };
