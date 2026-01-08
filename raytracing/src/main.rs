@@ -17,7 +17,7 @@ use texture::CheckerTexture;
 use vec3::{Color, Point3, Vec3};
 
 enum Action {
-    Render { path: PathBuf, open: bool, serial: bool },
+    Render { path: PathBuf, open: bool, parallel: bool },
     Help(&'static str),
 }
 
@@ -26,39 +26,39 @@ fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
 
     let mut path = PathBuf::from("out.ppm");
     let mut open = false;
-    let mut serial = false;
+    let mut parallel = true;
     let mut parser = lexopt::Parser::from_env();
     while let Some(arg) = parser.next()? {
         match arg {
-            Long("width") => cam.image_width = parser.value()?.parse()?,
-            Long("height") => cam.image_height = parser.value()?.parse()?,
-            Long("samples") => cam.samples_per_pixel = parser.value()?.parse()?,
-            Long("depth") => cam.max_depth = parser.value()?.parse()?,
-            Long("open") => open = true,
-            Long("serial") => serial = true,
+            Short('w') | Long("width") => cam.image_width = parser.value()?.parse()?,
+            Short('h') | Long("height") => cam.image_height = parser.value()?.parse()?,
+            Short('s') | Long("samples") => cam.samples_per_pixel = parser.value()?.parse()?,
+            Short('d') | Long("depth") => cam.max_depth = parser.value()?.parse()?,
+            Short('o') | Long("open") => open = true,
+            Short('1') | Long("serial") => parallel = false,
             Value(val) => path = val.into(),
-            Short('h') | Long("help") => {
+            Long("help") => {
                 return Ok(Action::Help(
                     r#"Usage: raytracing [OPTIONS] [PATH]
 
 Arguments:
-    PATH             Output file path (default: "out.ppm")
+    PATH                Output file path (default: "out.ppm")
 
 Options:
-    --width VALUE    Width in pixels (default: 800)
-    --height VALUE   Height in pixels (default: 450)
-    --samples VALUE  Samples per pixel (default: 100)
-    --depth VALUE    Max depth of ray scattering (default: 10)
-    --open           Open the output after finishing the rendering
-    --serial         Render output in a single thread
-    --help           Show this help
+    -w,--width VALUE    Width in pixels (default: 800)
+    -h,--height VALUE   Height in pixels (default: 450)
+    -s,--samples VALUE  Samples per pixel (default: 100)
+    -d,--depth VALUE    Max depth of ray scattering (default: 10)
+    -o,--open           Open the output after finishing the rendering
+    -1,--serial         Render output in a single thread
+    --help              Show this help
 "#,
                 ));
             }
             _ => return Err(arg.unexpected()),
         }
     }
-    Ok(Action::Render { path, open, serial })
+    Ok(Action::Render { path, open, parallel })
 }
 
 fn main() -> io::Result<()> {
@@ -139,11 +139,11 @@ fn main() -> io::Result<()> {
     cam.focus_distance = 10.0;
 
     match parse_args(&mut cam).map_err(io::Error::other)? {
-        Action::Render { path, open, serial } => {
-            if serial {
-                cam.render(&path, &world)?;
-            } else {
+        Action::Render { path, open, parallel } => {
+            if parallel {
                 cam.render_parallel(&path, &world)?;
+            } else {
+                cam.render(&path, &world)?;
             }
             if open {
                 open::that(&path)?;

@@ -158,6 +158,7 @@ fn split_bounds_sah(parent: &Aabb, objects: &mut [Arc<dyn Hittable>]) -> usize {
         sl * l.len() as f64 + sr * r.len() as f64
     }
 
+    // Note: Binned-SAH improves building BVH by 5x faster but it didn't improve entire performance so far
     let len = objects.len();
     (1..len - 1)
         .min_by(|&i, &j| cost(i, objects).total_cmp(&cost(j, objects)))
