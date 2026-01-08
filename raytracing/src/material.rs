@@ -1,4 +1,4 @@
-use crate::hittable::{Face, Hit};
+use crate::object::{Face, Hit};
 use crate::ray::Ray;
 use crate::texture::{SolidColor, Texture};
 use crate::vec3::{Color, Vec3};

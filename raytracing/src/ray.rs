@@ -1,5 +1,5 @@
-use crate::hittable::{Face, Hittable};
 use crate::interval::Interval;
+use crate::object::{Face, Hittable};
 use crate::vec3::{Color, Point3, Vec3};
 
 #[derive(Default)]

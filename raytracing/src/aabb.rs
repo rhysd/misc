@@ -7,6 +7,7 @@ fn minmax(a: f64, b: f64) -> (f64, f64) {
     if a < b { (a, b) } else { (b, a) }
 }
 
+#[derive(Clone, Copy)]
 pub enum Axis {
     X,
     Y,

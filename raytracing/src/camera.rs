@@ -1,5 +1,5 @@
-use crate::hittable::Hittable;
 use crate::interval::Interval;
+use crate::object::Hittable;
 use crate::ray::Ray;
 use crate::vec3::{Color, Point3, Vec3};
 use rand::random_range;

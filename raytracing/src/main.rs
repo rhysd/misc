@@ -1,15 +1,17 @@
 mod aabb;
+mod bvh;
 mod camera;
-mod hittable;
 mod interval;
 mod material;
+mod object;
 mod ray;
 mod texture;
 mod vec3;
 
+use bvh::BvhBuilder;
 use camera::Camera;
-use hittable::{Bvh, Hittables, Sphere};
 use material::{Dielectric, Lambertian, Metal};
+use object::Sphere;
 use rand::random_range;
 use std::io;
 use std::path::PathBuf;
@@ -62,10 +64,10 @@ Options:
 }
 
 fn main() -> io::Result<()> {
-    let mut world = Hittables::default();
+    let mut builder = BvhBuilder::default();
 
     // Ground
-    world.add(Sphere::stationary(
+    builder.add(Sphere::stationary(
         Point3::new(0.0, -1000.0, 0.0),
         1000.0,
         Lambertian::new(CheckerTexture::solid(
@@ -98,37 +100,37 @@ fn main() -> io::Result<()> {
                 } else {
                     Sphere::stationary(center, 0.2, material)
                 };
-                world.add(sphere);
+                builder.add(sphere);
             } else if random < 0.95 {
                 // Metal
                 let albedo = Color::random(0.5..1.0);
                 let fuzz = random_range(0.0..0.5);
                 let sphere = Sphere::stationary(center, 0.2, Metal::new(albedo, fuzz));
-                world.add(sphere);
+                builder.add(sphere);
             } else {
                 // Glass
                 let sphere = Sphere::stationary(center, 0.2, Dielectric::new(1.5));
-                world.add(sphere);
+                builder.add(sphere);
             }
         }
     }
 
-    world.add(Sphere::stationary(
+    builder.add(Sphere::stationary(
         Point3::new(0.0, 1.0, 0.0),
         1.0,
         Dielectric::new(1.5),
     ));
-    world.add(Sphere::stationary(
+    builder.add(Sphere::stationary(
         Point3::new(-4.0, 1.0, 0.0),
         1.0,
         Lambertian::solid(Color::new(0.4, 0.2, 0.1)),
     ));
-    world.add(Sphere::stationary(
+    builder.add(Sphere::stationary(
         Point3::new(4.0, 1.0, 0.0),
         1.0,
         Metal::new(Color::new(0.7, 0.6, 0.5), 0.0),
     ));
-    let world = Bvh::from(world);
+    let world = builder.build();
 
     let mut cam = Camera::new()?;
     cam.vfov = 20.0;
