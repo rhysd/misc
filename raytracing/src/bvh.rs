@@ -5,7 +5,7 @@ use crate::ray::Ray;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
-type AnyObject = Arc<dyn Hittable>;
+pub type AnyObject = Arc<dyn Hittable>;
 
 // SAH (Surface Area Heuristic)
 fn split_bounds_sah(parent: &Aabb, objects: &mut [AnyObject]) -> usize {
@@ -41,8 +41,9 @@ impl Bvh {
     pub fn new(objects: &mut [AnyObject]) -> Self {
         let bbox = objects
             .iter()
-            .skip(1)
-            .fold(objects[0].bbox(), |acc, b| Aabb::new_contained(&acc, &b.bbox()));
+            .map(|o| o.bbox())
+            .reduce(|a, b| Aabb::new_contained(&a, &b))
+            .unwrap();
 
         let (left, right): (AnyObject, AnyObject) = match objects {
             [] | [_] => panic!("BVH node requires at least two objects"),
@@ -89,6 +90,7 @@ impl BvhBuilder {
     }
 
     pub fn build(mut self) -> Bvh {
+        assert!(self.objects.len() >= 2);
         Bvh::new(&mut self.objects)
     }
 }
