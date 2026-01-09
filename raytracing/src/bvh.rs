@@ -16,18 +16,24 @@ fn split_bounds_sah(parent: &Aabb, objects: &mut [AnyObject]) -> usize {
     };
     objects.sort_unstable_by(compare);
 
-    fn cost(idx: usize, objects: &[AnyObject]) -> f64 {
-        let (l, r) = objects.split_at(idx);
-        let sl: f64 = l.iter().map(|h| h.bbox().surface()).sum();
-        let sr: f64 = r.iter().map(|h| h.bbox().surface()).sum();
-        sl * l.len() as f64 + sr * r.len() as f64
-    }
-
     // Note: Binned-SAH improves building BVH by 5x faster but it didn't improve entire performance so far
     let len = objects.len();
-    (1..len - 1)
-        .min_by(|&i, &j| cost(i, objects).total_cmp(&cost(j, objects)))
-        .unwrap_or(len / 2)
+    let mut sum_left = 0.0;
+    let mut sum_right: f64 = objects.iter().map(|h| h.bbox().surface()).sum();
+    let mut min_cost = f64::MAX;
+    let mut min_pos = len / 2;
+    for (i, o) in objects.iter().enumerate().take(len - 2) {
+        let surface = o.bbox().surface();
+        sum_left += surface;
+        sum_right -= surface;
+        let pos = i + 1;
+        let cost = sum_left * pos as f64 + sum_right * (len - pos) as f64;
+        if cost < min_cost {
+            min_cost = cost;
+            min_pos = pos;
+        }
+    }
+    min_pos
 }
 
 // BVH (Bounding Volume Hierarchy)
