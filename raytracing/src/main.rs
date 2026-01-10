@@ -8,7 +8,7 @@ mod ray;
 mod texture;
 mod vec3;
 
-use bvh::BvhBuilder;
+use bvh::{Bvh, BvhBuilder};
 use camera::Camera;
 use material::{Dielectric, Lambertian, Metal};
 use object::Sphere;
@@ -63,7 +63,7 @@ Options:
     Ok(Action::Render { path, open, parallel })
 }
 
-fn main() -> io::Result<()> {
+fn demo_scene() -> Bvh {
     let mut builder = BvhBuilder::default();
 
     // Ground
@@ -130,8 +130,11 @@ fn main() -> io::Result<()> {
         1.0,
         Metal::new(Color::new(0.7, 0.6, 0.5), 0.0),
     ));
-    let world = builder.build();
 
+    builder.build()
+}
+
+fn main() -> io::Result<()> {
     let mut cam = Camera::new()?;
     cam.vfov = 20.0;
     cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
@@ -142,6 +145,7 @@ fn main() -> io::Result<()> {
 
     match parse_args(&mut cam).map_err(io::Error::other)? {
         Action::Render { path, open, parallel } => {
+            let world = demo_scene();
             if parallel {
                 cam.render_parallel(&path, &world)?;
             } else {

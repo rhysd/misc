@@ -2,14 +2,13 @@ use crate::aabb::{Aabb, Axis};
 use crate::interval::Interval;
 use crate::object::{Hit, Hittable};
 use crate::ray::Ray;
-use std::cmp::Ordering;
 use std::sync::Arc;
 
 pub type AnyObject = Arc<dyn Hittable>;
 
 // SAH (Surface Area Heuristic)
 fn split_bounds_sah(parent: &Aabb, objects: &mut [AnyObject]) -> usize {
-    let compare: fn(&AnyObject, &AnyObject) -> Ordering = match parent.longest_axis() {
+    let compare: fn(&AnyObject, &AnyObject) -> _ = match parent.longest_axis() {
         Axis::X => |l, r| l.bbox().x().mid().total_cmp(&r.bbox().x().mid()),
         Axis::Y => |l, r| l.bbox().y().mid().total_cmp(&r.bbox().y().mid()),
         Axis::Z => |l, r| l.bbox().z().mid().total_cmp(&r.bbox().z().mid()),
