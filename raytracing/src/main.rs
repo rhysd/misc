@@ -18,52 +18,29 @@ use std::path::PathBuf;
 use texture::CheckerTexture;
 use vec3::{Color, Point3, Vec3};
 
-enum Action {
-    Render { path: PathBuf, open: bool, parallel: bool },
-    Help(&'static str),
+#[derive(Clone, Copy)]
+enum Scene {
+    Demo,
+    Checker,
 }
 
-fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
-    use lexopt::prelude::*;
-
-    let mut path = PathBuf::from("out.ppm");
-    let mut open = false;
-    let mut parallel = true;
-    let mut parser = lexopt::Parser::from_env();
-    while let Some(arg) = parser.next()? {
-        match arg {
-            Short('w') | Long("width") => cam.image_width = parser.value()?.parse()?,
-            Short('h') | Long("height") => cam.image_height = parser.value()?.parse()?,
-            Short('s') | Long("samples") => cam.samples_per_pixel = parser.value()?.parse()?,
-            Short('d') | Long("depth") => cam.max_depth = parser.value()?.parse()?,
-            Short('o') | Long("open") => open = true,
-            Short('1') | Long("serial") => parallel = false,
-            Value(val) => path = val.into(),
-            Long("help") => {
-                return Ok(Action::Help(
-                    r#"Usage: raytracing [OPTIONS] [PATH]
-
-Arguments:
-    PATH                Output file path (default: "out.ppm")
-
-Options:
-    -w,--width VALUE    Width in pixels (default: 800)
-    -h,--height VALUE   Height in pixels (default: 450)
-    -s,--samples VALUE  Samples per pixel (default: 100)
-    -d,--depth VALUE    Max depth of ray scattering (default: 10)
-    -o,--open           Open the output after finishing the rendering
-    -1,--serial         Render output in a single thread
-    --help              Show this help
-"#,
-                ));
-            }
-            _ => return Err(arg.unexpected()),
+impl Scene {
+    fn world(self, cam: &mut Camera) -> Bvh {
+        match self {
+            Self::Demo => demo_scene(cam),
+            Self::Checker => checker_scene(cam),
         }
     }
-    Ok(Action::Render { path, open, parallel })
 }
 
-fn demo_scene() -> Bvh {
+fn demo_scene(cam: &mut Camera) -> Bvh {
+    cam.vfov = 20.0;
+    cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
+    cam.lookat = Point3::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+    cam.defocus_angle = 0.6;
+    cam.focus_distance = 10.0;
+
     let mut builder = BvhBuilder::default();
 
     // Ground
@@ -134,18 +111,104 @@ fn demo_scene() -> Bvh {
     builder.build()
 }
 
-fn main() -> io::Result<()> {
-    let mut cam = Camera::new()?;
+fn checker_scene(cam: &mut Camera) -> Bvh {
     cam.vfov = 20.0;
     cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
     cam.lookat = Point3::new(0.0, 0.0, 0.0);
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
-    cam.defocus_angle = 0.6;
-    cam.focus_distance = 10.0;
+    cam.defocus_angle = 0.0;
+
+    let mut builder = BvhBuilder::default();
+
+    let tex = CheckerTexture::solid(0.32, Color::new(0.1, 0.1, 0.2), Color::new(0.7, 0.7, 0.7));
+    builder.add(Sphere::stationary(
+        Point3::new(0.0, -10.0, 0.0),
+        10.0,
+        Lambertian::new(tex.clone()),
+    ));
+    builder.add(Sphere::stationary(
+        Point3::new(0.0, 10.0, 0.0),
+        10.0,
+        Lambertian::new(tex),
+    ));
+
+    builder.build()
+}
+
+enum Action {
+    Render {
+        path: PathBuf,
+        open: bool,
+        parallel: bool,
+        scene: Scene,
+    },
+    Help(&'static str),
+}
+
+fn parse_args(cam: &mut Camera) -> Result<Action, lexopt::Error> {
+    use lexopt::prelude::*;
+
+    let mut path = PathBuf::from("out.ppm");
+    let mut open = false;
+    let mut parallel = true;
+    let mut scene = Scene::Demo;
+    let mut parser = lexopt::Parser::from_env();
+    while let Some(arg) = parser.next()? {
+        match arg {
+            Short('w') | Long("width") => cam.image_width = parser.value()?.parse()?,
+            Short('h') | Long("height") => cam.image_height = parser.value()?.parse()?,
+            Short('s') | Long("samples") => cam.samples_per_pixel = parser.value()?.parse()?,
+            Short('d') | Long("depth") => cam.max_depth = parser.value()?.parse()?,
+            Short('o') | Long("open") => open = true,
+            Short('1') | Long("serial") => parallel = false,
+            Long("scene") => match parser.value()?.to_string_lossy().as_ref() {
+                "demo" => scene = Scene::Demo,
+                "checker" => scene = Scene::Checker,
+                v => return Err(format!("invalid value {v:?} for --scene").into()),
+            },
+            Value(val) => path = val.into(),
+            Long("help") => {
+                return Ok(Action::Help(
+                    r#"Usage: raytracing [OPTIONS] [PATH]
+
+Arguments:
+    PATH                Output file path (default: "out.ppm")
+
+Options:
+    -w,--width VALUE    Width in pixels (default: 800)
+    -h,--height VALUE   Height in pixels (default: 450)
+    -s,--samples VALUE  Samples per pixel (default: 100)
+    -d,--depth VALUE    Max depth of ray scattering (default: 10)
+    -o,--open           Open the output after finishing the rendering
+    -1,--serial         Render output in a single thread
+    --scene VALUE       Scene to render. Available values are "demo", "checker" (default: "demo")
+    --help              Show this help
+"#,
+                ));
+            }
+            _ => return Err(arg.unexpected()),
+        }
+    }
+
+    Ok(Action::Render {
+        path,
+        open,
+        parallel,
+        scene,
+    })
+}
+
+fn main() -> io::Result<()> {
+    let mut cam = Camera::new()?;
 
     match parse_args(&mut cam).map_err(io::Error::other)? {
-        Action::Render { path, open, parallel } => {
-            let world = demo_scene();
+        Action::Render {
+            path,
+            open,
+            parallel,
+            scene,
+        } => {
+            let world = scene.world(&mut cam);
             if parallel {
                 cam.render_parallel(&path, &world)?;
             } else {

@@ -4,6 +4,7 @@ pub trait Texture: Sync + Send {
     fn color(&self, u: f64, v: f64, p: &Point3) -> Color;
 }
 
+#[derive(Clone)]
 pub struct SolidColor {
     albedo: Color,
 }
@@ -20,6 +21,7 @@ impl Texture for SolidColor {
     }
 }
 
+#[derive(Clone)]
 pub struct CheckerTexture<T, U> {
     inv_scale: f64,
     even: T,
