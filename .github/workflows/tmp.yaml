@@ -1,0 +1,8 @@
+on: push
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: rhysd/action-setup-vim@v1
+      - run: vim +"put=has('win32')|print|q!" -Es
