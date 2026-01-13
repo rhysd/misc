@@ -5,4 +5,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: rhysd/action-setup-vim@v1
+        id: vim
       - run: vim +"put=has('win32')|print|q!" -Es
+      - run: ${{ steps.vim.outputs.executable }} +"put=has('win32')|print|q!" -Es
