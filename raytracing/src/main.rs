@@ -120,17 +120,10 @@ fn checker_scene(cam: &mut Camera) -> Bvh {
 
     let mut builder = BvhBuilder::default();
 
-    let tex = CheckerTexture::solid(0.32, Color::new(0.1, 0.1, 0.2), Color::new(0.7, 0.7, 0.7));
-    builder.add(Sphere::stationary(
-        Point3::new(0.0, -10.0, 0.0),
-        10.0,
-        Lambertian::new(tex.clone()),
-    ));
-    builder.add(Sphere::stationary(
-        Point3::new(0.0, 10.0, 0.0),
-        10.0,
-        Lambertian::new(tex),
-    ));
+    let tex = CheckerTexture::solid(0.03, Color::new(0.1, 0.1, 0.2), Color::new(0.7, 0.7, 0.7));
+    let mat = Lambertian::new(tex);
+    builder.add(Sphere::stationary(Point3::new(0.0, -10.0, 0.0), 10.0, mat.clone()));
+    builder.add(Sphere::stationary(Point3::new(0.0, 10.0, 0.0), 10.0, mat));
 
     builder.build()
 }

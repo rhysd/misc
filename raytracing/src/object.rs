@@ -3,6 +3,7 @@ use crate::interval::Interval;
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
+use std::f64::consts::PI;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Face {
@@ -84,14 +85,22 @@ impl<M: Material> Hittable for Sphere<M> {
             Face::Back => -outward_normal,
         };
 
+        // Convert the outward normal vector from cartesian coordinates to spherical coordinates.
+        // See 4.4.
+        let theta = (-outward_normal.y()).acos();
+        let phi = (-outward_normal.z()).atan2(outward_normal.x()) + PI;
+        // Convert them to (u, v) coordinates [0, 1).
+        let u = phi / (2.0 * PI);
+        let v = theta / PI;
+
         Some(Hit {
             time,
             pos,
             normal,
             face,
             mat: &self.mat,
-            u: 0.0, // TODO
-            v: 0.0, // TODO
+            u,
+            v,
         })
     }
 

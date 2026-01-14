@@ -43,11 +43,10 @@ impl<T: Texture, U: Texture> CheckerTexture<T, U> {
 
 impl<T: Texture, U: Texture> Texture for CheckerTexture<T, U> {
     fn color(&self, u: f64, v: f64, p: &Point3) -> Color {
-        let x = (p.x() * self.inv_scale).floor() as i32;
-        let y = (p.y() * self.inv_scale).floor() as i32;
-        let z = (p.z() * self.inv_scale).floor() as i32;
+        let su = (u * self.inv_scale).floor() as i32;
+        let sv = (v * self.inv_scale).floor() as i32;
 
-        if (x + y + z) % 2 == 0 {
+        if (su + sv) % 2 == 0 {
             self.even.color(u, v, p)
         } else {
             self.odd.color(u, v, p)

@@ -9,6 +9,7 @@ pub trait Material: Sync + Send {
 }
 
 // Lambertian (diffuse) reflectance
+#[derive(Clone)]
 pub struct Lambertian<T: Sync + Send> {
     tex: T,
 }
