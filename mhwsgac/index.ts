@@ -1,15 +1,11 @@
-interface WeaponItem {
-    name: string;
-    input: HTMLInputElement;
-}
-
 interface Ongoing {
     weapon: string | null;
     element: string | null;
     count: number | null;
+    isBonusReset: boolean;
 }
 
-const ONGOING_INIT: Ongoing = { weapon: null, element: null, count: null };
+const ONGOING_INIT: Ongoing = { weapon: null, element: null, count: null, isBonusReset: false };
 
 function elementNameToClass(name: string): string {
     switch (name) {
@@ -38,11 +34,11 @@ function elementNameToClass(name: string): string {
     }
 }
 
-function createTH(child: string | HTMLElement, className?: string): HTMLTableCellElement {
+function createTH(child: string | HTMLElement | null, className?: string): HTMLTableCellElement {
     const th = document.createElement('th');
     if (typeof child === 'string') {
         th.textContent = child;
-    } else {
+    } else if (child !== null) {
         th.appendChild(child);
     }
     if (className) {
@@ -56,7 +52,8 @@ class App {
     tableRoot: HTMLElement;
     countsRoot: HTMLElement;
     ongoing: Ongoing;
-    doneCounts: Map<string, Map<string, number>>;
+    // Weapon -> Element -> Bonus Reset
+    doneCounts: Map<string, Map<string, Map<boolean, number>>>;
 
     constructor() {
         this.tableRoot = document.getElementById('table-root')!;
@@ -76,7 +73,10 @@ class App {
             const input = span.querySelector('input')! as HTMLInputElement;
             input.addEventListener('change', this.onElementClicked.bind(this, name));
             for (const m of this.doneCounts.values()) {
-                m.set(name, 0);
+                const x = new Map();
+                x.set(true, 0);
+                x.set(false, 0);
+                m.set(name, x);
             }
         }
         this.prepareCounts(10);
@@ -99,6 +99,13 @@ class App {
             configDialog.open = false;
             this.prepareCounts(parseInt(configMaxCount.value, 10));
             this.reset();
+        });
+
+        document.getElementById('is-bonus-reset')!.addEventListener('click', event => {
+            event.stopPropagation();
+            const input = event.target! as HTMLInputElement;
+            this.ongoing.isBonusReset = input.checked;
+            this.update();
         });
     }
 
@@ -133,9 +140,9 @@ class App {
     }
 
     update(): void {
-        const { weapon, element, count } = this.ongoing;
+        const { weapon, element, count, isBonusReset } = this.ongoing;
         if (weapon && element) {
-            const count = this.doneCounts.get(weapon)!.get(element)!;
+            const count = this.doneCounts.get(weapon)!.get(element)!.get(isBonusReset)!;
             this.disableCountUntil(count);
         }
 
@@ -151,7 +158,8 @@ class App {
         tr.addEventListener('click', this.onToggleRowFocus.bind(this, weapon, element, count, tr));
         const close = document.createElement('button');
         close.className = 'delete-row';
-        close.addEventListener('click', this.onDeleteRow.bind(this, weapon, element, count));
+        close.addEventListener('click', this.onDeleteRow.bind(this, weapon, element, count, isBonusReset));
+        tr.appendChild(createTH(isBonusReset ? 'リセット' : null));
         tr.appendChild(createTH(close));
         const n = this.findCandiatePosition(count);
         if (n === null) {
@@ -163,7 +171,7 @@ class App {
         this.resetRowFocus();
 
         this.disableCountUntil(count);
-        this.doneCounts.get(weapon)!.set(element, count);
+        this.doneCounts.get(weapon)!.get(element)!.set(isBonusReset, count);
         this.ongoing.count = null;
     }
 
@@ -188,9 +196,9 @@ class App {
         }
     }
 
-    onDeleteRow(weapon: string, element: string, count: number, event: Event): void {
+    onDeleteRow(weapon: string, element: string, count: number, isBonusReset: boolean, event: Event): void {
         event.stopPropagation();
-        this.doneCounts.get(weapon)!.set(element, 0);
+        this.doneCounts.get(weapon)!.get(element)!.set(isBonusReset, 0);
         this.update();
         for (const row of this.tableBody.children) {
             const w = row.querySelector('.found-weapon')?.textContent;
@@ -212,7 +220,8 @@ class App {
         this.disableCountUntil(0);
         for (const m of this.doneCounts.values()) {
             for (const k of m.keys()) {
-                m.set(k, 0);
+                m.get(k)!.set(true, 0);
+                m.get(k)!.set(false, 0);
             }
         }
         const checked = document.querySelectorAll('input[type="radio"]:checked') as NodeListOf<HTMLInputElement>;
