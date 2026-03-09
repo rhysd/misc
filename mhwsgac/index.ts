@@ -161,6 +161,12 @@ class App {
         const close = document.createElement('button');
         close.className = 'delete-row';
         close.addEventListener('click', this.onDeleteRow.bind(this, weapon, element, count, isBonusReset));
+        const prioritized = document.createElement('input');
+        prioritized.type = 'checkbox';
+        prioritized.addEventListener('click', e => {
+            e.stopPropagation();
+        });
+        tr.appendChild(createTH(prioritized));
         tr.appendChild(createTH(isBonusReset ? 'リセット' : null));
         tr.appendChild(createTH(close));
         const n = this.findCandiatePosition(count);
