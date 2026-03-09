@@ -51,6 +51,7 @@ class App {
     tableBody: HTMLElement;
     tableRoot: HTMLElement;
     countsRoot: HTMLElement;
+    bonusResetCheckBox: HTMLInputElement;
     ongoing: Ongoing;
     // Weapon -> Element -> Bonus Reset
     doneCounts: Map<string, Map<string, Map<boolean, number>>>;
@@ -59,6 +60,7 @@ class App {
         this.tableRoot = document.getElementById('table-root')!;
         this.tableBody = document.getElementById('table-body')!;
         this.countsRoot = document.getElementById('select-count')!;
+        this.bonusResetCheckBox = document.getElementById('is-bonus-reset')! as HTMLInputElement;
         this.doneCounts = new Map();
         this.ongoing = { ...ONGOING_INIT };
 
@@ -101,7 +103,7 @@ class App {
             this.reset();
         });
 
-        document.getElementById('is-bonus-reset')!.addEventListener('click', event => {
+        this.bonusResetCheckBox.addEventListener('click', event => {
             event.stopPropagation();
             const input = event.target! as HTMLInputElement;
             this.ongoing.isBonusReset = input.checked;
@@ -218,10 +220,10 @@ class App {
     reset(): void {
         this.ongoing = { ...ONGOING_INIT };
         this.disableCountUntil(0);
-        for (const m of this.doneCounts.values()) {
-            for (const k of m.keys()) {
-                m.get(k)!.set(true, 0);
-                m.get(k)!.set(false, 0);
+        for (const m1 of this.doneCounts.values()) {
+            for (const m2 of m1.values()) {
+                m2.set(true, 0);
+                m2.set(false, 0);
             }
         }
         const checked = document.querySelectorAll('input[type="radio"]:checked') as NodeListOf<HTMLInputElement>;
@@ -230,6 +232,7 @@ class App {
         }
         this.tableBody.replaceChildren();
         this.tableRoot.classList.add('hidden');
+        this.bonusResetCheckBox.checked = false;
     }
 
     prepareCounts(max: number): void {
