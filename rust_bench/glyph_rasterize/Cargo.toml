@@ -1,0 +1,19 @@
+[package]
+name = "glyph_rasterize"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+swash = "0.2.7"
+
+[dev-dependencies]
+criterion = "0.8.2"
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_DirectWrite",
+] }
+
+[[bench]]
+name = "rasterize"
+harness = false
