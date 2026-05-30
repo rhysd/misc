@@ -186,6 +186,10 @@ mod platform {
                 len
             }
         }
+
+        pub fn buffer(&self) -> &[u8] {
+            self.buffer.as_slice()
+        }
     }
 
     impl Drop for PlatformRasterizer {
@@ -364,6 +368,10 @@ mod platform {
             }
             self.buffer.len()
         }
+
+        pub fn buffer(&self) -> &[u8] {
+            self.buffer.as_slice()
+        }
     }
 
     fn bitmap_dimension(value: CGFloat, fallback: f32) -> usize {
@@ -386,7 +394,166 @@ mod platform {
     }
 }
 
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+#[cfg(target_os = "linux")]
+mod platform {
+    use super::*;
+
+    use freetype::{Face, Library, face::LoadFlag};
+
+    #[derive(Clone, Copy)]
+    pub struct SuitePlatform {
+        size_mode: SizeMode,
+        load_mode: LoadMode,
+    }
+
+    #[derive(Clone, Copy)]
+    enum SizeMode {
+        PixelSize,
+        BestFixedStrike,
+    }
+
+    #[derive(Clone, Copy)]
+    enum LoadMode {
+        Gray,
+        Color,
+    }
+
+    impl LoadMode {
+        fn flags(self) -> LoadFlag {
+            match self {
+                Self::Gray => LoadFlag::RENDER,
+                Self::Color => LoadFlag::RENDER | LoadFlag::COLOR,
+            }
+        }
+    }
+
+    const fn suite_platform(size_mode: SizeMode, load_mode: LoadMode) -> SuitePlatform {
+        SuitePlatform {
+            size_mode,
+            load_mode,
+        }
+    }
+
+    pub const BACKEND_NAME: &str = "freetype";
+
+    pub const SUITES: &[FontSuite] = &[
+        FontSuite {
+            name: "latin_A",
+            font_path: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            font_index: 0,
+            input: GlyphInput::Char('A'),
+            sources: &OUTLINE_SOURCES,
+            platform: suite_platform(SizeMode::PixelSize, LoadMode::Gray),
+        },
+        FontSuite {
+            name: "cjk_kanji",
+            font_path: "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            font_index: 0,
+            input: GlyphInput::Char('\u{6f22}'),
+            sources: &OUTLINE_SOURCES,
+            platform: suite_platform(SizeMode::PixelSize, LoadMode::Gray),
+        },
+        FontSuite {
+            name: "latin_fi_ligature",
+            font_path: "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+            font_index: 0,
+            input: GlyphInput::ShapedText {
+                text: "fi",
+                expect_ligature: true,
+            },
+            sources: &OUTLINE_SOURCES,
+            platform: suite_platform(SizeMode::PixelSize, LoadMode::Gray),
+        },
+        FontSuite {
+            name: "emoji_grinning_face",
+            font_path: "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+            font_index: 0,
+            input: GlyphInput::Char('\u{1f600}'),
+            sources: &COLOR_SOURCES,
+            platform: suite_platform(SizeMode::BestFixedStrike, LoadMode::Color),
+        },
+    ];
+
+    pub struct PlatformRasterizer {
+        face: Face,
+        _library: Library,
+        glyph_id: GlyphId,
+        load_mode: LoadMode,
+    }
+
+    impl PlatformRasterizer {
+        pub fn new(suite: FontSuite, glyph_id: GlyphId, size: f32) -> Self {
+            assert_ne!(glyph_id, 0, "suite {:?} resolved .notdef", suite.name);
+
+            let library = Library::init().expect("failed to initialize FreeType");
+            let mut face = library
+                .new_face(suite.font_path, suite.font_index as isize)
+                .expect("failed to create FreeType face");
+            select_size(&mut face, suite.platform.size_mode, size);
+
+            let mut rasterizer = Self {
+                face,
+                _library: library,
+                glyph_id,
+                load_mode: suite.platform.load_mode,
+            };
+            assert_ne!(rasterizer.rasterize(), 0);
+            rasterizer
+        }
+
+        pub fn rasterize(&mut self) -> usize {
+            self.face
+                .load_glyph(self.glyph_id as u32, self.load_mode.flags())
+                .expect("failed to render FreeType glyph");
+            self.buffer().len()
+        }
+
+        pub fn buffer(&self) -> &[u8] {
+            self.face.glyph().bitmap().buffer()
+        }
+    }
+
+    fn select_size(face: &mut Face, size_mode: SizeMode, size: f32) {
+        match size_mode {
+            SizeMode::PixelSize => {
+                face.set_pixel_sizes(0, size.round() as u32)
+                    .expect("failed to set FreeType pixel size");
+            }
+            SizeMode::BestFixedStrike => {
+                if let Some(strike_index) = best_fixed_strike(face, size) {
+                    select_fixed_strike(face, strike_index);
+                } else {
+                    face.set_pixel_sizes(0, size.round() as u32)
+                        .expect("failed to set FreeType pixel size");
+                }
+            }
+        }
+    }
+
+    fn best_fixed_strike(face: &Face, size: f32) -> Option<i32> {
+        let raw = face.raw();
+        if raw.num_fixed_sizes <= 0 || raw.available_sizes.is_null() {
+            return None;
+        }
+
+        let target_ppem = (size * 64.0).round() as i64;
+        let strikes = unsafe {
+            std::slice::from_raw_parts(raw.available_sizes, raw.num_fixed_sizes as usize)
+        };
+        strikes
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, strike)| (strike.y_ppem as i64 - target_ppem).abs())
+            .map(|(index, _)| index as i32)
+    }
+
+    fn select_fixed_strike(face: &mut Face, strike_index: i32) {
+        face.select_size(strike_index)
+            .expect("failed to select FreeType fixed strike");
+    }
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
 mod platform {
     use super::*;
 
@@ -406,13 +573,17 @@ mod platform {
         }
 
         pub fn rasterize(&mut self) -> usize {
-            unreachable!("only Windows and macOS platform rasterizers are implemented");
+            unreachable!("only Windows, macOS, and Linux platform rasterizers are implemented");
+        }
+
+        pub fn buffer(&self) -> &[u8] {
+            self.buffer.as_slice()
         }
     }
 }
 
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
-compile_error!("only Windows and macOS platform rasterizers are implemented");
+#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+compile_error!("only Windows, macOS, and Linux platform rasterizers are implemented");
 
 fn swash_glyph(font: FontRef<'_>, glyph: char) -> GlyphId {
     let glyph_id = font.charmap().map(glyph as u32);
@@ -489,7 +660,7 @@ fn rasterize_benchmark(c: &mut Criterion) {
                     b.iter(|| {
                         let len = rasterizer.rasterize();
                         black_box(len);
-                        black_box(rasterizer.buffer.as_slice());
+                        black_box(rasterizer.buffer());
                     });
                 },
             );
