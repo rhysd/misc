@@ -9,10 +9,17 @@ swash = "0.2.7"
 
 [dev-dependencies]
 criterion = "0.8.2"
+
+[target.'cfg(target_os = "windows")'.dev-dependencies]
 windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_Graphics_DirectWrite",
 ] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+objc2-core-foundation = "0.3.2"
+objc2-core-graphics = "0.3.2"
+objc2-core-text = "0.3.2"
 
 [[bench]]
 name = "rasterize"

@@ -5,6 +5,7 @@ This is a benchmark suite to measure glyph rasterization among several APIs:
 
 - [swash](https://crates.io/crates/swash) crate
 - DirectWrite (via [windows](https://crates.io/crates/windows) crate) on Windows
+- Core Text (via [objc2-core-text](https://crates.io/crates/objc2-core-text) crate) on macOS
 
 against several types of glyphs:
 
