@@ -20,209 +20,211 @@ Result on x86_64 Windows:
 
 ```
 glyph_rasterize/latin_A/swash/12px
-                        time:   [3.2942 µs 3.3040 µs 3.3140 µs]
-Found 4 outliers among 100 measurements (4.00%)
-  2 (2.00%) high mild
+                        time:   [3.3216 µs 3.3343 µs 3.3480 µs]
+Found 6 outliers among 100 measurements (6.00%)
+  4 (4.00%) high mild
   2 (2.00%) high severe
 
 glyph_rasterize/latin_A/font-kit/12px
-                        time:   [468.15 ns 469.08 ns 470.07 ns]
-Found 8 outliers among 100 measurements (8.00%)
-  6 (6.00%) high mild
-  2 (2.00%) high severe
+                        time:   [473.83 ns 476.21 ns 479.00 ns]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
 
 glyph_rasterize/latin_A/directwrite/12px
-                        time:   [685.90 ns 689.68 ns 694.36 ns]
-Found 11 outliers among 100 measurements (11.00%)
-  7 (7.00%) high mild
-  4 (4.00%) high severe
+                        time:   [389.39 ns 390.15 ns 390.98 ns]
+Found 8 outliers among 100 measurements (8.00%)
+  3 (3.00%) high mild
+  5 (5.00%) high severe
 
 glyph_rasterize/latin_A/swash/24px
-                        time:   [3.6437 µs 3.6561 µs 3.6696 µs]
-Found 4 outliers among 100 measurements (4.00%)
-  3 (3.00%) high mild
-  1 (1.00%) high severe
+                        time:   [3.6506 µs 3.6689 µs 3.6916 µs]
+Found 6 outliers among 100 measurements (6.00%)
+  2 (2.00%) high mild
+  4 (4.00%) high severe
 
 glyph_rasterize/latin_A/font-kit/24px
-                        time:   [798.42 ns 801.14 ns 804.55 ns]
-Found 5 outliers among 100 measurements (5.00%)
-  4 (4.00%) high mild
-  1 (1.00%) high severe
-
-glyph_rasterize/latin_A/directwrite/24px
-                        time:   [1.7970 µs 1.8020 µs 1.8074 µs]
-Found 3 outliers among 100 measurements (3.00%)
+                        time:   [818.59 ns 825.68 ns 832.64 ns]
+Found 4 outliers among 100 measurements (4.00%)
   2 (2.00%) high mild
-  1 (1.00%) high severe
-
-glyph_rasterize/latin_A/swash/48px
-                        time:   [4.1852 µs 4.2014 µs 4.2182 µs]
-Found 6 outliers among 100 measurements (6.00%)
-  3 (3.00%) high mild
-  3 (3.00%) high severe
-
-glyph_rasterize/latin_A/font-kit/48px
-                        time:   [1.9397 µs 1.9449 µs 1.9509 µs]
-Found 2 outliers among 100 measurements (2.00%)
   2 (2.00%) high severe
 
-glyph_rasterize/latin_A/directwrite/48px
-                        time:   [5.0693 µs 5.0807 µs 5.0922 µs]
-Found 8 outliers among 100 measurements (8.00%)
-  5 (5.00%) high mild
-  3 (3.00%) high severe
-
-glyph_rasterize/cjk_kanji/swash/12px
-                        time:   [4.9228 µs 4.9356 µs 4.9487 µs]
+glyph_rasterize/latin_A/directwrite/24px
+                        time:   [668.94 ns 674.82 ns 682.51 ns]
 Found 1 outliers among 100 measurements (1.00%)
   1 (1.00%) high severe
 
+glyph_rasterize/latin_A/swash/48px
+                        time:   [4.3091 µs 4.3338 µs 4.3571 µs]
+
+glyph_rasterize/latin_A/font-kit/48px
+                        time:   [1.9677 µs 1.9813 µs 1.9961 µs]
+Found 8 outliers among 100 measurements (8.00%)
+  3 (3.00%) high mild
+  5 (5.00%) high severe
+
+glyph_rasterize/latin_A/directwrite/48px
+                        time:   [1.5729 µs 1.5833 µs 1.5950 µs]
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+
+glyph_rasterize/cjk_kanji/swash/12px
+                        time:   [4.9117 µs 4.9247 µs 4.9384 µs]
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high severe
+
 glyph_rasterize/cjk_kanji/font-kit/12px
-                        time:   [559.21 ns 560.82 ns 562.46 ns]
-Found 9 outliers among 100 measurements (9.00%)
-  1 (1.00%) low mild
+                        time:   [562.35 ns 564.10 ns 566.22 ns]
+Found 8 outliers among 100 measurements (8.00%)
+  3 (3.00%) high mild
+  5 (5.00%) high severe
+
+glyph_rasterize/cjk_kanji/directwrite/12px
+                        time:   [463.50 ns 465.00 ns 466.67 ns]
+Found 5 outliers among 100 measurements (5.00%)
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+
+glyph_rasterize/cjk_kanji/swash/24px
+                        time:   [5.8497 µs 5.8814 µs 5.9133 µs]
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+
+glyph_rasterize/cjk_kanji/font-kit/24px
+                        time:   [1.1799 µs 1.1849 µs 1.1907 µs]
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+
+glyph_rasterize/cjk_kanji/directwrite/24px
+                        time:   [952.21 ns 954.34 ns 956.56 ns]
+Found 8 outliers among 100 measurements (8.00%)
   4 (4.00%) high mild
   4 (4.00%) high severe
 
-glyph_rasterize/cjk_kanji/directwrite/12px
-                        time:   [910.29 ns 912.10 ns 913.84 ns]
-Found 5 outliers among 100 measurements (5.00%)
-  1 (1.00%) high mild
-  4 (4.00%) high severe
-
-glyph_rasterize/cjk_kanji/swash/24px
-                        time:   [5.7812 µs 5.8059 µs 5.8331 µs]
-Found 2 outliers among 100 measurements (2.00%)
-  2 (2.00%) high mild
-
-glyph_rasterize/cjk_kanji/font-kit/24px
-                        time:   [1.1727 µs 1.1756 µs 1.1790 µs]
-Found 5 outliers among 100 measurements (5.00%)
-  2 (2.00%) high mild
-  3 (3.00%) high severe
-
-glyph_rasterize/cjk_kanji/directwrite/24px
-                        time:   [2.8293 µs 2.8369 µs 2.8451 µs]
-Found 4 outliers among 100 measurements (4.00%)
-  2 (2.00%) high mild
-  2 (2.00%) high severe
-
 glyph_rasterize/cjk_kanji/swash/48px
-                        time:   [7.8195 µs 7.8421 µs 7.8674 µs]
+                        time:   [7.8014 µs 7.8221 µs 7.8459 µs]
+Found 7 outliers among 100 measurements (7.00%)
+  6 (6.00%) high mild
+  1 (1.00%) high severe
+
+glyph_rasterize/cjk_kanji/font-kit/48px
+                        time:   [3.1360 µs 3.1442 µs 3.1527 µs]
 Found 6 outliers among 100 measurements (6.00%)
   6 (6.00%) high mild
 
-glyph_rasterize/cjk_kanji/font-kit/48px
-                        time:   [3.1542 µs 3.1638 µs 3.1738 µs]
-Found 7 outliers among 100 measurements (7.00%)
-  3 (3.00%) high mild
-  4 (4.00%) high severe
-
 glyph_rasterize/cjk_kanji/directwrite/48px
-                        time:   [8.6642 µs 8.6894 µs 8.7171 µs]
-Found 5 outliers among 100 measurements (5.00%)
-  2 (2.00%) high mild
-  3 (3.00%) high severe
+                        time:   [2.4770 µs 2.4818 µs 2.4875 µs]
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) high mild
+  2 (2.00%) high severe
 
 glyph_rasterize/latin_fi_ligature/swash/12px
-                        time:   [4.5779 µs 4.5976 µs 4.6188 µs]
-Found 3 outliers among 100 measurements (3.00%)
-  2 (2.00%) high mild
-  1 (1.00%) high severe
+                        time:   [4.5053 µs 4.5250 µs 4.5528 µs]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high severe
 
 glyph_rasterize/latin_fi_ligature/font-kit/12px
-                        time:   [436.23 ns 437.65 ns 439.19 ns]
-Found 8 outliers among 100 measurements (8.00%)
-  7 (7.00%) high mild
-  1 (1.00%) high severe
+                        time:   [435.01 ns 436.08 ns 437.22 ns]
+Found 15 outliers among 100 measurements (15.00%)
+  5 (5.00%) high mild
+  10 (10.00%) high severe
 
 glyph_rasterize/latin_fi_ligature/directwrite/12px
-                        time:   [658.29 ns 665.40 ns 675.10 ns]
-Found 5 outliers among 100 measurements (5.00%)
-  2 (2.00%) high mild
-  3 (3.00%) high severe
+                        time:   [365.85 ns 367.77 ns 369.64 ns]
+Found 11 outliers among 100 measurements (11.00%)
+  10 (10.00%) high mild
+  1 (1.00%) high severe
 
 glyph_rasterize/latin_fi_ligature/swash/24px
-                        time:   [4.8443 µs 4.8582 µs 4.8729 µs]
-Found 3 outliers among 100 measurements (3.00%)
-  3 (3.00%) high mild
-
-glyph_rasterize/latin_fi_ligature/font-kit/24px
-                        time:   [706.49 ns 708.83 ns 711.40 ns]
-Found 5 outliers among 100 measurements (5.00%)
-  5 (5.00%) high mild
-
-glyph_rasterize/latin_fi_ligature/directwrite/24px
-                        time:   [1.3843 µs 1.3883 µs 1.3926 µs]
-Found 5 outliers among 100 measurements (5.00%)
-  4 (4.00%) high mild
-  1 (1.00%) high severe
-
-glyph_rasterize/latin_fi_ligature/swash/48px
-                        time:   [5.4268 µs 5.4435 µs 5.4610 µs]
-Found 5 outliers among 100 measurements (5.00%)
-  5 (5.00%) high mild
-
-glyph_rasterize/latin_fi_ligature/font-kit/48px
-                        time:   [1.5698 µs 1.5748 µs 1.5802 µs]
-Found 2 outliers among 100 measurements (2.00%)
-  1 (1.00%) high mild
-  1 (1.00%) high severe
-
-glyph_rasterize/latin_fi_ligature/directwrite/48px
-                        time:   [3.9873 µs 3.9965 µs 4.0060 µs]
-Found 7 outliers among 100 measurements (7.00%)
-  7 (7.00%) high mild
-
-glyph_rasterize/emoji_grinning_face/swash/12px
-                        time:   [4.3275 µs 4.3452 µs 4.3658 µs]
-Found 2 outliers among 100 measurements (2.00%)
-  2 (2.00%) high mild
-
-glyph_rasterize/emoji_grinning_face/font-kit/12px
-                        time:   [753.79 ns 755.85 ns 758.02 ns]
+                        time:   [4.8910 µs 4.9039 µs 4.9185 µs]
 Found 4 outliers among 100 measurements (4.00%)
   2 (2.00%) high mild
+  2 (2.00%) high severe
+
+glyph_rasterize/latin_fi_ligature/font-kit/24px
+                        time:   [722.36 ns 729.16 ns 736.44 ns]
+Found 15 outliers among 100 measurements (15.00%)
+  3 (3.00%) high mild
+  12 (12.00%) high severe
+
+glyph_rasterize/latin_fi_ligature/directwrite/24px
+                        time:   [596.70 ns 599.31 ns 602.00 ns]
+Found 4 outliers among 100 measurements (4.00%)
+  1 (1.00%) high mild
+  3 (3.00%) high severe
+
+glyph_rasterize/latin_fi_ligature/swash/48px
+                        time:   [5.4855 µs 5.7112 µs 5.9921 µs]
+Found 8 outliers among 100 measurements (8.00%)
+  1 (1.00%) high mild
+  7 (7.00%) high severe
+
+glyph_rasterize/latin_fi_ligature/font-kit/48px
+                        time:   [1.5821 µs 1.5892 µs 1.5970 µs]
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+
+glyph_rasterize/latin_fi_ligature/directwrite/48px
+                        time:   [1.2609 µs 1.2645 µs 1.2688 µs]
+Found 7 outliers among 100 measurements (7.00%)
+  5 (5.00%) high mild
+  2 (2.00%) high severe
+
+glyph_rasterize/emoji_grinning_face/swash/12px
+                        time:   [4.3109 µs 4.3240 µs 4.3389 µs]
+Found 9 outliers among 100 measurements (9.00%)
+  5 (5.00%) high mild
+  4 (4.00%) high severe
+
+glyph_rasterize/emoji_grinning_face/font-kit/12px
+                        time:   [754.50 ns 756.72 ns 759.04 ns]
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
   2 (2.00%) high severe
 
 glyph_rasterize/emoji_grinning_face/directwrite/12px
-                        time:   [1.2236 µs 1.2283 µs 1.2331 µs]
-Found 2 outliers among 100 measurements (2.00%)
-  1 (1.00%) high mild
-  1 (1.00%) high severe
-
-glyph_rasterize/emoji_grinning_face/swash/24px
-                        time:   [6.1905 µs 6.2127 µs 6.2395 µs]
+                        time:   [536.00 ns 537.23 ns 538.47 ns]
 Found 4 outliers among 100 measurements (4.00%)
-  3 (3.00%) high mild
-  1 (1.00%) high severe
-
-glyph_rasterize/emoji_grinning_face/font-kit/24px
-                        time:   [1.7686 µs 1.7781 µs 1.7882 µs]
-Found 2 outliers among 100 measurements (2.00%)
   2 (2.00%) high mild
-
-glyph_rasterize/emoji_grinning_face/directwrite/24px
-                        time:   [3.6019 µs 3.6160 µs 3.6300 µs]
-Found 3 outliers among 100 measurements (3.00%)
-  1 (1.00%) high mild
   2 (2.00%) high severe
 
-glyph_rasterize/emoji_grinning_face/swash/48px
-                        time:   [11.855 µs 11.902 µs 11.950 µs]
-Found 5 outliers among 100 measurements (5.00%)
+glyph_rasterize/emoji_grinning_face/swash/24px
+                        time:   [6.1890 µs 6.2043 µs 6.2218 µs]
+Found 7 outliers among 100 measurements (7.00%)
   4 (4.00%) high mild
-  1 (1.00%) high severe
+  3 (3.00%) high severe
+
+glyph_rasterize/emoji_grinning_face/font-kit/24px
+                        time:   [1.7683 µs 1.7734 µs 1.7795 µs]
+Found 13 outliers among 100 measurements (13.00%)
+  8 (8.00%) high mild
+  5 (5.00%) high severe
+
+glyph_rasterize/emoji_grinning_face/directwrite/24px
+                        time:   [1.1113 µs 1.1162 µs 1.1213 µs]
+Found 14 outliers among 100 measurements (14.00%)
+  6 (6.00%) low mild
+  5 (5.00%) high mild
+  3 (3.00%) high severe
+
+glyph_rasterize/emoji_grinning_face/swash/48px
+                        time:   [11.850 µs 11.882 µs 11.917 µs]
+Found 8 outliers among 100 measurements (8.00%)
+  6 (6.00%) high mild
+  2 (2.00%) high severe
 
 glyph_rasterize/emoji_grinning_face/font-kit/48px
-                        time:   [5.8808 µs 5.9034 µs 5.9287 µs]
-Found 10 outliers among 100 measurements (10.00%)
-  6 (6.00%) high mild
-  4 (4.00%) high severe
+                        time:   [5.8981 µs 5.9114 µs 5.9260 µs]
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
 
 glyph_rasterize/emoji_grinning_face/directwrite/48px
-                        time:   [12.082 µs 12.132 µs 12.185 µs]
-Found 3 outliers among 100 measurements (3.00%)
-  2 (2.00%) high mild
-  1 (1.00%) high severe
+                        time:   [3.2628 µs 3.2697 µs 3.2772 µs]
+Found 4 outliers among 100 measurements (4.00%)
+  1 (1.00%) high mild
+  3 (3.00%) high severe
 ```
