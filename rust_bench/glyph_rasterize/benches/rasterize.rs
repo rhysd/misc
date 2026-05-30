@@ -14,7 +14,7 @@ use swash::{
     shape::ShapeContext,
 };
 
-const SIZES: &[f32] = &[12.0, 24.0, 48.0, 96.0];
+const SIZES: &[f32] = &[12.0, 24.0, 48.0];
 
 static OUTLINE_SOURCES: [Source; 1] = [Source::Outline];
 static COLOR_SOURCES: [Source; 3] = [
