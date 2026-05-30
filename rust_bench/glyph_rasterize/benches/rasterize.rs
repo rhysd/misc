@@ -365,11 +365,11 @@ mod platform {
     pub const SUITES: &[FontSuite] = &[
         FontSuite {
             name: "latin_A",
-            font_path: "/System/Library/Fonts/Supplemental/Arial.ttf",
+            font_path: "/System/Library/Fonts/Menlo.ttc",
             font_index: 0,
             input: GlyphInput::Char('A'),
             sources: &OUTLINE_SOURCES,
-            platform: suite_platform("ArialMT"),
+            platform: suite_platform("Menlo"),
         },
         FontSuite {
             name: "cjk_kanji",
@@ -381,14 +381,14 @@ mod platform {
         },
         FontSuite {
             name: "latin_fi_ligature",
-            font_path: "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
+            font_path: "/System/Library/Fonts/Menlo.ttc",
             font_index: 0,
             input: GlyphInput::ShapedText {
                 text: "fi",
                 expect_ligature: true,
             },
             sources: &OUTLINE_SOURCES,
-            platform: suite_platform("TimesNewRomanPSMT"),
+            platform: suite_platform("Menlo"),
         },
         FontSuite {
             name: "emoji_grinning_face",
