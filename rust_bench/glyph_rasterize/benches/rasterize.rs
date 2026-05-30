@@ -1,6 +1,13 @@
-use std::hint::black_box;
+use std::{hint::black_box, path::PathBuf};
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use font_kit::{
+    canvas::{Canvas, Format, RasterizationOptions},
+    font::Font as FontKitFont,
+    handle::Handle as FontKitHandle,
+    hinting::HintingOptions,
+};
+use pathfinder_geometry::transform2d::Transform2F;
 use swash::{
     FontRef, GlyphId,
     scale::{Render, ScaleContext, Source, StrikeWith, image::Image},
@@ -33,6 +40,105 @@ struct FontSuite {
     input: GlyphInput,
     sources: &'static [Source],
     platform: platform::SuitePlatform,
+}
+
+struct FontKitRasterizer {
+    font: FontKitFont,
+    glyph_id: u32,
+    size: f32,
+    transform: Transform2F,
+    hinting_options: HintingOptions,
+    rasterization_options: RasterizationOptions,
+    canvas: Canvas,
+}
+
+impl FontKitRasterizer {
+    fn new(suite: FontSuite, glyph_id: GlyphId, size: f32) -> Self {
+        let font =
+            FontKitHandle::from_path(PathBuf::from(suite.font_path), suite.font_index as u32)
+                .load()
+                .expect("failed to load font-kit font");
+        let glyph_id = glyph_id as u32;
+        assert_ne!(glyph_id, 0, "suite {:?} resolved .notdef", suite.name);
+        assert!(
+            glyph_id < font.glyph_count(),
+            "suite {:?} resolved glyph {} outside font-kit glyph count {}",
+            suite.name,
+            glyph_id,
+            font.glyph_count()
+        );
+
+        let hinting_options = font_kit_hinting_options(&font, size);
+        let rasterization_options = RasterizationOptions::GrayscaleAa;
+        let transform = Transform2F::default();
+        let raster_bounds = font
+            .raster_bounds(
+                glyph_id,
+                size,
+                transform,
+                hinting_options,
+                rasterization_options,
+            )
+            .expect("failed to get font-kit raster bounds");
+        let canvas = Canvas::new(raster_bounds.size(), font_kit_canvas_format(suite));
+        assert!(
+            !canvas.pixels.is_empty(),
+            "suite {:?} produced empty font-kit raster bounds",
+            suite.name
+        );
+
+        let mut rasterizer = Self {
+            font,
+            glyph_id,
+            size,
+            transform: Transform2F::from_translation(-raster_bounds.origin().to_f32()) * transform,
+            hinting_options,
+            rasterization_options,
+            canvas,
+        };
+        assert_ne!(rasterizer.rasterize(), 0);
+        rasterizer
+    }
+
+    fn rasterize(&mut self) -> usize {
+        self.font
+            .rasterize_glyph(
+                &mut self.canvas,
+                self.glyph_id,
+                self.size,
+                self.transform,
+                self.hinting_options,
+                self.rasterization_options,
+            )
+            .expect("failed to rasterize font-kit glyph");
+        self.canvas.pixels.len()
+    }
+
+    fn buffer(&self) -> &[u8] {
+        self.canvas.pixels.as_slice()
+    }
+}
+
+fn font_kit_hinting_options(font: &FontKitFont, size: f32) -> HintingOptions {
+    let full = HintingOptions::Full(size);
+    if font.supports_hinting_options(full, true) {
+        return full;
+    }
+
+    let vertical = HintingOptions::Vertical(size);
+    if font.supports_hinting_options(vertical, true) {
+        return vertical;
+    }
+
+    HintingOptions::None
+}
+
+fn font_kit_canvas_format(suite: FontSuite) -> Format {
+    if suite.sources.len() == COLOR_SOURCES.len() {
+        Format::Rgba32
+    } else {
+        Format::A8
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -650,6 +756,20 @@ fn rasterize_benchmark(c: &mut Criterion) {
                     black_box(image.placement);
                 });
             });
+
+            group.bench_with_input(
+                BenchmarkId::new("font-kit", &size_label),
+                &size,
+                |b, &size| {
+                    let mut rasterizer = FontKitRasterizer::new(suite, glyph_id, size);
+
+                    b.iter(|| {
+                        let len = rasterizer.rasterize();
+                        black_box(len);
+                        black_box(rasterizer.buffer());
+                    });
+                },
+            );
 
             group.bench_with_input(
                 BenchmarkId::new(platform::BACKEND_NAME, &size_label),

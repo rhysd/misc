@@ -7,20 +7,24 @@ publish = false
 [dependencies]
 swash = "0.2.7"
 criterion = "0.8.2"
+pathfinder_geometry = "0.5.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
+font-kit = { version = "0.14.3", default-features = false }
 windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_Graphics_DirectWrite",
 ] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+font-kit = { version = "0.14.3", default-features = false }
 objc2-core-foundation = "0.3.2"
 objc2-core-graphics = "0.3.2"
 objc2-core-text = "0.3.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-freetype-rs = "0.38"
+font-kit = { version = "0.14.3", default-features = false }
+freetype-rs = "0.35"
 
 [[bench]]
 name = "rasterize"

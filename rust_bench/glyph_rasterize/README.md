@@ -4,6 +4,7 @@ Glyph rasterization benchmark
 This is a benchmark suite to measure glyph rasterization among several APIs:
 
 - [swash](https://crates.io/crates/swash) crate
+- [font-kit](https://crates.io/crates/font-kit) crate, using Core Text on macOS, DirectWrite on Windows, and FreeType on Linux
 - DirectWrite (via [windows](https://crates.io/crates/windows) crate) on Windows
 - Core Text (via [objc2-core-text](https://crates.io/crates/objc2-core-text) crate) on macOS
 - FreeType (via [freetype-rs](https://crates.io/crates/freetype-rs) crate) on Linux
