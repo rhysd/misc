@@ -26,52 +26,52 @@ fn skip_value_at(input: &[u8], mut offset: usize) -> io::Result<usize> {
         }
         Marker::FixMap(len) => skip_values_at(input, offset, len as u32 * 2),
         Marker::FixArray(len) => skip_values_at(input, offset, len as u32),
-        Marker::FixStr(len) => skip_bytes(input, offset, len as u32),
+        Marker::FixStr(len) => skip_bytes(input, offset, len as usize),
         Marker::Bin8 => {
-            let len = read_u8(input, offset)? as u32;
+            let len = read_u8(input, offset)? as usize;
             skip_bytes(input, offset + size_of::<u8>(), len)
         }
         Marker::Bin16 => {
-            let len = read_u16(input, offset)? as u32;
+            let len = read_u16(input, offset)? as usize;
             skip_bytes(input, offset + size_of::<u16>(), len)
         }
         Marker::Bin32 => {
-            let len = read_u32(input, offset)?;
+            let len = read_u32(input, offset)? as usize;
             skip_bytes(input, offset + size_of::<u32>(), len)
         }
         Marker::Ext8 => {
-            let len = read_u8(input, offset)? as u32;
+            let len = read_u8(input, offset)? as usize;
             skip_ext_payload(input, offset + size_of::<u8>(), len)
         }
         Marker::Ext16 => {
-            let len = read_u16(input, offset)? as u32;
+            let len = read_u16(input, offset)? as usize;
             skip_ext_payload(input, offset + size_of::<u16>(), len)
         }
         Marker::Ext32 => {
-            let len = read_u32(input, offset)?;
+            let len = read_u32(input, offset)? as usize;
             skip_ext_payload(input, offset + size_of::<u32>(), len)
         }
-        Marker::F32 => skip_bytes(input, offset, size_of::<f32>() as u32),
-        Marker::F64 => skip_bytes(input, offset, size_of::<f64>() as u32),
-        Marker::U8 | Marker::I8 => skip_bytes(input, offset, size_of::<u8>() as u32),
-        Marker::U16 | Marker::I16 => skip_bytes(input, offset, size_of::<u16>() as u32),
-        Marker::U32 | Marker::I32 => skip_bytes(input, offset, size_of::<u32>() as u32),
-        Marker::U64 | Marker::I64 => skip_bytes(input, offset, size_of::<u64>() as u32),
+        Marker::F32 => skip_bytes(input, offset, size_of::<f32>()),
+        Marker::F64 => skip_bytes(input, offset, size_of::<f64>()),
+        Marker::U8 | Marker::I8 => skip_bytes(input, offset, size_of::<u8>()),
+        Marker::U16 | Marker::I16 => skip_bytes(input, offset, size_of::<u16>()),
+        Marker::U32 | Marker::I32 => skip_bytes(input, offset, size_of::<u32>()),
+        Marker::U64 | Marker::I64 => skip_bytes(input, offset, size_of::<u64>()),
         Marker::FixExt1 => skip_ext_payload(input, offset, 1),
         Marker::FixExt2 => skip_ext_payload(input, offset, 2),
         Marker::FixExt4 => skip_ext_payload(input, offset, 4),
         Marker::FixExt8 => skip_ext_payload(input, offset, 8),
         Marker::FixExt16 => skip_ext_payload(input, offset, 16),
         Marker::Str8 => {
-            let len = read_u8(input, offset)? as u32;
+            let len = read_u8(input, offset)? as usize;
             skip_bytes(input, offset + size_of::<u8>(), len)
         }
         Marker::Str16 => {
-            let len = read_u16(input, offset)? as u32;
+            let len = read_u16(input, offset)? as usize;
             skip_bytes(input, offset + size_of::<u16>(), len)
         }
         Marker::Str32 => {
-            let len = read_u32(input, offset)?;
+            let len = read_u32(input, offset)? as usize;
             skip_bytes(input, offset + size_of::<u32>(), len)
         }
         Marker::Array16 => {
@@ -103,13 +103,13 @@ fn skip_values_at(input: &[u8], mut offset: usize, count: u32) -> io::Result<usi
 }
 
 #[inline]
-fn skip_ext_payload(input: &[u8], offset: usize, data_len: u32) -> io::Result<usize> {
+fn skip_ext_payload(input: &[u8], offset: usize, data_len: usize) -> io::Result<usize> {
     skip_bytes(input, offset, data_len + 1)
 }
 
 #[inline]
-fn skip_bytes(input: &[u8], offset: usize, len: u32) -> io::Result<usize> {
-    let end = offset + len as usize;
+fn skip_bytes(input: &[u8], offset: usize, bytes: usize) -> io::Result<usize> {
+    let end = offset + bytes;
     if end > input.len() {
         return Err(ErrorKind::UnexpectedEof.into());
     }
@@ -127,19 +127,19 @@ fn read_u8(input: &[u8], offset: usize) -> io::Result<u8> {
 
 #[inline]
 fn read_u16(input: &[u8], offset: usize) -> io::Result<u16> {
-    let end = skip_bytes(input, offset, size_of::<u16>() as u32)?;
+    let end = skip_bytes(input, offset, size_of::<u16>())?;
     Ok(u16::from_be_bytes(input[offset..end].try_into().unwrap()))
 }
 
 #[inline]
 fn read_u32(input: &[u8], offset: usize) -> io::Result<u32> {
-    let end = skip_bytes(input, offset, size_of::<u32>() as u32)?;
+    let end = skip_bytes(input, offset, size_of::<u32>())?;
     Ok(u32::from_be_bytes(input[offset..end].try_into().unwrap()))
 }
 
 #[cfg(test)]
 mod tests {
-    use rmpv::{ValueRef, encode::write_value_ref};
+    use rmpv::{encode::write_value_ref, ValueRef};
 
     use super::*;
 
