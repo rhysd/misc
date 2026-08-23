@@ -22,17 +22,17 @@ fn skip_values_at(input: &[u8], mut offset: usize, count: u32) -> io::Result<usi
     while remaining != 0 {
         let marker = Marker::from_u8(read_u8(input, offset)?);
         offset += size_of::<u8>();
-        remaining -= 1;
 
-        remaining += match marker {
+        let nested = match marker {
             Marker::FixPos(_) | Marker::FixNeg(_) | Marker::Null | Marker::False | Marker::True => {
-                continue;
+                0
             }
+            Marker::FixArray(1) => continue,
             Marker::FixArray(len) => len as u32,
             Marker::FixMap(len) => len as u32 * 2,
             Marker::FixStr(len) => {
                 offset = skip_bytes(input, offset, len as u32)?;
-                continue;
+                0
             }
             marker => {
                 let (next_offset, nested) = skip_value_slow_path(input, offset, marker)?;
@@ -40,6 +40,8 @@ fn skip_values_at(input: &[u8], mut offset: usize, count: u32) -> io::Result<usi
                 nested
             }
         };
+
+        remaining = remaining + nested - 1;
     }
 
     Ok(offset)
@@ -159,7 +161,7 @@ fn read_u32(input: &[u8], offset: usize) -> io::Result<u32> {
 
 #[cfg(test)]
 mod tests {
-    use rmpv::{ValueRef, encode::write_value_ref};
+    use rmpv::{encode::write_value_ref, ValueRef};
 
     use super::*;
 
